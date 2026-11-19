@@ -10,3 +10,23 @@ Cybercafe 本地开发工具：把测试环境里的任意 `cybercafe-*` 子应�
 ## 选择项目工作区
 
 打开面板右上角的「体检」，点击「选择目录」，选择直接包含 `cybercafe-hub`、`cybercafe-monitor`、`cybercafe-power` 等子项目的 `cloudgame-cybercafe/cybercafe-front` 目录。若仓库克隆在 macOS 的 `~/Desktop/work` 下，完整路径为 `~/Desktop/work/cloudgame-cybercafe/cybercafe-front`。
+
+## macOS 桌面端
+
+双击 [启动桌面端.command](启动桌面端.command) 打开 Cybercafe。首次运行需要 Rust 和 Xcode 命令行工具。已有应用包时可直接启动。Whistle 仍从菜单栏手动启动。
+
+修改 Rust、应用图标或启动配置后，先退出桌面应用，再从工具目录运行：
+
+```zsh
+./启动桌面端.command --rebuild
+```
+
+应用构建在仓库的 `.cafe-tools/Cybercafe.app` 内。它会从工具目录复用 Whistle 插件和开发 Chrome 启动脚本，因此请保留该目录位置。构建时会记录当前终端找到的 `w2`，供 Finder 启动后的桌面端使用。切换 Node 或重新安装 Whistle 后，可用同一条命令更新路径。
+
+桌面代码位于 `desktop/src/`。`menu.rs` 管理菜单与后台操作，`window.rs` 管理窗口与页面导航，`services.rs` 负责探测和调用本地服务。项目面板由 `whistle.cafe-projects` 提供。
+
+```sh
+cargo fmt --manifest-path desktop/Cargo.toml --check
+cargo test --locked --manifest-path desktop/Cargo.toml
+npm --prefix whistle.cafe-projects test
+```

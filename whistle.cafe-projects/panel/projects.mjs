@@ -1,4 +1,4 @@
-import { post } from './api.mjs';
+import { confirmAction, post } from './api.mjs';
 import { openLogs } from './logs.mjs';
 
 const list = document.querySelector('#projects');
@@ -312,9 +312,10 @@ start.addEventListener('click', () => projectAction('start', '正在检查依赖
 install.addEventListener('click', () => projectAction('install', '正在安装依赖…'));
 stop.addEventListener('click', () => projectAction('stop', '正在停止本地服务…'));
 restartService.addEventListener('click', () => projectAction('restart-service', '正在重启本地服务…'));
-takeover.addEventListener('click', () => {
+takeover.addEventListener('click', async () => {
   if (!selected || busy) return;
-  if (window.confirm('会结束当前运行的实例，再用可接管的方式重新启动。继续？')) {
+  const project = selected;
+  if (await confirmAction('会结束当前运行的实例，再用可接管的方式重新启动。继续？') && selected === project) {
     projectAction('takeover', '正在重启实例…');
   }
 });

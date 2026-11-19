@@ -3,3 +3,6 @@
 .DS_Store
 /.cafe-tools/
 /.idea/
+
+/desktop/target/
+/desktop/gen/schemas/

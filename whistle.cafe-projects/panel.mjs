@@ -3,7 +3,7 @@ import { bindDialogs } from './panel/dialogs.mjs';
 import { hasWorkspace, load, openSelectedLogs, setStatus } from './panel/projects.mjs';
 import { bindWhistleControls } from './panel/whistle.mjs';
 
-const { showDoctor, showRule } = bindDialogs({ load, setStatus });
+const { showDoctor } = bindDialogs({ load });
 bindWhistleControls({ load, setStatus });
 
 const picker = document.querySelector('#save-workspace');
@@ -33,5 +33,4 @@ await load();
 const params = new URLSearchParams(location.search);
 if (hasWorkspace()
   && !localStorage.getItem('cafe-doctor-seen') && params.get('doctor') !== '0') showDoctor({ auto: true });
-if (params.get('rule') === '1') showRule();
 if (params.get('log') === '1') openSelectedLogs();

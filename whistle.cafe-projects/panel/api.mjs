@@ -28,3 +28,19 @@ export async function currentServerToken() {
     return null;
   }
 }
+
+export function confirmAction(message, { title = '确认操作', label = '继续' } = {}) {
+  if (!window.cafeDesktop) return window.confirm(message);
+  const dialog = document.querySelector('#confirm-action');
+  if (dialog.open) return false;
+
+  dialog.returnValue = '';
+  dialog.querySelector('#confirm-title').textContent = title;
+  dialog.querySelector('[value=confirm]').textContent = label;
+  dialog.querySelector('#confirm-message').textContent = message;
+  const choice = new Promise(resolve => {
+    dialog.addEventListener('close', () => resolve(dialog.returnValue === 'confirm'), { once: true });
+  });
+  dialog.showModal();
+  return choice;
+}

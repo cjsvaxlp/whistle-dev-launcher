@@ -12,7 +12,7 @@
   <a class="entry" id="entry" href="https://cloudgametest2.migufun.com:18443/cybercafe-power/#/amsportal" target="_blank" rel="noreferrer">打开测试入口</a>
 </header>
 <main class="panel">
-  <div class="project-layout">
+  <div class="project-layout" id="project-page">
     <nav aria-label="项目列表">
       <input class="search" id="search" type="search" placeholder="搜索项目">
       <label class="fav-filter"><input type="checkbox" id="only-fav"> 只看收藏</label>
@@ -29,7 +29,7 @@
         <button class="secondary primary" id="restart-service" type="button" hidden>重启服务</button>
         <button class="secondary primary" id="takeover" type="button" hidden>接管并重启</button>
         <button class="secondary" id="logs" type="button" hidden>查看日志</button>
-        <button class="secondary" id="rules" type="button">查看规则</button>
+        <a class="secondary" href="#/rules">查看规则</a>
       </div>
       <div class="startup-result" id="startup-result" hidden>
         <span id="startup-status" role="status"></span>
@@ -39,24 +39,36 @@
       <p class="note">页面右下角的徽标会显示当前是「本地接管」还是「测试部署」。缺少依赖时，启动会提示安装。</p>
     </section>
   </div>
+  <section class="rule-page" id="rule-page" aria-labelledby="rule-title" hidden>
+    <nav class="rule-breadcrumb" aria-label="面包屑">
+      <a href="#/">项目</a>
+      <span aria-hidden="true">›</span>
+      <a href="#/rules" id="rule-crumb" aria-current="page">规则</a>
+      <span id="rule-editor-crumb" hidden><span aria-hidden="true">›</span> <span aria-current="page">Whistle 管理</span></span>
+    </nav>
+    <div class="rule-page-body">
+      <header class="modal-head">
+        <h1 id="rule-title">Cafe 自动代理</h1>
+        <span class="modal-state" id="rule-state"></span>
+      </header>
+      <pre id="rule-text">正在读取…</pre>
+      <div id="rule-editor" hidden></div>
+      <footer class="modal-foot" id="rule-actions">
+        <a class="secondary" href="#/rules/whistle">在 Whistle 中打开</a>
+        <button class="secondary" id="copy-rule" type="button">复制规则</button>
+        <span class="status" id="rule-notice" role="status"></span>
+      </footer>
+    </div>
+  </section>
 </main>
-
-<div class="modal" id="rule-modal" hidden>
-  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="rule-title">
-    <header class="modal-head"><span id="rule-title">Cafe 自动代理</span><span class="modal-state" id="rule-state"></span></header>
-    <pre id="rule-text">正在读取…</pre>
-    <footer class="modal-foot">
-      <a class="secondary" href="http://127.0.0.1:8899/#rules" target="_blank" rel="noreferrer">在 Whistle 中打开</a>
-      <button class="secondary" id="copy-rule" type="button">复制规则</button>
-      <span class="grow"></span>
-      <button class="start" id="close-rule" type="button">关闭</button>
-    </footer>
-  </div>
-</div>
 
 <div class="modal" id="doctor-modal" hidden>
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="doctor-title">
-    <header class="modal-head"><span id="doctor-title">环境体检</span><span class="modal-state" id="doctor-state"></span></header>
+    <header class="modal-head">
+      <span id="doctor-title">环境体检</span>
+      <span class="modal-state" id="doctor-state"></span>
+      <button class="dialog-close" id="close-doctor" type="button" aria-label="关闭" title="关闭">×</button>
+    </header>
     <ul class="checks" id="doctor-list"></ul>
     <div class="doctor-workspace">
       <span class="sync" id="sync" role="status">正在检查同步状态…</span>
@@ -66,15 +78,17 @@
       <button class="secondary" id="save-workspace" type="button">选择目录</button>
       <button class="secondary" id="sync-now" type="button" hidden>立即同步</button>
       <button class="secondary" id="rerun-doctor" type="button">重新检查</button>
-      <span class="grow"></span>
-      <button class="start" id="close-doctor" type="button">关闭</button>
     </footer>
   </div>
 </div>
 
 <div class="modal" id="log-modal" hidden>
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="log-title">
-    <header class="modal-head"><span id="log-title">日志</span><span class="modal-state" id="log-state"></span></header>
+    <header class="modal-head">
+      <span id="log-title">日志</span>
+      <span class="modal-state" id="log-state"></span>
+      <button class="dialog-close" id="close-log" type="button" aria-label="关闭" title="关闭">×</button>
+    </header>
     <div class="log-tools">
       <select id="log-run" aria-label="日志批次"></select>
       <input id="log-search" type="search" maxlength="200" aria-label="搜索日志" placeholder="搜索日志">
@@ -87,15 +101,31 @@
       <button class="secondary" id="refresh-log" type="button">刷新</button>
       <button class="secondary danger" id="clear-log" type="button" disabled>清理日志</button>
       <span class="grow log-notice" id="log-notice" role="status"></span>
-      <button class="start" id="close-log" type="button">关闭</button>
     </footer>
   </div>
 </div>
-<dialog id="install-prompt" aria-labelledby="install-title">
+<dialog class="action-dialog" id="confirm-action" aria-labelledby="confirm-title" aria-describedby="confirm-message">
   <form method="dialog">
-    <p id="install-title">缺少开发依赖。安装成功后将自动打开终端。</p>
-    <button class="secondary" value="cancel" autofocus>取消</button>
-    <button class="start" value="install">安装并启动</button>
+    <header class="action-dialog-head">
+      <h2 id="confirm-title">确认操作</h2>
+      <button class="dialog-close" value="cancel" aria-label="取消并关闭" title="关闭" autofocus>×</button>
+    </header>
+    <p id="confirm-message"></p>
+    <footer class="action-dialog-buttons">
+      <button class="start" value="confirm">继续</button>
+    </footer>
+  </form>
+</dialog>
+<dialog class="action-dialog" id="install-prompt" aria-labelledby="install-title" aria-describedby="install-message">
+  <form method="dialog">
+    <header class="action-dialog-head">
+      <h2 id="install-title">安装项目依赖</h2>
+      <button class="dialog-close" value="cancel" aria-label="取消并关闭" title="关闭" autofocus>×</button>
+    </header>
+    <p id="install-message">当前项目缺少开发依赖。安装完成后会自动启动本地服务。</p>
+    <footer class="action-dialog-buttons">
+      <button class="start" value="install">安装并启动</button>
+    </footer>
   </form>
 </dialog>
 <script type="module" src="./panel.mjs"></script>

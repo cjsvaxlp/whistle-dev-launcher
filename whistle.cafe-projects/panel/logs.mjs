@@ -1,4 +1,4 @@
-import { post } from './api.mjs';
+import { confirmAction, post } from './api.mjs';
 
 const logModal = document.querySelector('#log-modal');
 const logTitle = document.querySelector('#log-title');
@@ -150,7 +150,7 @@ downloadLog.addEventListener('click', () => {
 clearLog.addEventListener('click', async () => {
   if (!logProject || clearing) return;
   const project = logProject;
-  if (!window.confirm(`清理 cybercafe-${project} 的日志？正在使用的当前日志会保留。`)) return;
+  if (!await confirmAction(`清理 cybercafe-${project} 的日志？正在使用的当前日志会保留。`) || logProject !== project || clearing) return;
   clearing = true;
   clearLog.disabled = true;
   logNotice.textContent = '正在清理…';

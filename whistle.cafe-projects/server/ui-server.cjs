@@ -41,7 +41,7 @@ function servePanel(response, path) {
     const data = readPanel(file);
     response.setHeader('Content-Type', type);
     if (path === '/') {
-      response.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'self'");
+      response.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'");
     }
     response.end(path === '/' ? data.replace('CAFE_CSRF', token) : data);
   } catch {

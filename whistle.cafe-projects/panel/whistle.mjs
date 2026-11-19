@@ -1,4 +1,4 @@
-import { post, currentServerToken } from './api.mjs';
+import { confirmAction, post, currentServerToken } from './api.mjs';
 
 export function bindWhistleControls({ load, setStatus }) {
   const syncNow = document.querySelector('#sync-now');
@@ -29,7 +29,10 @@ export function bindWhistleControls({ load, setStatus }) {
   }
 
   restart.addEventListener('click', async () => {
-    if (!window.confirm('重启 Whistle 会短暂断开所有代理连接，约 2 秒后恢复。继续？')) return;
+    if (!await confirmAction('代理连接会短暂断开，通常约 2 秒后恢复。', {
+      title: '重启 Whistle',
+      label: '重启',
+    })) return;
     restart.disabled = true;
     setStatus('正在重启 Whistle，页面会自动重连…', 'busy');
     try {
