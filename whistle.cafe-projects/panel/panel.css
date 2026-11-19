@@ -515,7 +515,32 @@ h1 {
   min-height: 0;
 }
 .project-layout > nav { overflow: hidden; }
-.project-layout .list { flex: 1; min-height: 0; overflow-y: auto; }
+.project-layout .list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-inline-end: -6px;
+  padding-inline-end: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.project-layout .list:is(:hover, :focus-within) {
+  scrollbar-color: #b9bec7 transparent;
+}
+@supports selector(::-webkit-scrollbar) {
+  .project-layout .list,
+  .project-layout .list:is(:hover, :focus-within) {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+.project-layout .list::-webkit-scrollbar { width: 4px; }
+.project-layout .list::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: transparent;
+}
+.project-layout .list:is(:hover, :focus-within)::-webkit-scrollbar-thumb { background: #b9bec7; }
+.project-layout .list::-webkit-scrollbar-thumb:hover { background: #8d95a3; }
 .project-card { min-height: 0; }
 .project-layout > nav, .project-card {
   min-width: 0;

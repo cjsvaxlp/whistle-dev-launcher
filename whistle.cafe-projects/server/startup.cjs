@@ -5,8 +5,8 @@ const STARTUP_TIMEOUT = 45000;
 const attempts = new Map();
 const PROGRESS = {
   installing: '正在安装依赖…',
-  starting: '正在打开终端…',
-  waiting: '终端已打开，正在等待本地服务和 Whistle 接管…',
+  starting: '正在启动服务…',
+  waiting: '启动命令已提交，正在等待本地服务和 Whistle 接管…',
 };
 
 function beginStartup(project, stage) {

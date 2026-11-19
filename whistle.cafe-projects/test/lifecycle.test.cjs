@@ -1,14 +1,13 @@
 const assert = require('node:assert/strict');
 const childProcess = require('node:child_process');
 const { spawn, spawnSync } = childProcess;
-const { existsSync, mkdirSync, mkdtempSync, realpathSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
+const { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } = require('node:fs');
 const { createServer } = require('node:http');
 const { once } = require('node:events');
 const { tmpdir } = require('node:os');
 const { dirname, join } = require('node:path');
 const { setTimeout: delay } = require('node:timers/promises');
 const test = require('node:test');
-const { promisify } = require('node:util');
 
 test('panel lifecycle, install guard, and project log cleanup', {
   skip: process.platform === 'win32' || Boolean(spawnSync('lsof', ['-v']).error),
@@ -22,12 +21,10 @@ test('panel lifecycle, install guard, and project log cleanup', {
   const alternateBin = join(fixture, 'alternate-bin');
   const children = [];
   const originalEnv = { ...process.env };
-  const originalExec = childProcess.execFile;
   const server = createServer();
   t.after(() => {
     for (const child of children) child.kill();
     server.close();
-    childProcess.execFile = originalExec;
     for (const key of ['CAFE_WORKSPACE', 'CAFE_STATE_DIR', 'CAFE_TOOLS_DIR', 'CAFE_WHISTLE_ORIGIN', 'PATH']) {
       if (originalEnv[key] === undefined) delete process.env[key];
       else process.env[key] = originalEnv[key];
@@ -59,21 +56,18 @@ test('panel lifecycle, install guard, and project log cleanup', {
   process.env.PATH = alternateBin + ':' + process.env.PATH;
 
   const terminalLaunches = [];
-  childProcess.execFile = Object.assign(
-    (...args) => originalExec(...args),
-    { [promisify.custom]: async (command, args, options) => {
-      if (command === '/usr/bin/open' && args[1] === 'Terminal') {
-        const launcher = readFileSync(args[2], 'utf8');
-        assert.match(launcher, /CAFE_LAUNCH_ID/);
-        terminalLaunches.push(launcher);
-        rmSync(dirname(args[2]), { recursive: true, force: true });
-        return { stdout: '', stderr: '' };
-      }
-      return promisify(originalExec)(command, args, options);
-    } },
-  );
   const originalSpawn = childProcess.spawn;
   childProcess.spawn = (command, args, options) => {
+    if (args[0]?.endsWith('/run-log.cjs')) {
+      assert.equal(command, process.execPath);
+      assert.equal(options.detached, true);
+      assert.equal(options.stdio, 'ignore');
+      assert.ok(options.env.CAFE_LAUNCH_ID);
+      terminalLaunches.push(options.env);
+      const child = originalSpawn(process.execPath, ['-e', ''], options);
+      children.push(child);
+      return child;
+    }
     if (options.cwd === alternateProject) {
       assert.equal(command, join(alternateBin, 'npm'));
       assert.equal(options.env.PATH.split(':')[0], alternateBin);
@@ -148,6 +142,6 @@ test('panel lifecycle, install guard, and project log cleanup', {
   assert.equal((await post('/api/install-and-start/alternate')).status, 200);
   for (let checks = 0; checks < 40 && terminalLaunches.length < 2; checks++) await delay(50);
   assert.equal(terminalLaunches.length, 2);
-  assert(terminalLaunches[1].includes('CAFE_NODE_BIN=\'' + join(alternateBin, 'node') + '\''));
+  assert.equal(terminalLaunches[1].CAFE_NODE_BIN, join(alternateBin, 'node'));
   assert.match((await project('alternate')).startup.message, /Node v99\.20\.2/);
 });

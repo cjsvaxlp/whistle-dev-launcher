@@ -1,7 +1,6 @@
-const { execFile } = require('node:child_process');
+const { execFile, spawn } = require('node:child_process');
 const { accessSync, constants, existsSync, statSync } = require('node:fs');
-const { mkdtemp, writeFile, rm } = require('node:fs/promises');
-const { tmpdir } = require('node:os');
+const { once } = require('node:events');
 const { dirname, join } = require('node:path');
 const { promisify } = require('node:util');
 const { pluginDir, readWorkspace, tools, stateDir, isWindows, POWERSHELL } = require('./config.cjs');
@@ -119,33 +118,31 @@ async function openWindowsTerminal(project, file, launchId, runtime) {
 
 async function openTerminal(project, file, launchId, runtime) {
   if (isWindows) return openWindowsTerminal(project, file, launchId, runtime);
-  const projectDir = join(readWorkspace(), 'cybercafe-' + project);
-  const vite = ['vite.config.js', 'vite.config.ts'].some(file => existsSync(join(projectDir, file)));
+  const workspace = readWorkspace();
+  const projectDir = join(workspace, 'cybercafe-' + project);
+  const vite = ['vite.config.js', 'vite.config.ts'].some(name => existsSync(join(projectDir, name)));
   if (!hasDevDependency(projectDir, vite)) {
     throw new Error('项目缺少开发依赖。请先安装依赖。');
   }
-  const folder = await mkdtemp(join(tmpdir(), 'cafe-terminal-'));
-  const launcher = join(folder, '启动 ' + project + '.command');
-  const quote = value => '\'' + value.replaceAll('\'', '\'\\\'\'') + '\'';
-  const command = [process.execPath, join(pluginDir, 'run-log.cjs'), file,
-    '/bin/zsh', join(tools, '启动任意项目.command'), project].map(quote).join(' ');
-  try {
-    await writeFile(launcher, [
-      '#!/bin/zsh',
-      'rm -f -- "$0"',
-      'rmdir -- "${0:h}"',
-      'export CAFE_WORKSPACE=' + quote(readWorkspace()),
-      'export CAFE_STATE_DIR=' + quote(stateDir),
-      'export CAFE_LAUNCH_ID=' + quote(launchId),
-      'export CAFE_NODE_BIN=' + quote(runtime.node),
-      command,
-      '',
-    ].join('\n'), { mode: 0o700 });
-    await run('/usr/bin/open', ['-a', 'Terminal', launcher], { timeout: 10000 });
-  } catch (error) {
-    await rm(folder, { recursive: true, force: true });
-    throw error;
-  }
+
+  const child = spawn(process.execPath, [
+    join(pluginDir, 'run-log.cjs'), file,
+    '/bin/zsh', join(tools, '启动任意项目.command'), project,
+  ], {
+    cwd: projectDir,
+    detached: true,
+    stdio: 'ignore',
+    env: {
+      ...process.env,
+      PATH: runtimePath(runtime),
+      CAFE_WORKSPACE: workspace,
+      CAFE_STATE_DIR: stateDir,
+      CAFE_LAUNCH_ID: launchId,
+      CAFE_NODE_BIN: runtime.node,
+    },
+  });
+  await once(child, 'spawn');
+  child.unref();
 }
 
 module.exports = { depInfo, cliFor, windowsCommand, openTerminal };

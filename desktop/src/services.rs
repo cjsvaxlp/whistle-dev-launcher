@@ -3,6 +3,7 @@ use std::{
     net::{SocketAddr, TcpStream},
     path::{Path, PathBuf},
     process::Command,
+    sync::Mutex,
     thread,
     time::Duration,
 };
@@ -81,7 +82,23 @@ fn error_output(output: std::process::Output, fallback: &str) -> Result<(), Stri
         .to_owned())
 }
 
+static OWNED_WHISTLE: Mutex<Option<u32>> = Mutex::new(None);
+
+fn listener_pid() -> Option<u32> {
+    let output = Command::new("/usr/sbin/lsof")
+        .args(["-nP", "-a", "-iTCP:8899", "-sTCP:LISTEN", "-Fp"])
+        .output()
+        .ok()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut pids = stdout
+        .lines()
+        .filter_map(|line| line.strip_prefix('p')?.parse().ok());
+    let pid = pids.next()?;
+    pids.next().is_none().then_some(pid)
+}
+
 pub fn start() -> Result<Status, String> {
+    let mut owned = OWNED_WHISTLE.lock().expect("Whistle lifecycle lock");
     let current = status();
     if current != Status::Offline {
         return Ok(current);
@@ -104,15 +121,54 @@ pub fn start() -> Result<Status, String> {
         .env("PATH", path)
         .output()
         .map_err(|error| format!("启动 Whistle 失败：{error}"))?;
+    let started = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .any(|line| line.contains("Whistle@") && line.trim_end().ends_with(" started"));
     error_output(output, "启动 Whistle 失败")?;
     for _ in 0..12 {
         let current = status();
         if current != Status::Offline {
+            if started {
+                *owned = listener_pid();
+            }
             return Ok(current);
         }
         thread::sleep(Duration::from_millis(250));
     }
     Err("Whistle 启动后未监听 8899。".into())
+}
+
+pub fn stop() -> Result<Status, String> {
+    let mut owned = OWNED_WHISTLE.lock().expect("Whistle lifecycle lock");
+    let Some(pid) = *owned else {
+        return if status() == Status::Offline {
+            Ok(Status::Offline)
+        } else {
+            Err("当前 Whistle 由其他程序启动，请在原启动位置停止。".into())
+        };
+    };
+    if listener_pid() != Some(pid) {
+        *owned = None;
+        return if status() == Status::Offline {
+            Ok(Status::Offline)
+        } else {
+            Err("Whistle 实例已变更，请在原启动位置停止。".into())
+        };
+    }
+    let output = Command::new("/bin/kill")
+        .arg("-TERM")
+        .arg(pid.to_string())
+        .output()
+        .map_err(|error| format!("停止 Whistle 失败：{error}"))?;
+    error_output(output, "停止 Whistle 失败")?;
+    for _ in 0..20 {
+        if listener_pid() != Some(pid) {
+            *owned = None;
+            return Ok(status());
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+    Err("Whistle 尚未停止，请稍后重试。".into())
 }
 
 pub fn open_test() -> Result<(), String> {

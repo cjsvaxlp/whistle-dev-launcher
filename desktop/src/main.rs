@@ -8,7 +8,7 @@ fn main() {
     let app = tauri::Builder::default()
         .setup(|app| {
             menu::setup(app)?;
-            menu::run_action(app.handle(), "panel");
+            menu::run_action(app.handle(), "start");
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -17,6 +17,9 @@ fn main() {
         RunEvent::ExitRequested {
             code: None, api, ..
         } => api.prevent_exit(),
+        RunEvent::Exit => {
+            let _ = services::stop();
+        }
         RunEvent::Reopen { .. } => menu::run_action(app, "panel"),
         _ => {}
     });

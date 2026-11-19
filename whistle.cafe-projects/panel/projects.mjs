@@ -173,7 +173,7 @@ function render() {
   if (info && info.active) {
     meta.textContent = info.compat
       ? `本地接管中（兼容模式）· 端口 ${info.port} · 资源路径由代理改写，HMR 已一并代理`
-      : `本地接管中 · 端口 ${info.port} · ${info.engine} · ${clock(info.since)} 开始（终端已在运行，无需重复启动）`;
+      : `本地接管中 · 端口 ${info.port} · ${info.engine} · ${clock(info.since)} 开始（服务已在运行，无需重复启动）`;
   } else if (info && info.unmatched) {
     meta.textContent = `检测到 127.0.0.1:${info.unmatched.port} 上的服务，但它没有以 /cybercafe-${info.name}/ 为 base 启动；可以点「接管并重启」结束它并按可接管方式重启。`;
   } else if (info && info.deps.status === 'missing') {
@@ -197,7 +197,7 @@ function render() {
       ? '安装中…'
       : launching
         ? '等待服务就绪…'
-        : '启动终端';
+        : '启动服务';
 
   install.hidden = !info || info.deps.status === 'ready' || installing || active || unmatched;
   install.textContent = info && info.deps.status === 'stale' ? '重新安装依赖' : '安装依赖';

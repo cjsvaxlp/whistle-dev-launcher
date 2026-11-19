@@ -172,7 +172,7 @@ async function stopProject(project) {
     }
     await new Promise(resolve => setTimeout(resolve, 250));
   }
-  throw new Error('服务在 5 秒内未退出，请检查终端。');
+  throw new Error('服务在 5 秒内未退出，请查看项目日志。');
 }
 
 function isProjectBusy(project) {
@@ -307,7 +307,7 @@ async function projectAction(request, response, action, project) {
         attempt = beginStartup(project, 'starting');
         attempt.nodeVersion = runtime.version;
         await launchProject(project, attempt, runtime);
-        json(response, 200, { message: '依赖已就绪，终端已打开。' });
+        json(response, 200, { message: '依赖已就绪，启动命令已提交。' });
         return;
       }
       attempt = beginStartup(project, 'installing');
@@ -329,7 +329,7 @@ async function projectAction(request, response, action, project) {
     attempt = beginStartup(project, 'starting');
     attempt.nodeVersion = runtime.version;
     await launchProject(project, attempt, runtime);
-    json(response, 200, { message: '终端已打开，服务就绪后会自动接管。' });
+    json(response, 200, { message: '启动命令已提交，服务就绪后会自动接管。' });
   } catch (error) {
     if (attempt) failStartup(attempt, error.message);
     json(response, 503, { message: error.code === 'ENOENT'
