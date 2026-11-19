@@ -12,20 +12,6 @@
   <a class="entry" id="entry" href="https://cloudgametest2.migufun.com:18443/cybercafe-power/#/amsportal" target="_blank" rel="noreferrer">打开测试入口</a>
 </header>
 <main class="panel">
-  <section class="workspace-card" aria-labelledby="workspace-title">
-    <div class="workspace-row">
-      <div>
-        <h2 id="workspace-title">项目工作区</h2>
-        <p id="workspace">请选择包含 cybercafe-* 子项目的目录。</p>
-      </div>
-      <button class="ghost workspace-picker" id="save-workspace" type="button">选择目录</button>
-    </div>
-    <p class="status" id="workspace-status" role="status"></p>
-    <div class="workspace-sync">
-      <span class="sync" id="sync" role="status">正在检查同步状态…</span>
-      <button class="ghost" id="sync-now" type="button" hidden>立即同步</button>
-    </div>
-  </section>
   <div class="project-layout">
     <nav aria-label="项目列表">
       <input class="search" id="search" type="search" placeholder="搜索项目">
@@ -72,7 +58,13 @@
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="doctor-title">
     <header class="modal-head"><span id="doctor-title">环境体检</span><span class="modal-state" id="doctor-state"></span></header>
     <ul class="checks" id="doctor-list"></ul>
+    <div class="doctor-workspace">
+      <span class="sync" id="sync" role="status">正在检查同步状态…</span>
+      <p class="status" id="workspace-status" role="status"></p>
+    </div>
     <footer class="modal-foot">
+      <button class="secondary" id="save-workspace" type="button">选择目录</button>
+      <button class="secondary" id="sync-now" type="button" hidden>立即同步</button>
       <button class="secondary" id="rerun-doctor" type="button">重新检查</button>
       <span class="grow"></span>
       <button class="start" id="close-doctor" type="button">关闭</button>

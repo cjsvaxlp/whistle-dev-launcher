@@ -25,6 +25,7 @@ let snapshot = null;
 let selected = new URLSearchParams(location.search).get('project') || '';
 let busy = false;
 let listKey = '';
+let loadError = '';
 let query = '';
 let favoritesOnly = false;
 
@@ -71,7 +72,7 @@ function sortedProjects() {
 function renderList() {
   if (!snapshot) return;
   const projects = sortedProjects();
-  const key = selected + '|' + query + '|' + favoritesOnly + '|' + projects.map(project =>
+  const key = JSON.stringify([snapshot.workspace, loadError]) + '|' + selected + '|' + query + '|' + favoritesOnly + '|' + projects.map(project =>
     `${project.name}:${project.active}:${project.port}:${project.deps.status}:${project.installing}:${project.favorite}`,
   ).join('|');
   if (key === listKey) return;
@@ -114,8 +115,21 @@ function renderList() {
   if (!projects.length) {
     const empty = document.createElement('p');
     empty.className = 'empty';
-    empty.textContent = snapshot.projects.length ? '没有匹配的项目。' : '工作区里没有找到可启动的项目。';
+    if (loadError) {
+      empty.textContent = loadError;
+    } else if (!snapshot.workspace) {
+      empty.textContent = '尚未配置项目工作区。';
+    } else {
+      empty.textContent = snapshot.projects.length ? '没有匹配的项目。' : '工作区里没有找到可启动的项目。';
+    }
     fragment.append(empty);
+    if (!snapshot.projects.length) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = '在体检中选择目录';
+      button.addEventListener('click', () => document.querySelector('#doctor').click());
+      fragment.append(button);
+    }
   }
   list.replaceChildren(fragment);
 }
@@ -209,20 +223,18 @@ export function load() {
   refreshInFlight = fetch('./api/projects', { cache: 'no-store', signal: AbortSignal.timeout(5000) })
     .then(response => response.json().then(data => ({ response, data })))
     .then(({ response, data }) => {
-      if (typeof data.workspace === 'string') {
-        const workspace = document.querySelector('#workspace');
-        workspace.textContent = data.workspace || '请选择包含 cybercafe-* 子项目的目录。';
-        workspace.dataset.configured = String(Boolean(data.workspace));
-      }
       if (!response.ok) {
         snapshot = { workspace: data.workspace, projects: [] };
-        render();
         throw new Error(data.message || '读取状态失败。');
       }
+      loadError = '';
       snapshot = data;
       render();
     })
     .catch(error => {
+      snapshot ??= { projects: [] };
+      loadError = `无法读取项目列表：${error.message}`;
+      render();
       sync.textContent = `无法读取状态：${error.message}`;
       sync.dataset.state = 'warn';
     })
@@ -306,6 +318,10 @@ onlyFav.addEventListener('change', () => {
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) load();
 });
+
+export function hasWorkspace() {
+  return Boolean(snapshot?.workspace);
+}
 
 export function openSelectedLogs() {
   if (selected) openLogs(selected);

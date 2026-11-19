@@ -29,10 +29,9 @@ header {
 }
 
 .sync {
-  margin-left: auto;
   color: #475467;
   font-size: 13px;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .sync[data-state=warn] {
@@ -504,8 +503,7 @@ h1 {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 14px;
+  grid-template-rows: minmax(0, 1fr);
   padding: 14px clamp(12px, 2vw, 24px) 18px;
 }
 .project-layout {
@@ -518,27 +516,22 @@ h1 {
 .project-layout > nav { overflow: hidden; }
 .project-layout .list { flex: 1; min-height: 0; overflow-y: auto; }
 .project-card { min-height: 0; }
-.workspace-card, .project-layout > nav, .project-card {
+.project-layout > nav, .project-card {
   min-width: 0;
   background: #fff;
   border: 1px solid #e5e5ea;
   border-radius: 18px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 3%);
 }
-.workspace-card { padding: 14px 18px; }
-.workspace-row, .workspace-sync { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; }
-.workspace-row > div { flex: 1 1 16rem; min-width: 0; }
-.workspace-row h2 { margin: 0; font-size: 15px; }
-#workspace { margin: 3px 0 0; color: #636366; overflow-wrap: anywhere; }
-.workspace-picker { background: #0066cc; color: #fff; border-color: #0066cc; }
-.workspace-sync { margin-top: 12px; padding-top: 10px; border-top: 1px solid #e5e5ea; }
-.workspace-sync .sync { margin-left: 0; white-space: normal; overflow-wrap: anywhere; }
+.doctor-workspace {
+  padding: 0 16px 10px;
+}
 .status:empty { display: none; }
 .project-card h1 { font-size: clamp(23px, 4vw, 30px); letter-spacing: -.035em; overflow-wrap: anywhere; }
 :where(button, a, input):focus-visible { outline: 2px solid #0066cc; outline-offset: 2px; }
 @media (max-width: 720px), (max-height: 420px) {
   body { height: auto; min-height: 100vh; }
-  .panel { grid-template-rows: auto auto; }
+  .panel { grid-template-rows: auto; }
   .project-layout { grid-template-rows: auto; }
   .project-layout .list { max-height: 42vh; }
 }
