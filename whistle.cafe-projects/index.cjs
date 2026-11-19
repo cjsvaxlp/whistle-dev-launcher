@@ -1,7 +1,7 @@
 const { execFile, execFileSync, spawn } = require('node:child_process');
 const { randomBytes, timingSafeEqual } = require('node:crypto');
 const {
-  appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync,
+  appendFileSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, statSync, writeFileSync,
 } = require('node:fs');
 const { mkdtemp, writeFile, rm } = require('node:fs/promises');
 const { homedir, tmpdir } = require('node:os');
@@ -411,6 +411,23 @@ function sameMachine(originValue) {
   }
 }
 
+function whistleCli() {
+  const candidates = [];
+  try {
+    if (require.main && require.main.filename) {
+      candidates.push(join(dirname(require.main.filename), '..', '..', 'bin', 'whistle.js'));
+    }
+  } catch {
+    // 忽略
+  }
+  candidates.push(join(dirname(process.execPath), '..', 'lib', 'node_modules', 'whistle', 'bin', 'whistle.js'));
+  candidates.push(join(dirname(process.execPath), '..', 'lib', 'node_modules', 'w2', 'bin', 'whistle.js'));
+  if (isWindows) {
+    candidates.push(join(dirname(process.execPath), 'node_modules', 'whistle', 'bin', 'whistle.js'));
+  }
+  return candidates.find(candidate => existsSync(candidate)) || '';
+}
+
 function authorized(request) {
   const presented = request.headers['x-cafe-token'];
   return typeof presented === 'string'
@@ -534,28 +551,28 @@ exports.uiServer = server => {
         json(response, 403, { message: '请从本机 Whistle 面板操作。' });
         return;
       }
-      let cli = '';
-      try {
-        const finder = isWindows ? 'where' : 'which';
-        cli = execFileSync(finder, ['w2'], { encoding: 'utf8' }).split(/\r?\n/)[0].trim();
-      } catch {
-        cli = '';
-      }
-      if (!cli) {
-        json(response, 503, { message: '找不到 w2 命令，请手动重启 Whistle。' });
+      const cliPath = whistleCli();
+      if (!cliPath) {
+        json(response, 503, { message: '找不到 Whistle CLI，请手动执行 w2 restart。' });
         return;
       }
       json(response, 200, { message: '正在重启 Whistle…' });
       setTimeout(() => {
         try {
-          const child = isWindows
-            ? spawn('w2', ['restart'], {
-                detached: true, stdio: 'ignore', shell: true, windowsHide: true,
-                cwd: homedir(), env: process.env,
-              })
-            : spawn(cli, ['restart'], {
-                detached: true, stdio: 'ignore', cwd: homedir(), env: process.env,
-              });
+          mkdirSync(logsDir, { recursive: true });
+          const fd = openSync(join(logsDir, 'whistle-restart.log'), 'a');
+          const binDir = dirname(process.execPath);
+          const child = spawn(process.execPath, [cliPath, 'restart'], {
+            detached: true,
+            stdio: ['ignore', fd, fd],
+            cwd: homedir(),
+            env: {
+              ...process.env,
+              PATH: [binDir, process.env.PATH].filter(Boolean).join(isWindows ? ';' : ':'),
+            },
+            windowsHide: true,
+          });
+          child.on('error', () => {});
           child.unref();
         } catch {
           // 失败了页面会提示手动重启。
