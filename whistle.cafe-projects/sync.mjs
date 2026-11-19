@@ -150,13 +150,13 @@ export async function detectWindows(projects) {
       const served = await servesProject(port, candidate.project, candidate.engine);
       if (served === null) continue;
       if (served) {
-        locals[candidate.project] = { port, engine: candidate.engine };
+        locals[candidate.project] = { port, engine: candidate.engine, pid: row.pid };
         delete compat[candidate.project];
         delete unmatched[candidate.project];
       } else if (candidate.engine === 'vite' && await rootServesVite(port)) {
-        if (!compat[candidate.project]) compat[candidate.project] = { port, engine: candidate.engine };
+        if (!compat[candidate.project]) compat[candidate.project] = { port, engine: candidate.engine, pid: row.pid };
       } else if (!unmatched[candidate.project]) {
-        unmatched[candidate.project] = { port, engine: candidate.engine };
+        unmatched[candidate.project] = { port, engine: candidate.engine, pid: row.pid };
       }
     }
   }
@@ -237,12 +237,12 @@ export async function detectLocals(projects) {
       const served = await servesProject(listener.port, project, engine);
       if (served === null) continue;
       if (served) {
-        local = { port: listener.port, engine };
+        local = { port: listener.port, engine, pid: listener.pid };
         break;
       }
-      if (!mismatch) mismatch = { port: listener.port, engine };
+      if (!mismatch) mismatch = { port: listener.port, engine, pid: listener.pid };
       if (engine === 'vite' && !compatCandidate && await rootServesVite(listener.port)) {
-        compatCandidate = { port: listener.port, engine };
+        compatCandidate = { port: listener.port, engine, pid: listener.pid };
       }
     }
     if (local) locals[project] = local;
@@ -374,6 +374,7 @@ async function writeState(locals, compat = {}, unmatched = {}) {
       prefix: prefixOf(project),
       since: keepSince ? previous.since : now,
     };
+    if (merged[project].pid) projects[project].pid = merged[project].pid;
     if (compat[project]) projects[project].compat = true;
   }
   const state = { updatedAt: now, rule: RULE_NAME, ruleSelected: true, projects };
