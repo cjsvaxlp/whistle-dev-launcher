@@ -234,7 +234,7 @@ export async function detectLocals(projects) {
 export function buildRule(projects, locals) {
   const lines = [
     MARKER,
-    '# 由「监听项目代理」每 5 秒重写，请勿手动编辑。',
+    '# 由 cafe-tools 每 5 秒自动重写，请勿手动编辑。',
     `${HOST} enable://capture`,
     `${HOST}/__cafe/badge.js ${ruleUrl('file', BADGE_JS)}`,
     `${HOST}/__cafe/badge.css ${ruleUrl('file', BADGE_CSS)}`,

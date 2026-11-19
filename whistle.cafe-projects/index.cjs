@@ -163,8 +163,8 @@ function authorized(request) {
     && sameMachine(request.headers.origin);
 }
 
-// Windows 没有 .command 监听脚本，插件自己按节奏同步规则和状态，用户不需要额外操作。
-if (isWindows) {
+// 插件自己按节奏同步规则和状态，用户不需要额外开监听窗口；监听脚本退化为可选的日志窗口。
+{
   const syncScript = join(__dirname, 'sync.mjs');
   let syncing = false;
   const kick = () => {

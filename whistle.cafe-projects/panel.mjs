@@ -100,13 +100,13 @@ function render() {
   }
 
   if (!snapshot.updatedAt) {
-    sync.textContent = '尚未同步 · 请确认「监听项目代理」已启动';
+    sync.textContent = '尚未同步 · Whistle 刚启动或插件未加载';
     sync.dataset.state = 'warn';
   } else if (snapshot.stale) {
-    sync.textContent = `监听未运行 · 状态更新于 ${ago(snapshot.updatedAt)}`;
+    sync.textContent = `同步未运行 · 状态更新于 ${ago(snapshot.updatedAt)}`;
     sync.dataset.state = 'warn';
   } else {
-    sync.textContent = `监听运行中 · ${ago(snapshot.updatedAt)}更新`;
+    sync.textContent = `同步正常 · ${ago(snapshot.updatedAt)}更新`;
     sync.dataset.state = 'ok';
   }
 
