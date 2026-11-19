@@ -125,6 +125,7 @@ function windowsCli(project, engine) {
 
 export async function detectWindows(projects) {
   const locals = {};
+  const compat = {};
   const unmatched = {};
   const candidates = [];
   for (const project of projects) {
@@ -137,7 +138,7 @@ export async function detectWindows(projects) {
   try {
     rows = await windowsListeners();
   } catch {
-    return { locals, unmatched };
+    return { locals: {}, compat: {}, unmatched: {} };
   }
   for (const row of rows) {
     const commandLine = String(row.commandLine || '').replaceAll('\\', '/').toLowerCase();
@@ -145,21 +146,21 @@ export async function detectWindows(projects) {
     if (!port) continue;
     for (const candidate of candidates) {
       if (!commandLine.includes(candidate.cli)) continue;
+      if (locals[candidate.project]) continue;
       const served = await servesProject(port, candidate.project, candidate.engine);
       if (served === null) continue;
-      if (!served) {
-        if (!unmatched[candidate.project]) {
-          unmatched[candidate.project] = { port, engine: candidate.engine };
-        }
-        continue;
-      }
-      if (!locals[candidate.project]) {
+      if (served) {
         locals[candidate.project] = { port, engine: candidate.engine };
+        delete compat[candidate.project];
         delete unmatched[candidate.project];
+      } else if (candidate.engine === 'vite' && await rootServesVite(port)) {
+        if (!compat[candidate.project]) compat[candidate.project] = { port, engine: candidate.engine };
+      } else if (!unmatched[candidate.project]) {
+        unmatched[candidate.project] = { port, engine: candidate.engine };
       }
     }
   }
-  return { locals, unmatched };
+  return { locals, compat, unmatched };
 }
 
 export async function listeningPorts() {
@@ -186,6 +187,17 @@ async function cwdOf(pid) {
   return null;
 }
 
+async function rootServesVite(port) {
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(1500) });
+    if (!response.ok) return false;
+    const html = await response.text();
+    return html.includes('@vite/client') && html.includes('/src/');
+  } catch {
+    return false;
+  }
+}
+
 async function servesProject(port, project, engine) {
   const prefix = prefixOf(project);
   try {
@@ -201,37 +213,70 @@ async function servesProject(port, project, engine) {
   }
 }
 
-// 返回 { locals, unmatched }：locals 是可以接管的项目，unmatched 是「目录对、端口在，但 base 不对」的候选。
+// 返回 { locals, compat, unmatched }：
+// locals 是带前缀的实例；compat 是 base=/ 的 Vite 实例（用代理改写接管）；
+// unmatched 是目录对、端口在、但既不是可识别 Vite 也无法接管的候选。
 export async function detectLocals(projects) {
   if (isWindows) return detectWindows(projects);
   const listeners = await listeningPorts();
-  if (!listeners.length) return { locals: {}, unmatched: {} };
+  if (!listeners.length) return { locals: {}, compat: {}, unmatched: {} };
   const cwds = new Map();
   const locals = {};
+  const compat = {};
   const unmatched = {};
   for (const project of projects) {
     const directory = resolve(workspace, `cybercafe-${project}`);
     const engine = engineOf(directory);
     if (!engine) continue;
+    let local = null;
+    let compatCandidate = null;
+    let mismatch = null;
     for (const listener of listeners) {
       if (!cwds.has(listener.pid)) cwds.set(listener.pid, await cwdOf(listener.pid));
       if (cwds.get(listener.pid) !== directory) continue;
       const served = await servesProject(listener.port, project, engine);
       if (served === null) continue;
-      if (!served) {
-        // 端口在、页面也有响应，只是没有按 /cybercafe-项目名/ 的 base 启动，记录为不可接管候选。
-        if (!unmatched[project]) unmatched[project] = { port: listener.port, engine };
-        continue;
+      if (served) {
+        local = { port: listener.port, engine };
+        break;
       }
-      locals[project] = { port: listener.port, engine };
-      delete unmatched[project];
-      break;
+      if (!mismatch) mismatch = { port: listener.port, engine };
+      if (engine === 'vite' && !compatCandidate && await rootServesVite(listener.port)) {
+        compatCandidate = { port: listener.port, engine };
+      }
     }
+    if (local) locals[project] = local;
+    else if (compatCandidate) compat[project] = compatCandidate;
+    else if (mismatch) unmatched[project] = mismatch;
   }
-  return { locals, unmatched };
+  return { locals, compat, unmatched };
 }
 
-export function buildRule(projects, locals) {
+// 注意：Whistle 会把 /.../ 形式的 key 当成正则，所以这里都带上引号或括号做字面量替换。
+const COMPAT_REPLACEMENTS = {
+  '"/@vite/': '"/cybercafe-项目/@vite/',
+  "'/@vite/": "'/cybercafe-项目/@vite/",
+  '(/@vite/': '(/cybercafe-项目/@vite/',
+  '"/src/': '"/cybercafe-项目/src/',
+  "'/src/": "'/cybercafe-项目/src/",
+  '(/src/': '(/cybercafe-项目/src/',
+  '"/node_modules/': '"/cybercafe-项目/node_modules/',
+  "'/node_modules/": "'/cybercafe-项目/node_modules/",
+  '(/node_modules/': '(/cybercafe-项目/node_modules/',
+  '"/@fs/': '"/cybercafe-项目/@fs/',
+  "'/@fs/": "'/cybercafe-项目/@fs/",
+  '"/@id/': '"/cybercafe-项目/@id/',
+  "'/@id/": "'/cybercafe-项目/@id/",
+  'const base = "/"': 'const base = "/cybercafe-项目/"',
+};
+
+export function compatReplacements(project) {
+  return Object.fromEntries(Object.entries(COMPAT_REPLACEMENTS).map(
+    ([from, to]) => [from, to.replaceAll('cybercafe-项目', `cybercafe-${project}`)],
+  ));
+}
+
+export function buildRule(projects, locals, compat = {}) {
   const lines = [
     MARKER,
     '# 由 cafe-tools 每 5 秒自动重写，请勿手动编辑。',
@@ -251,7 +296,24 @@ export function buildRule(projects, locals) {
       lines.push(`wss://${HOST}${prefixOf(project)}__hmr ws://127.0.0.1:${port}/ws`);
     }
   }
+  for (const project of Object.keys(compat)) {
+    const { port } = compat[project];
+    lines.push(`# compat: cybercafe-${project} → 127.0.0.1:${port} (base /)`);
+    lines.push(`${HOST}${prefixOf(project)} http://127.0.0.1:${port}/ reqHeaders://host=127.0.0.1:${port}`);
+    lines.push(`${HOST}${prefixOf(project)} ${ruleUrl('resReplace', compatFile(project))}`);
+    lines.push(`wss://${HOST}${prefixOf(project)} ws://127.0.0.1:${port}/`);
+  }
   return lines.join('\n');
+}
+
+const compatFile = project => join(stateDir, `compat-${project}.json`);
+
+async function writeCompatFiles(compat) {
+  if (!Object.keys(compat).length) return;
+  await mkdir(stateDir, { recursive: true });
+  for (const project of Object.keys(compat)) {
+    await writeFile(compatFile(project), JSON.stringify(compatReplacements(project), null, 2) + '\n');
+  }
 }
 
 function unreachable() {
@@ -297,12 +359,13 @@ async function readState() {
   }
 }
 
-async function writeState(locals, unmatched = {}) {
+async function writeState(locals, compat = {}, unmatched = {}) {
   const prior = await readState();
   const now = new Date().toISOString();
   const projects = {};
-  for (const project of Object.keys(locals).sort()) {
-    const { port, engine } = locals[project];
+  const merged = { ...locals, ...compat };
+  for (const project of Object.keys(merged).sort()) {
+    const { port, engine } = merged[project];
     const previous = prior && prior.projects && prior.projects[project];
     const keepSince = previous && previous.port === port && previous.engine === engine && previous.since;
     projects[project] = {
@@ -311,6 +374,7 @@ async function writeState(locals, unmatched = {}) {
       prefix: prefixOf(project),
       since: keepSince ? previous.since : now,
     };
+    if (compat[project]) projects[project].compat = true;
   }
   const state = { updatedAt: now, rule: RULE_NAME, ruleSelected: true, projects };
   if (Object.keys(unmatched).length) state.unmatched = unmatched;
@@ -323,8 +387,9 @@ async function writeState(locals, unmatched = {}) {
 
 export async function sync() {
   const projects = listProjects();
-  const { locals, unmatched } = await detectLocals(projects);
-  const body = buildRule(projects, locals);
+  const { locals, compat, unmatched } = await detectLocals(projects);
+  await writeCompatFiles(compat);
+  const body = buildRule(projects, locals, compat);
   const current = await readRule();
   if (current && typeof current.value === 'string' && !current.value.startsWith(MARKER)) {
     throw new Error(`Whistle 里已有同名规则「${RULE_NAME}」，但不是本工具生成的；请改名或删除后重试。`);
@@ -332,7 +397,7 @@ export async function sync() {
   if (!current || current.value !== body || !current.selected) {
     await writeRule(body);
   }
-  return writeState(locals, unmatched);
+  return writeState(locals, compat, unmatched);
 }
 
 async function main() {

@@ -53,6 +53,7 @@ function snapshot() {
       port: local ? local.port : null,
       engine: local ? local.engine : null,
       since: local ? local.since : null,
+      compat: Boolean(local && local.compat),
       unmatched: !local && unmatched ? { port: unmatched.port } : null,
     };
   });
