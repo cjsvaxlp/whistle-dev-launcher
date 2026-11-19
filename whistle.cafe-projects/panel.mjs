@@ -109,7 +109,7 @@ function sortedProjects() {
 function renderList() {
   if (!snapshot) return;
   const projects = sortedProjects();
-  const key = query + '|' + favoritesOnly + '|' + projects.map(project =>
+  const key = selected + '|' + query + '|' + favoritesOnly + '|' + projects.map(project =>
     `${project.name}:${project.active}:${project.port}:${project.deps.status}:${project.installing}:${project.favorite}`,
   ).join('|');
   if (key === listKey) return;
