@@ -115,7 +115,7 @@ function render() {
   if (info && info.active) {
     meta.textContent = `本地接管中 · 端口 ${info.port} · ${info.engine} · ${clock(info.since)} 开始（终端已在运行，无需重复启动）`;
   } else if (info && info.unmatched) {
-    meta.textContent = `检测到 127.0.0.1:${info.unmatched.port} 上的服务，但它没有以 /cybercafe-${info.name}/ 为 base 启动（多半是直接 npm run dev 起的）；请用「启动终端」启动，脚本会自动带上前缀。`;
+    meta.textContent = `检测到 127.0.0.1:${info.unmatched.port} 上的服务，但它没有以 /cybercafe-${info.name}/ 为 base 启动（多半是直接 npm run dev 起的）。先停掉这个实例，这里会恢复成可启动状态，再点「启动终端」就会带上正确前缀。`;
   } else if (info) {
     meta.textContent = '未接管 · 启动服务后会自动切到本地，测试地址保持不变。';
   } else {
@@ -123,9 +123,16 @@ function render() {
   }
   const cooling = Date.now() < launchUntil;
   const active = Boolean(info && info.active);
-  start.disabled = !info || busy || active || cooling;
-  start.textContent = active ? '已在本地运行' : cooling ? '等待服务就绪…' : '启动终端';
-  open.hidden = !info;
+  const unmatched = Boolean(info && !info.active && info.unmatched);
+  start.disabled = !info || busy || active || cooling || unmatched;
+  start.textContent = active
+    ? '已在本地运行'
+    : unmatched
+      ? '已在运行（未带前缀）'
+      : cooling
+        ? '等待服务就绪…'
+        : '启动终端';
+  open.hidden = !info || unmatched;
   if (info) open.href = info.url;
 }
 
