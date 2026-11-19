@@ -16,7 +16,7 @@ const workspace = process.env.CAFE_WORKSPACE || join(homedir(), 'Desktop/work/cl
 const tools = process.env.CAFE_TOOLS_DIR || join(__dirname, '..');
 const stateDir = process.env.CAFE_STATE_DIR
   ? join(process.env.CAFE_STATE_DIR)
-  : join(homedir(), '.cache/cafe-tools');
+  : join(tools, '.cafe-tools');
 const stateFile = join(stateDir, 'state.json');
 const logsDir = join(stateDir, 'logs');
 const prefsFile = join(stateDir, 'preferences.json');

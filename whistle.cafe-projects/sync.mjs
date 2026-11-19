@@ -14,13 +14,14 @@ const run = promisify(execFile);
 const require = createRequire(import.meta.url);
 const isWindows = process.platform === 'win32';
 const here = dirname(fileURLToPath(import.meta.url));
+const toolsRoot = dirname(here);
 const workspace = process.env.CAFE_WORKSPACE
   ? resolve(process.env.CAFE_WORKSPACE)
   : join(homedir(), 'Desktop/work/cloudgame-cybercafe/cybercafe-front');
 const whistleOrigin = process.env.CAFE_WHISTLE_ORIGIN || 'http://127.0.0.1:8899';
 const stateDir = process.env.CAFE_STATE_DIR
   ? resolve(process.env.CAFE_STATE_DIR)
-  : join(homedir(), '.cache/cafe-tools');
+  : join(toolsRoot, '.cafe-tools');
 const stateFile = join(stateDir, 'state.json');
 
 const HOST = 'cloudgametest2.migufun.com:18443';

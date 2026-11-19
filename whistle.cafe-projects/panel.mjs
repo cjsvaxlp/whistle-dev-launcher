@@ -449,7 +449,7 @@ restart.addEventListener('click', async () => {
     if (tries === 10 && !sawDown) {
       clearInterval(timer);
       restart.disabled = false;
-      setStatus('重启命令已发送，但服务一直没有断开，可能没有生效；请查看 ~/.cache/cafe-tools/logs/whistle-restart.log，或手动执行 w2 restart。', 'error');
+      setStatus('重启命令已发送，但服务一直没有断开，可能没有生效；请查看工具目录下的 .cafe-tools/logs/whistle-restart.log，或手动执行 w2 restart。', 'error');
       return;
     }
     if (tries >= 40) {
