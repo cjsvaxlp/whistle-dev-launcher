@@ -83,7 +83,7 @@ function windowsScript(script) {
   return Buffer.from(script, 'utf16le').toString('base64');
 }
 
-async function windowsListeners() {
+export async function windowsListeners() {
   const script = `
 $ErrorActionPreference = 'SilentlyContinue'
 $ports = @(Get-NetTCPConnection -State Listen | Where-Object {
@@ -280,7 +280,7 @@ export function compatReplacements(project) {
 export function buildRule(projects, locals, compat = {}) {
   const lines = [
     MARKER,
-    '# 由 cafe-tools 每 5 秒自动重写，请勿手动编辑。',
+    '# 由 cafe-tools 自动同步，请勿手动编辑。',
     `${HOST} enable://capture`,
     `${HOST}/__cafe/badge.js ${ruleUrl('file', BADGE_JS)}`,
     `${HOST}/__cafe/badge.css ${ruleUrl('file', BADGE_CSS)}`,

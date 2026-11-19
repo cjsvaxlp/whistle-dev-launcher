@@ -30,6 +30,9 @@ if (( ! ${projects[(Ie)$project]} )); then
 fi
 
 prefix="/$project/"
+if [[ -n "${CAFE_NODE_BIN:-}" ]]; then
+  export PATH="${CAFE_NODE_BIN:h}:$PATH"
+fi
 state_file="${CAFE_STATE_DIR:-$HOME/.cache/cafe-tools}/state.json"
 if [[ -f "$state_file" ]] && command -v node >/dev/null 2>&1; then
   running_port=$(node -e '
