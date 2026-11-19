@@ -118,7 +118,7 @@
       ? `当前页面来自本机开发服务（${project}，端口 ${info.local.port}）`
       : info.kind === 'test'
         ? '当前页面来自测试部署；本地服务就绪后会自动接管'
-        : '代理监听可能没有运行，状态可能不是最新的';
+        : '代理同步状态已过期';
 
     field('project').textContent = 'cybercafe-' + project;
     field('status').textContent = info.kind === 'local'
@@ -144,7 +144,7 @@
       hint.textContent = '本地服务就绪后，刷新或等待页面自动切到本机。';
     } else {
       hint.hidden = false;
-      hint.textContent = '打开控制台查看「监听项目代理」是否在运行。';
+      hint.textContent = '打开本地项目面板查看同步状态。';
     }
   }
 

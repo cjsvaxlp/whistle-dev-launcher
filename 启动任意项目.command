@@ -1,9 +1,17 @@
 #!/bin/zsh
 set -eu
 
-workspace="${CAFE_WORKSPACE:-$HOME/Desktop/work/cloudgame-cybercafe/cybercafe-front}"
+workspace="${CAFE_WORKSPACE:-}"
+workspace_file="${CAFE_STATE_DIR:-$HOME/.cache/cafe-tools}/workspace"
+if [[ -s "$workspace_file" ]]; then
+  workspace=$(<"$workspace_file")
+fi
+if [[ -z "$workspace" ]]; then
+  print -u2 "请先在 Whistle 面板选择项目工作区。"
+  exit 1
+fi
 if [[ ! -d "$workspace" ]]; then
-  print -u2 "找不到项目工作区：$workspace，请检查 CAFE_WORKSPACE。"
+  print -u2 "找不到项目工作区：$workspace，请在 Whistle 面板重新选择目录。"
   exit 1
 fi
 projects=()

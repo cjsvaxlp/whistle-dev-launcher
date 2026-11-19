@@ -10,6 +10,10 @@ const rules = document.querySelector('#rules');
 const ruleModal = document.querySelector('#rule-modal');
 const ruleState = document.querySelector('#rule-state');
 const ruleText = document.querySelector('#rule-text');
+const workspacePath = document.querySelector('#workspace');
+const saveWorkspace = document.querySelector('#save-workspace');
+const workspaceStatus = document.querySelector('#workspace-status');
+let refreshingAfterSave = false;
 let token = document.querySelector('meta[name="cafe-token"]').content;
 
 let snapshot = null;
@@ -17,6 +21,11 @@ let selected = new URLSearchParams(location.search).get('project') || '';
 let busy = false;
 let launchUntil = 0;
 let listKey = '';
+let refreshTimer;
+let refreshing = false;
+let restartDeadline = 0;
+let restartFrom = null;
+let lastInstance = null;
 
 function ago(iso) {
   const ms = Date.now() - Date.parse(iso);
@@ -93,21 +102,10 @@ function renderList() {
 function render() {
   if (!snapshot) return;
   const info = snapshot.projects.find(project => project.name === selected);
-  if (!info && snapshot.projects.length && !selected) {
+  if (!info && snapshot.projects.length) {
     const preferred = snapshot.projects.find(project => project.active) || snapshot.projects[0];
     selected = preferred.name;
     return render();
-  }
-
-  if (!snapshot.updatedAt) {
-    sync.textContent = '尚未同步 · 请确认「监听项目代理」已启动';
-    sync.dataset.state = 'warn';
-  } else if (snapshot.stale) {
-    sync.textContent = `监听未运行 · 状态更新于 ${ago(snapshot.updatedAt)}`;
-    sync.dataset.state = 'warn';
-  } else {
-    sync.textContent = `监听运行中 · ${ago(snapshot.updatedAt)}更新`;
-    sync.dataset.state = 'ok';
   }
 
   renderList();
@@ -129,18 +127,87 @@ function render() {
   if (info) open.href = info.url;
 }
 
+function renderSync(data) {
+  const { error, lastSuccessAt } = data.sync || {};
+  sync.dataset.state = 'warn';
+  if (data.workspace === '') {
+    sync.textContent = '等待选择工作区';
+  } else if (error) {
+    const lastSuccess = lastSuccessAt || data.updatedAt;
+    sync.textContent = `同步失败：${error}${lastSuccess ? ` · 上次成功：${ago(lastSuccess)}` : ''}`;
+  } else if (data.message) {
+    sync.textContent = data.message;
+  } else if (data.stale && data.updatedAt) {
+    sync.textContent = `同步状态过期 · ${ago(data.updatedAt)}更新`;
+  } else if (!lastSuccessAt) {
+    sync.textContent = '等待插件首次同步…';
+  } else {
+    sync.textContent = `自动同步 · ${ago(lastSuccessAt)}更新`;
+    sync.dataset.state = 'ok';
+  }
+}
+
 async function load() {
+  if (refreshing) return;
+  clearTimeout(refreshTimer);
+  refreshing = true;
   try {
-    const response = await fetch('./api/projects', { cache: 'no-store' });
+    const response = await fetch('./api/projects', {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5000),
+    });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.message || '读取状态失败。');
-    snapshot = data;
+    if (data.startedAt != null) {
+      lastInstance = data.startedAt;
+      if (restartDeadline && lastInstance !== restartFrom) {
+        location.reload();
+        return;
+      }
+    }
+    if (refreshingAfterSave) return;
+    if (typeof data.workspace === 'string') {
+      workspacePath.textContent = data.workspace || '请选择包含 cybercafe-* 子项目的目录。';
+    }
+    renderSync(data);
+    snapshot = response.ok ? data : { projects: [] };
     render();
   } catch (error) {
     sync.textContent = `无法读取状态：${error.message}`;
     sync.dataset.state = 'warn';
+  } finally {
+    if (restartDeadline && Date.now() >= restartDeadline) {
+      restartDeadline = 0;
+      restart.disabled = false;
+      setStatus('重启后没有连上，请在终端执行 w2 restart。', 'error');
+    }
+    refreshing = false;
+    refreshTimer = setTimeout(load, refreshingAfterSave ? 0 : restartDeadline ? 1000 : 2000);
+    refreshingAfterSave = false;
   }
 }
+
+saveWorkspace.addEventListener('click', async () => {
+  saveWorkspace.disabled = true;
+  workspaceStatus.textContent = '请在系统窗口中选择目录。';
+  workspaceStatus.dataset.state = '';
+  try {
+    const response = await post('./api/workspace');
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || '选择目录失败。');
+    workspaceStatus.textContent = '';
+    if (data.cancelled) return;
+    workspacePath.textContent = data.workspace;
+    snapshot = { projects: [] };
+    render();
+    if (refreshing) refreshingAfterSave = true;
+    else load();
+  } catch (error) {
+    workspaceStatus.textContent = error.message;
+    workspaceStatus.dataset.state = 'error';
+  } finally {
+    saveWorkspace.disabled = false;
+  }
+});
 
 start.addEventListener('click', async () => {
   if (!selected || busy) return;
@@ -167,6 +234,7 @@ start.addEventListener('click', async () => {
 restart.addEventListener('click', async () => {
   if (!window.confirm('重启 Whistle 会短暂断开所有代理连接，约 2 秒后恢复。继续？')) return;
   restart.disabled = true;
+  restartFrom = lastInstance;
   setStatus('正在重启 Whistle，页面会自动重连…', 'busy');
   try {
     const response = await post('./api/restart');
@@ -177,25 +245,8 @@ restart.addEventListener('click', async () => {
     restart.disabled = false;
     return;
   }
-  let tries = 0;
-  const timer = setInterval(async () => {
-    tries += 1;
-    try {
-      const response = await fetch('./api/projects', { cache: 'no-store' });
-      if (response.ok) {
-        clearInterval(timer);
-        location.reload();
-        return;
-      }
-    } catch {
-      // 重启过程中连接会被拒绝，继续等待。
-    }
-    if (tries >= 40) {
-      clearInterval(timer);
-      restart.disabled = false;
-      setStatus('重启后没有连上，请在终端执行 w2 restart。', 'error');
-    }
-  }, 1000);
+  restartDeadline = Date.now() + 40000;
+  load();
 });
 
 async function showRule() {
@@ -241,4 +292,3 @@ document.addEventListener('visibilitychange', () => {
 
 await load();
 if (new URLSearchParams(location.search).get('rule') === '1') showRule();
-setInterval(load, 2000);

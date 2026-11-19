@@ -1,26 +1,23 @@
 #!/usr/bin/env node
 // 把本地开发服务同步到 Whistle：生成一条托管规则，并写出面板/徽标共用的状态文件。
-// 由「监听项目代理.command」每 5 秒调用一次；任何一步失败都以非 0 退出，交给监听脚本重试。
+// 由插件定期调用；失败时通过 stderr 返回原因，供面板显示。
 import { execFile } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import workspaceConfig from './workspace.cjs';
 
 const run = promisify(execFile);
 const require = createRequire(import.meta.url);
 const isWindows = process.platform === 'win32';
+const lsof = process.platform === 'darwin' ? '/usr/sbin/lsof' : 'lsof';
 const here = dirname(fileURLToPath(import.meta.url));
-const workspace = process.env.CAFE_WORKSPACE
-  ? resolve(process.env.CAFE_WORKSPACE)
-  : join(homedir(), 'Desktop/work/cloudgame-cybercafe/cybercafe-front');
+const { stateDir, readWorkspace, workspaceId } = workspaceConfig;
+const workspace = readWorkspace();
 const whistleOrigin = process.env.CAFE_WHISTLE_ORIGIN || 'http://127.0.0.1:8899';
-const stateDir = process.env.CAFE_STATE_DIR
-  ? resolve(process.env.CAFE_STATE_DIR)
-  : join(homedir(), '.cache/cafe-tools');
 const stateFile = join(stateDir, 'state.json');
 
 const HOST = 'cloudgametest2.migufun.com:18443';
@@ -42,8 +39,9 @@ export function ruleUrl(protocol, file, platform = process.platform) {
 }
 
 export function listProjects(dir = workspace) {
+  if (!dir) throw new Error('请先在面板选择项目工作区。');
   if (!existsSync(dir)) {
-    throw new Error(`找不到项目工作区：${dir}，请检查 CAFE_WORKSPACE。`);
+    throw new Error(`找不到项目工作区：${dir}，请在面板重新选择目录。`);
   }
   return readdirSync(dir, { withFileTypes: true })
     .filter(entry => entry.isDirectory() && PROJECT_RE.test(entry.name)
@@ -133,12 +131,7 @@ export async function detectWindows(projects) {
     const cli = windowsCli(project, engine).replaceAll('\\', '/').toLowerCase();
     candidates.push({ project, engine, cli });
   }
-  let rows;
-  try {
-    rows = await windowsListeners();
-  } catch {
-    return { locals, unmatched };
-  }
+  const rows = await windowsListeners();
   for (const row of rows) {
     const commandLine = String(row.commandLine || '').replaceAll('\\', '/').toLowerCase();
     const port = Number(row.port);
@@ -164,19 +157,20 @@ export async function detectWindows(projects) {
 
 export async function listeningPorts() {
   try {
-    const { stdout } = await run('lsof', ['-nP', '-a', '-c', 'node', '-iTCP', '-sTCP:LISTEN', '-Fpn'], {
+    const { stdout } = await run(lsof, ['-nP', '-a', '-c', 'node', '-iTCP', '-sTCP:LISTEN', '-Fpn'], {
       timeout: 5000,
     });
     return parseListeners(stdout);
-  } catch {
-    // 没有 node 进程监听时 lsof 以非 0 退出，属于正常情况。
-    return [];
+  } catch (error) {
+    // lsof 在没有匹配项时以 1 退出且没有输出。
+    if (error.code === 1 && !error.stderr?.trim() && !error.stdout?.trim()) return [];
+    throw new Error(`扫描本地监听端口失败：${error.stderr?.trim() || error.message}`);
   }
 }
 
 async function cwdOf(pid) {
   try {
-    const { stdout } = await run('lsof', ['-a', '-p', pid, '-d', 'cwd', '-Fn'], { timeout: 3000 });
+    const { stdout } = await run(lsof, ['-a', '-p', pid, '-d', 'cwd', '-Fn'], { timeout: 3000 });
     for (const line of stdout.split('\n')) {
       if (line[0] === 'n' && line.length > 1) return resolve(line.slice(1));
     }
@@ -234,7 +228,7 @@ export async function detectLocals(projects) {
 export function buildRule(projects, locals) {
   const lines = [
     MARKER,
-    '# 由「监听项目代理」每 5 秒重写，请勿手动编辑。',
+    '# 由 Cafe 插件自动同步，请勿手动编辑。',
     `${HOST} enable://capture`,
     `${HOST}/__cafe/badge.js ${ruleUrl('file', BADGE_JS)}`,
     `${HOST}/__cafe/badge.css ${ruleUrl('file', BADGE_CSS)}`,
@@ -312,7 +306,7 @@ async function writeState(locals, unmatched = {}) {
       since: keepSince ? previous.since : now,
     };
   }
-  const state = { updatedAt: now, rule: RULE_NAME, ruleSelected: true, projects };
+  const state = { workspaceId: workspaceId(workspace), updatedAt: now, rule: RULE_NAME, ruleSelected: true, projects };
   if (Object.keys(unmatched).length) state.unmatched = unmatched;
   await mkdir(stateDir, { recursive: true });
   const temporary = `${stateFile}.${process.pid}.tmp`;

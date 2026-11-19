@@ -1,69 +1,132 @@
 <!doctype html>
 <html lang="zh-CN">
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="cafe-token" content="CAFE_CSRF">
 <title>Cybercafe 本地调试</title>
 <style>
+  :root {
+    --canvas: #f5f5f7;
+    --surface: #fff;
+    --text: #1d1d1f;
+    --muted: #636366;
+    --border: #e5e5ea;
+    --accent: #0066cc;
+    --selection: #eaf3ff;
+    --control: #f0f0f3;
+    --success: #246c3b;
+    --warning: #925026;
+    --error: #a82721;
+    color-scheme: light;
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; color: #1f2933; background: #fbfcfd; font: 14px/1.55 system-ui, -apple-system, "PingFang SC", sans-serif; }
-  header { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid #e4e9ef; background: #fff; }
-  .brand { font-weight: 600; font-size: 15px; }
-  .sync { margin-left: auto; color: #475467; font-size: 13px; }
-  .sync[data-state=warn] { color: #b45309; }
-  .sync[data-state=ok] { color: #15803d; }
-  .entry { padding: 5px 10px; border-radius: 6px; background: #1f6feb; color: #fff; text-decoration: none; font-size: 13px; }
-  .ghost { padding: 5px 10px; border: 1px solid #d0d7de; border-radius: 6px; background: #fff; color: #475467; font: inherit; font-size: 13px; cursor: pointer; }
-  .ghost:hover { border-color: #98a2b3; }
-  .ghost:disabled { color: #98a2b3; cursor: wait; }
-  main { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: calc(100vh - 53px); }
-  nav { padding: 10px; border-right: 1px solid #e4e9ef; background: #f4f7fa; }
-  nav button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; margin: 2px 0; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-  nav button:hover { background: #e9eef4; }
-  nav button[aria-current=true] { background: #dce9fb; font-weight: 600; }
-  .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tag { margin-left: auto; flex: none; font-size: 12px; color: #2563eb; }
-  .tag.idle { color: #98a2b3; }
-  section { padding: 24px 28px; }
-  h1 { margin: 0 0 6px; font-size: 19px; }
-  .meta { margin: 0 0 18px; color: #667085; min-height: 22px; }
-  .meta b { color: #1f2933; font-weight: 600; }
-  .actions { display: flex; gap: 10px; align-items: center; }
-  button.start { padding: 7px 12px; border: 1px solid #1f6feb; border-radius: 6px; background: #1f6feb; color: #fff; font: inherit; cursor: pointer; }
-  button.start:disabled { border-color: #d0d7de; background: #eef1f4; color: #98a2b3; cursor: not-allowed; }
-  .secondary { padding: 7px 12px; border: 1px solid #d0d7de; border-radius: 6px; background: #fff; color: inherit; text-decoration: none; }
-  .secondary[hidden] { display: none; }
-  .status { margin-top: 16px; min-height: 22px; color: #475467; }
-  .status[data-state=error] { color: #b42318; }
-  .status[data-state=busy] { color: #2563eb; }
-  .note { margin-top: 22px; padding: 10px 12px; border-radius: 6px; background: #f4f7fa; color: #667085; font-size: 13px; }
-  .modal { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgb(15 23 42 / 45%); }
-  .modal[hidden] { display: none; }
-  .modal-box { display: flex; flex-direction: column; width: min(820px, 100%); max-height: 82vh; border-radius: 10px; background: #fff; box-shadow: 0 24px 60px rgb(15 23 42 / 30%); overflow: hidden; }
-  .modal-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #e4e9ef; font-weight: 600; }
-  .modal-state { margin-left: auto; color: #667085; font-size: 12px; font-weight: 400; }
-  .modal pre { flex: 1; margin: 0; padding: 16px; overflow: auto; background: #0f172a; color: #e2e8f0; font: 12px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
-  .modal-foot { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid #e4e9ef; }
-  .empty { padding: 24px 0; color: #667085; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--canvas);
+    color: var(--text);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", system-ui, sans-serif;
+  }
+  .toolbar { background: var(--surface); border-bottom: 1px solid var(--border); }
+  .toolbar-inner, .panel { width: min(1120px, calc(100% - 48px)); margin-inline: auto; }
+  .toolbar-inner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px 24px; padding-block: 12px; }
+  .brand { font-size: 17px; font-weight: 650; letter-spacing: -.025em; }
+  .toolbar-actions, .actions, .modal-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .panel { padding-block: 30px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 2px 8px rgb(0 0 0 / 3%); min-width: 0; }
+  #workspace-form { margin-bottom: 16px; padding: 20px 22px; }
+  .workspace-controls { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px 20px; }
+  .workspace-info { flex: 1 1 16rem; min-width: 0; }
+  h1, h2, p { margin: 0; }
+  h2 { font-size: 15px; font-weight: 650; }
+  #workspace { margin-top: 3px; color: var(--muted); overflow-wrap: anywhere; }
+  .sync { display: block; margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .sync[data-state=warn] { color: var(--warning); }
+  .sync[data-state=ok] { color: var(--success); }
+  .project-layout { display: grid; grid-template-columns: minmax(230px, 280px) minmax(0, 1fr); align-items: start; gap: 16px; }
+  .projects-card { padding: 15px 10px 10px; }
+  .projects-card h2 { padding: 0 10px 9px; }
+  nav button {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    width: 100%; min-height: 40px; padding: 8px 10px; margin-bottom: 2px;
+    border: 0; border-radius: 9px; background: transparent; color: inherit;
+    font: inherit; text-align: left; cursor: pointer;
+  }
+  nav button:hover { background: var(--control); }
+  nav button[aria-current=true] { background: var(--selection); color: var(--accent); font-weight: 600; }
+  .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tag { flex: none; color: var(--success); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .tag.idle, .empty { color: var(--muted); }
+  .empty { padding: 8px 10px 12px; font-size: 13px; }
+  .project-card { padding: clamp(18px, 4vw, 32px); }
+  h1 { font-size: clamp(23px, 4vw, 30px); line-height: 1.16; letter-spacing: -.035em; overflow-wrap: anywhere; }
+  .meta { margin: 8px 0 22px; color: var(--muted); overflow-wrap: anywhere; }
+  .entry, .ghost, .secondary, button.start {
+    display: inline-flex; align-items: center; justify-content: center; padding: 7px 14px;
+    min-height: 34px; border: 0; border-radius: 9px; background: var(--control);
+    color: var(--text); font: inherit; font-weight: 550; text-decoration: none; cursor: pointer;
+  }
+  .entry, button.start, #save-workspace { background: var(--accent); color: #fff; }
+  :is(.entry, .ghost, .secondary, button.start):hover:not(:disabled) { filter: brightness(.93); }
+  :is(button, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  button:disabled { opacity: .5; cursor: default; }
+  [hidden] { display: none !important; }
+  .status { margin-top: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .status:empty { display: none; }
+  .status[data-state=error] { color: var(--error); }
+  .status[data-state=busy] { color: var(--accent); }
+  .note { margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+  .modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px; background: rgb(0 0 0 / 32%); backdrop-filter: blur(5px); }
+  .modal-box { display: flex; flex-direction: column; width: min(820px, 100%); max-height: 85vh; border-radius: 18px; background: var(--surface); box-shadow: 0 24px 64px rgb(0 0 0 / 22%); overflow: hidden; }
+  .modal-head { display: flex; align-items: center; gap: 10px; padding: 16px 20px; font-weight: 650; }
+  .modal-state { margin-left: auto; color: var(--muted); font-size: 13px; font-weight: 400; }
+  .modal pre { flex: 1; min-height: 0; margin: 0; padding: 16px 20px; overflow: auto; background: var(--canvas); color: var(--text); font: 12px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .modal-foot { padding: 12px 20px; }
+  #close-rule { margin-left: auto; }
+  @media (max-width: 650px) {
+    .toolbar-inner, .panel { width: calc(100% - 28px); }
+    .panel { padding-block: 16px; }
+    .project-layout { grid-template-columns: minmax(0, 1fr); }
+  }
 </style>
-<header>
-  <span class="brand">Cybercafe 本地调试</span>
-  <span class="sync" id="sync" role="status">正在检查同步状态…</span>
-  <button class="ghost" id="restart" type="button" title="重启 Whistle 以加载插件的最新代码">重启 Whistle</button>
-  <a class="entry" id="entry" href="https://cloudgametest2.migufun.com:18443/cybercafe-power/#/amsportal" target="_blank" rel="noreferrer">打开测试入口</a>
-</header>
-<main>
-  <nav aria-label="项目文件夹" id="projects"></nav>
-  <section>
-    <h1 id="title">选择项目</h1>
-    <p class="meta" id="meta">在左侧选择项目后，可以启动本地开发服务。</p>
-    <div class="actions">
-      <button class="start" id="start" type="button" disabled>启动终端</button>
-      <a class="secondary" id="open" target="_blank" rel="noreferrer" hidden>打开项目页面</a>
-      <button class="secondary" id="rules" type="button">查看规则</button>
+<header class="toolbar">
+  <div class="toolbar-inner">
+    <span class="brand">Cybercafe 本地调试</span>
+    <div class="toolbar-actions">
+      <button class="ghost" id="restart" type="button" title="重启 Whistle 以加载插件的最新代码">重启 Whistle</button>
+      <a class="entry" id="entry" href="https://cloudgametest2.migufun.com:18443/cybercafe-power/#/amsportal" target="_blank" rel="noreferrer">打开测试入口</a>
     </div>
-    <p class="status" id="status" role="status"></p>
-    <p class="note">页面右下角的徽标会显示当前是「本地接管」还是「测试部署」。停止服务或关闭监听窗口后，刷新页面即回到测试部署。</p>
+  </div>
+</header>
+<main class="panel">
+  <section class="card" id="workspace-form" aria-labelledby="workspace-title">
+    <div class="workspace-controls">
+      <div class="workspace-info">
+        <h2 id="workspace-title">项目工作区</h2>
+        <p id="workspace">请选择包含 cybercafe-* 子项目的目录。</p>
+      </div>
+      <button class="ghost" id="save-workspace" type="button">选择目录</button>
+    </div>
+    <p class="status" id="workspace-status" role="status"></p>
+    <p class="sync" id="sync" role="status">正在检查同步状态…</p>
   </section>
+  <div class="project-layout">
+    <aside class="card projects-card">
+      <h2 id="projects-label">项目</h2>
+      <nav aria-labelledby="projects-label" id="projects"></nav>
+    </aside>
+    <section class="card project-card">
+      <h1 id="title">选择项目</h1>
+      <p class="meta" id="meta">在左侧选择项目后，可以启动本地开发服务。</p>
+      <div class="actions">
+        <button class="start" id="start" type="button" disabled>启动终端</button>
+        <a class="secondary" id="open" target="_blank" rel="noreferrer" hidden>打开项目页面</a>
+        <button class="secondary" id="rules" type="button">查看规则</button>
+      </div>
+      <p class="status" id="status" role="status"></p>
+      <p class="note">页面右下角的徽标会显示当前是「本地接管」还是「测试部署」。停止服务后，等插件完成同步，再刷新页面即可回到测试部署。</p>
+    </section>
+  </div>
 </main>
 <div class="modal" id="rule-modal" hidden>
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="rule-title">
