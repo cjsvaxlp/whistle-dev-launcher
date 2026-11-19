@@ -4,6 +4,30 @@ export function bindWhistleControls({ load, setStatus }) {
   const syncNow = document.querySelector('#sync-now');
   const restart = document.querySelector('#restart');
 
+  if (/Mac/.test(navigator.platform)) {
+    for (const id of ['entry', 'open']) {
+      const link = document.querySelector('#' + id);
+      link.title = '在开发 Chrome 中通过 Whistle 打开';
+      link.addEventListener('click', async event => {
+        event.preventDefault();
+        const project = link.dataset.project;
+        const path = project ? './api/open-chrome/' + encodeURIComponent(project) : './api/open-chrome';
+        try {
+          const response = await post(path);
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(response.status === 404 && !project
+              ? '请重启 Whistle 以加载开发 Chrome 入口。'
+              : data.message || '打开开发 Chrome 失败。');
+          }
+          setStatus('');
+        } catch (error) {
+          setStatus(error.message, 'error');
+        }
+      });
+    }
+  }
+
   restart.addEventListener('click', async () => {
     if (!window.confirm('重启 Whistle 会短暂断开所有代理连接，约 2 秒后恢复。继续？')) return;
     restart.disabled = true;

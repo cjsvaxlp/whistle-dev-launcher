@@ -4,7 +4,7 @@ const { mkdir, rename, rm, writeFile } = require('node:fs/promises');
 const { workspaceFile } = require('../workspace.cjs');
 const { readFileSync, statSync } = require('node:fs');
 const { isAbsolute, join, resolve } = require('node:path');
-const { origin, pluginDir, stateDir, isWindows, POWERSHELL, readWorkspace } = require('./config.cjs');
+const { origin, pluginDir, stateDir, isWindows, POWERSHELL, readWorkspace, tools, entryUrl } = require('./config.cjs');
 const { authorized, json, token } = require('./http.cjs');
 const { listProjects } = require('./project-store.cjs');
 const { projectAction, runSync, refreshWorkspace, snapshot } = require('./projects.cjs');
@@ -165,6 +165,24 @@ async function handle(request, response) {
       if (!authorized(request)) return json(response, 403, { message: '请从本机 Whistle 面板操作。' });
       const ok = await runSync();
       return json(response, ok ? 200 : 503, { message: ok ? '已同步。' : '同步失败，稍后会自动重试。' });
+    }
+    const chrome = /^\/api\/open-chrome(?:\/([a-z0-9-]+))?$/.exec(path);
+    if (chrome) {
+      if (!authorized(request)) return json(response, 403, { message: '请从本机 Whistle 面板操作。' });
+      if (process.platform !== 'darwin') {
+        return json(response, 501, { message: '开发 Chrome 启动脚本适用于 macOS。' });
+      }
+      const project = chrome[1];
+      if (project && !listProjects().includes(project)) {
+        return json(response, 404, { message: '项目不存在。' });
+      }
+      const url = project ? new URL('/cybercafe-' + project + '/', entryUrl).href : entryUrl;
+      try {
+        await run('/bin/zsh', [join(tools, '打开测试环境.command'), url], { timeout: 8000 });
+        return json(response, 200, { ok: true });
+      } catch (error) {
+        return json(response, 500, { message: error.stderr?.trim() || '打开开发 Chrome 失败。' });
+      }
     }
     if (path === '/api/restart') return restartWhistle(request, response);
     const fixMatch = /^\/api\/fix\/([a-z-]+)$/.exec(path);

@@ -202,7 +202,10 @@ function render() {
   install.hidden = !info || info.deps.status === 'ready' || installing || active || unmatched;
   install.textContent = info && info.deps.status === 'stale' ? '重新安装依赖' : '安装依赖';
   open.hidden = !info || unmatched;
-  if (info) open.href = info.url;
+  if (info) {
+    open.href = info.url;
+    open.dataset.project = info.name;
+  }
   takeover.hidden = !info || !(unmatched || info.compat);
   stop.hidden = !info?.canStop;
   restartService.hidden = !info?.canStop || !active;
@@ -216,10 +219,20 @@ function render() {
   startupLog.hidden = !startup?.hasLog || !info.log;
 }
 
+const IDLE_REFRESH_INTERVAL = 15000;
+const ACTIVE_REFRESH_INTERVAL = 3000;
 let refreshInFlight;
+let refreshTimer;
+
+function scheduleRefresh() {
+  if (document.hidden) return;
+  const pending = !loadError && snapshot?.projects.some(project => project.installing || project.launching);
+  refreshTimer = setTimeout(load, pending ? ACTIVE_REFRESH_INTERVAL : IDLE_REFRESH_INTERVAL);
+}
 
 export function load() {
   if (refreshInFlight) return refreshInFlight;
+  clearTimeout(refreshTimer);
   refreshInFlight = fetch('./api/projects', { cache: 'no-store', signal: AbortSignal.timeout(5000) })
     .then(response => response.json().then(data => ({ response, data })))
     .then(({ response, data }) => {
@@ -238,7 +251,10 @@ export function load() {
       sync.textContent = `无法读取状态：${error.message}`;
       sync.dataset.state = 'warn';
     })
-    .finally(() => { refreshInFlight = null; });
+    .finally(() => {
+      refreshInFlight = null;
+      scheduleRefresh();
+    });
   return refreshInFlight;
 }
 
@@ -316,7 +332,8 @@ onlyFav.addEventListener('change', () => {
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) load();
+  if (document.hidden) clearTimeout(refreshTimer);
+  else load();
 });
 
 export function hasWorkspace() {

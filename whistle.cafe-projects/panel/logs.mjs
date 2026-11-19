@@ -96,8 +96,8 @@ export function openLogs(project) {
   refreshLogs();
   clearInterval(logTimer);
   logTimer = setInterval(() => {
-    if (logRun.value === 'current' && !logSearch.value.trim()) refreshLogs();
-  }, 1500);
+    if (!document.hidden && logRun.value === 'current' && !logSearch.value.trim()) refreshLogs();
+  }, 5000);
 }
 
 function closeLogs() {

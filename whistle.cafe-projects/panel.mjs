@@ -35,4 +35,3 @@ if (hasWorkspace()
   && !localStorage.getItem('cafe-doctor-seen') && params.get('doctor') !== '0') showDoctor({ auto: true });
 if (params.get('rule') === '1') showRule();
 if (params.get('log') === '1') openSelectedLogs();
-setInterval(load, 2000);
