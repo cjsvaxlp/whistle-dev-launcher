@@ -192,7 +192,7 @@ async function rootServesVite(port) {
     const response = await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(1500) });
     if (!response.ok) return false;
     const html = await response.text();
-    return html.includes('@vite/client') && html.includes('/src/');
+    return html.includes('@vite/client');
   } catch {
     return false;
   }
