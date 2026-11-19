@@ -2,7 +2,11 @@
 set -eu
 
 workspace="${CAFE_WORKSPACE:-}"
-workspace_file="${CAFE_STATE_DIR:-$HOME/.cache/cafe-tools}/workspace"
+tool_dir=${0:A:h}
+workspace_file="${CAFE_STATE_DIR:-${CAFE_TOOLS_DIR:-$tool_dir}/.cafe-tools}/workspace"
+if [[ ! -s "$workspace_file" && -z "${CAFE_STATE_DIR:-}" ]]; then
+  workspace_file="$HOME/.cache/cafe-tools/workspace"
+fi
 if [[ -s "$workspace_file" ]]; then
   workspace=$(<"$workspace_file")
 fi
@@ -38,6 +42,9 @@ if (( ! ${projects[(Ie)$project]} )); then
 fi
 
 prefix="/$project/"
+if [[ -n "${CAFE_NODE_BIN:-}" ]]; then
+  export PATH="${CAFE_NODE_BIN:h}:$PATH"
+fi
 state_file="${CAFE_STATE_DIR:-$HOME/.cache/cafe-tools}/state.json"
 if [[ -f "$state_file" ]] && command -v node >/dev/null 2>&1; then
   running_port=$(node -e '

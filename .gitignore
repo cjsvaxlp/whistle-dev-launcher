@@ -1,4 +1,5 @@
 /Chrome开发配置/
 /Whistle本机证书.crt
 .DS_Store
+/.cafe-tools/
 /.idea/

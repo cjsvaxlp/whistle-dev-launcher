@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 把本地开发服务同步到 Whistle：生成一条托管规则，并写出面板/徽标共用的状态文件。
-// 由插件定期调用；失败时通过 stderr 返回原因，供面板显示。
+// 由插件定期调用，错误显示在面板上。
 import { execFile } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
@@ -13,10 +13,8 @@ import workspaceConfig from './workspace.cjs';
 const run = promisify(execFile);
 const require = createRequire(import.meta.url);
 const isWindows = process.platform === 'win32';
-const lsof = process.platform === 'darwin' ? '/usr/sbin/lsof' : 'lsof';
 const here = dirname(fileURLToPath(import.meta.url));
 const { stateDir, readWorkspace, workspaceId } = workspaceConfig;
-const workspace = readWorkspace();
 const whistleOrigin = process.env.CAFE_WHISTLE_ORIGIN || 'http://127.0.0.1:8899';
 const stateFile = join(stateDir, 'state.json');
 
@@ -38,10 +36,10 @@ export function ruleUrl(protocol, file, platform = process.platform) {
   return `${protocol}://${encodeURI(path)}`;
 }
 
-export function listProjects(dir = workspace) {
+export function listProjects(dir = readWorkspace()) {
   if (!dir) throw new Error('请先在面板选择项目工作区。');
   if (!existsSync(dir)) {
-    throw new Error(`找不到项目工作区：${dir}，请在面板重新选择目录。`);
+    throw new Error(`找不到项目工作区：${dir}，请在面板选择目录。`);
   }
   return readdirSync(dir, { withFileTypes: true })
     .filter(entry => entry.isDirectory() && PROJECT_RE.test(entry.name)
@@ -80,7 +78,7 @@ function windowsScript(script) {
   return Buffer.from(script, 'utf16le').toString('base64');
 }
 
-async function windowsListeners() {
+export async function windowsListeners() {
   const script = `
 $ErrorActionPreference = 'SilentlyContinue'
 $ports = @(Get-NetTCPConnection -State Listen | Where-Object {
@@ -109,7 +107,7 @@ ConvertTo-Json -InputObject @($result) -Compress
   return Array.isArray(rows) ? rows : [rows];
 }
 
-function windowsCli(project, engine) {
+function windowsCli(project, engine, workspace) {
   const directory = join(workspace, `cybercafe-${project}`);
   const name = engine === 'vite' ? 'vite' : 'webpack';
   const bin = engine === 'vite' ? 'vite.js' : 'webpack.js';
@@ -121,14 +119,15 @@ function windowsCli(project, engine) {
   }
 }
 
-export async function detectWindows(projects) {
+export async function detectWindows(projects, workspace = readWorkspace()) {
   const locals = {};
+  const compat = {};
   const unmatched = {};
   const candidates = [];
   for (const project of projects) {
     const engine = engineOf(join(workspace, `cybercafe-${project}`));
     if (!engine) continue;
-    const cli = windowsCli(project, engine).replaceAll('\\', '/').toLowerCase();
+    const cli = windowsCli(project, engine, workspace).replaceAll('\\', '/').toLowerCase();
     candidates.push({ project, engine, cli });
   }
   const rows = await windowsListeners();
@@ -138,31 +137,30 @@ export async function detectWindows(projects) {
     if (!port) continue;
     for (const candidate of candidates) {
       if (!commandLine.includes(candidate.cli)) continue;
+      if (locals[candidate.project]) continue;
       const served = await servesProject(port, candidate.project, candidate.engine);
       if (served === null) continue;
-      if (!served) {
-        if (!unmatched[candidate.project]) {
-          unmatched[candidate.project] = { port, engine: candidate.engine };
-        }
-        continue;
-      }
-      if (!locals[candidate.project]) {
-        locals[candidate.project] = { port, engine: candidate.engine };
+      if (served) {
+        locals[candidate.project] = { port, engine: candidate.engine, pid: row.pid };
+        delete compat[candidate.project];
         delete unmatched[candidate.project];
+      } else if (candidate.engine === 'vite' && await rootServesVite(port)) {
+        if (!compat[candidate.project]) compat[candidate.project] = { port, engine: candidate.engine, pid: row.pid };
+      } else if (!unmatched[candidate.project]) {
+        unmatched[candidate.project] = { port, engine: candidate.engine, pid: row.pid };
       }
     }
   }
-  return { locals, unmatched };
+  return { locals, compat, unmatched };
 }
 
 export async function listeningPorts() {
   try {
-    const { stdout } = await run(lsof, ['-nP', '-a', '-c', 'node', '-iTCP', '-sTCP:LISTEN', '-Fpn'], {
+    const { stdout } = await run(process.platform === 'darwin' ? '/usr/sbin/lsof' : 'lsof', ['-nP', '-a', '-c', 'node', '-iTCP', '-sTCP:LISTEN', '-Fpn'], {
       timeout: 5000,
     });
     return parseListeners(stdout);
   } catch (error) {
-    // lsof 在没有匹配项时以 1 退出且没有输出。
     if (error.code === 1 && !error.stderr?.trim() && !error.stdout?.trim()) return [];
     throw new Error(`扫描本地监听端口失败：${error.stderr?.trim() || error.message}`);
   }
@@ -170,7 +168,7 @@ export async function listeningPorts() {
 
 async function cwdOf(pid) {
   try {
-    const { stdout } = await run(lsof, ['-a', '-p', pid, '-d', 'cwd', '-Fn'], { timeout: 3000 });
+    const { stdout } = await run(process.platform === 'darwin' ? '/usr/sbin/lsof' : 'lsof', ['-a', '-p', pid, '-d', 'cwd', '-Fn'], { timeout: 3000 });
     for (const line of stdout.split('\n')) {
       if (line[0] === 'n' && line.length > 1) return resolve(line.slice(1));
     }
@@ -178,6 +176,17 @@ async function cwdOf(pid) {
     // 进程在两次扫描之间退出。
   }
   return null;
+}
+
+async function rootServesVite(port) {
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(1500) });
+    if (!response.ok) return false;
+    const html = await response.text();
+    return html.includes('@vite/client');
+  } catch {
+    return false;
+  }
 }
 
 async function servesProject(port, project, engine) {
@@ -195,40 +204,73 @@ async function servesProject(port, project, engine) {
   }
 }
 
-// 返回 { locals, unmatched }：locals 是可以接管的项目，unmatched 是「目录对、端口在，但 base 不对」的候选。
-export async function detectLocals(projects) {
-  if (isWindows) return detectWindows(projects);
+// 返回 { locals, compat, unmatched }：
+// locals 是带前缀的实例；compat 是 base=/ 的 Vite 实例（用代理改写接管）；
+// unmatched 是目录对、端口在、但既不是可识别 Vite 也无法接管的候选。
+export async function detectLocals(projects, workspace = readWorkspace()) {
+  if (isWindows) return detectWindows(projects, workspace);
   const listeners = await listeningPorts();
-  if (!listeners.length) return { locals: {}, unmatched: {} };
+  if (!listeners.length) return { locals: {}, compat: {}, unmatched: {} };
   const cwds = new Map();
   const locals = {};
+  const compat = {};
   const unmatched = {};
   for (const project of projects) {
     const directory = resolve(workspace, `cybercafe-${project}`);
     const engine = engineOf(directory);
     if (!engine) continue;
+    let local = null;
+    let compatCandidate = null;
+    let mismatch = null;
     for (const listener of listeners) {
       if (!cwds.has(listener.pid)) cwds.set(listener.pid, await cwdOf(listener.pid));
       if (cwds.get(listener.pid) !== directory) continue;
       const served = await servesProject(listener.port, project, engine);
       if (served === null) continue;
-      if (!served) {
-        // 端口在、页面也有响应，只是没有按 /cybercafe-项目名/ 的 base 启动，记录为不可接管候选。
-        if (!unmatched[project]) unmatched[project] = { port: listener.port, engine };
-        continue;
+      if (served) {
+        local = { port: listener.port, engine, pid: listener.pid };
+        break;
       }
-      locals[project] = { port: listener.port, engine };
-      delete unmatched[project];
-      break;
+      if (!mismatch) mismatch = { port: listener.port, engine, pid: listener.pid };
+      if (engine === 'vite' && !compatCandidate && await rootServesVite(listener.port)) {
+        compatCandidate = { port: listener.port, engine, pid: listener.pid };
+      }
     }
+    if (local) locals[project] = local;
+    else if (compatCandidate) compat[project] = compatCandidate;
+    else if (mismatch) unmatched[project] = mismatch;
   }
-  return { locals, unmatched };
+  return { locals, compat, unmatched };
 }
 
-export function buildRule(projects, locals) {
+// 注意：Whistle 会把 /.../ 形式的 key 当成正则，所以这里都带上引号或括号做字面量替换。
+const COMPAT_REPLACEMENTS = {
+  '"/@vite/': '"/cybercafe-项目/@vite/',
+  "'/@vite/": "'/cybercafe-项目/@vite/",
+  '(/@vite/': '(/cybercafe-项目/@vite/',
+  '"/src/': '"/cybercafe-项目/src/',
+  "'/src/": "'/cybercafe-项目/src/",
+  '(/src/': '(/cybercafe-项目/src/',
+  '"/node_modules/': '"/cybercafe-项目/node_modules/',
+  "'/node_modules/": "'/cybercafe-项目/node_modules/",
+  '(/node_modules/': '(/cybercafe-项目/node_modules/',
+  '"/@fs/': '"/cybercafe-项目/@fs/',
+  "'/@fs/": "'/cybercafe-项目/@fs/",
+  '"/@id/': '"/cybercafe-项目/@id/',
+  "'/@id/": "'/cybercafe-项目/@id/",
+  'const base = "/"': 'const base = "/cybercafe-项目/"',
+};
+
+export function compatReplacements(project) {
+  return Object.fromEntries(Object.entries(COMPAT_REPLACEMENTS).map(
+    ([from, to]) => [from, to.replaceAll('cybercafe-项目', `cybercafe-${project}`)],
+  ));
+}
+
+export function buildRule(projects, locals, compat = {}) {
   const lines = [
     MARKER,
-    '# 由 Cafe 插件自动同步，请勿手动编辑。',
+    '# 由 cafe-tools 自动同步，请勿手动编辑。',
     `${HOST} enable://capture`,
     `${HOST}/__cafe/badge.js ${ruleUrl('file', BADGE_JS)}`,
     `${HOST}/__cafe/badge.css ${ruleUrl('file', BADGE_CSS)}`,
@@ -245,7 +287,24 @@ export function buildRule(projects, locals) {
       lines.push(`wss://${HOST}${prefixOf(project)}__hmr ws://127.0.0.1:${port}/ws`);
     }
   }
+  for (const project of Object.keys(compat)) {
+    const { port } = compat[project];
+    lines.push(`# compat: cybercafe-${project} → 127.0.0.1:${port} (base /)`);
+    lines.push(`${HOST}${prefixOf(project)} http://127.0.0.1:${port}/ reqHeaders://host=127.0.0.1:${port}`);
+    lines.push(`${HOST}${prefixOf(project)} ${ruleUrl('resReplace', compatFile(project))}`);
+    lines.push(`wss://${HOST}${prefixOf(project)} ws://127.0.0.1:${port}/`);
+  }
   return lines.join('\n');
+}
+
+const compatFile = project => join(stateDir, `compat-${project}.json`);
+
+async function writeCompatFiles(compat) {
+  if (!Object.keys(compat).length) return;
+  await mkdir(stateDir, { recursive: true });
+  for (const project of Object.keys(compat)) {
+    await writeFile(compatFile(project), JSON.stringify(compatReplacements(project), null, 2) + '\n');
+  }
 }
 
 function unreachable() {
@@ -291,12 +350,13 @@ async function readState() {
   }
 }
 
-async function writeState(locals, unmatched = {}) {
+async function writeState(workspace, locals, compat, unmatched) {
   const prior = await readState();
   const now = new Date().toISOString();
   const projects = {};
-  for (const project of Object.keys(locals).sort()) {
-    const { port, engine } = locals[project];
+  const merged = { ...locals, ...compat };
+  for (const project of Object.keys(merged).sort()) {
+    const { port, engine } = merged[project];
     const previous = prior && prior.projects && prior.projects[project];
     const keepSince = previous && previous.port === port && previous.engine === engine && previous.since;
     projects[project] = {
@@ -305,6 +365,8 @@ async function writeState(locals, unmatched = {}) {
       prefix: prefixOf(project),
       since: keepSince ? previous.since : now,
     };
+    if (merged[project].pid) projects[project].pid = merged[project].pid;
+    if (compat[project]) projects[project].compat = true;
   }
   const state = { workspaceId: workspaceId(workspace), updatedAt: now, rule: RULE_NAME, ruleSelected: true, projects };
   if (Object.keys(unmatched).length) state.unmatched = unmatched;
@@ -315,10 +377,11 @@ async function writeState(locals, unmatched = {}) {
   return state;
 }
 
-export async function sync() {
-  const projects = listProjects();
-  const { locals, unmatched } = await detectLocals(projects);
-  const body = buildRule(projects, locals);
+export async function sync(workspace = readWorkspace()) {
+  const projects = listProjects(workspace);
+  const { locals, compat, unmatched } = await detectLocals(projects, workspace);
+  await writeCompatFiles(compat);
+  const body = buildRule(projects, locals, compat);
   const current = await readRule();
   if (current && typeof current.value === 'string' && !current.value.startsWith(MARKER)) {
     throw new Error(`Whistle 里已有同名规则「${RULE_NAME}」，但不是本工具生成的；请改名或删除后重试。`);
@@ -326,7 +389,7 @@ export async function sync() {
   if (!current || current.value !== body || !current.selected) {
     await writeRule(body);
   }
-  return writeState(locals, unmatched);
+  return writeState(workspace, locals, compat, unmatched);
 }
 
 async function main() {

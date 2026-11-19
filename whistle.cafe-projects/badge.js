@@ -12,7 +12,7 @@
 
   const CONSOLE_URL = 'http://127.0.0.1:8899/plugin.cafe-projects/';
   const ENTRY_URL = 'https://cloudgametest2.migufun.com:18443/cybercafe-power/#/amsportal';
-  const STALE_AFTER = 20000;
+  const STALE_AFTER = 30000;
   const COLLAPSED_KEY = 'cafe-badge-collapsed';
 
   const host = document.createElement('div');

@@ -4,143 +4,107 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="cafe-token" content="CAFE_CSRF">
 <title>Cybercafe 本地调试</title>
-<style>
-  :root {
-    --canvas: #f5f5f7;
-    --surface: #fff;
-    --text: #1d1d1f;
-    --muted: #636366;
-    --border: #e5e5ea;
-    --accent: #0066cc;
-    --selection: #eaf3ff;
-    --control: #f0f0f3;
-    --success: #246c3b;
-    --warning: #925026;
-    --error: #a82721;
-    color-scheme: light;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    min-height: 100vh;
-    background: var(--canvas);
-    color: var(--text);
-    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", system-ui, sans-serif;
-  }
-  .toolbar { background: var(--surface); border-bottom: 1px solid var(--border); }
-  .toolbar-inner, .panel { width: min(1120px, calc(100% - 48px)); margin-inline: auto; }
-  .toolbar-inner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px 24px; padding-block: 12px; }
-  .brand { font-size: 17px; font-weight: 650; letter-spacing: -.025em; }
-  .toolbar-actions, .actions, .modal-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-  .panel { padding-block: 30px; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 2px 8px rgb(0 0 0 / 3%); min-width: 0; }
-  #workspace-form { margin-bottom: 16px; padding: 20px 22px; }
-  .workspace-controls { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px 20px; }
-  .workspace-info { flex: 1 1 16rem; min-width: 0; }
-  h1, h2, p { margin: 0; }
-  h2 { font-size: 15px; font-weight: 650; }
-  #workspace { margin-top: 3px; color: var(--muted); overflow-wrap: anywhere; }
-  .sync { display: block; margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
-  .sync[data-state=warn] { color: var(--warning); }
-  .sync[data-state=ok] { color: var(--success); }
-  .project-layout { display: grid; grid-template-columns: minmax(230px, 280px) minmax(0, 1fr); align-items: start; gap: 16px; }
-  .projects-card { padding: 15px 10px 10px; }
-  .projects-card h2 { padding: 0 10px 9px; }
-  nav button {
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    width: 100%; min-height: 40px; padding: 8px 10px; margin-bottom: 2px;
-    border: 0; border-radius: 9px; background: transparent; color: inherit;
-    font: inherit; text-align: left; cursor: pointer;
-  }
-  nav button:hover { background: var(--control); }
-  nav button[aria-current=true] { background: var(--selection); color: var(--accent); font-weight: 600; }
-  .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tag { flex: none; color: var(--success); font-size: 12px; font-variant-numeric: tabular-nums; }
-  .tag.idle, .empty { color: var(--muted); }
-  .empty { padding: 8px 10px 12px; font-size: 13px; }
-  .project-card { padding: clamp(18px, 4vw, 32px); }
-  h1 { font-size: clamp(23px, 4vw, 30px); line-height: 1.16; letter-spacing: -.035em; overflow-wrap: anywhere; }
-  .meta { margin: 8px 0 22px; color: var(--muted); overflow-wrap: anywhere; }
-  .entry, .ghost, .secondary, button.start {
-    display: inline-flex; align-items: center; justify-content: center; padding: 7px 14px;
-    min-height: 34px; border: 0; border-radius: 9px; background: var(--control);
-    color: var(--text); font: inherit; font-weight: 550; text-decoration: none; cursor: pointer;
-  }
-  .entry, button.start, #save-workspace { background: var(--accent); color: #fff; }
-  :is(.entry, .ghost, .secondary, button.start):hover:not(:disabled) { filter: brightness(.93); }
-  :is(button, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-  button:disabled { opacity: .5; cursor: default; }
-  [hidden] { display: none !important; }
-  .status { margin-top: 12px; color: var(--muted); overflow-wrap: anywhere; }
-  .status:empty { display: none; }
-  .status[data-state=error] { color: var(--error); }
-  .status[data-state=busy] { color: var(--accent); }
-  .note { margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
-  .modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px; background: rgb(0 0 0 / 32%); backdrop-filter: blur(5px); }
-  .modal-box { display: flex; flex-direction: column; width: min(820px, 100%); max-height: 85vh; border-radius: 18px; background: var(--surface); box-shadow: 0 24px 64px rgb(0 0 0 / 22%); overflow: hidden; }
-  .modal-head { display: flex; align-items: center; gap: 10px; padding: 16px 20px; font-weight: 650; }
-  .modal-state { margin-left: auto; color: var(--muted); font-size: 13px; font-weight: 400; }
-  .modal pre { flex: 1; min-height: 0; margin: 0; padding: 16px 20px; overflow: auto; background: var(--canvas); color: var(--text); font: 12px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .modal-foot { padding: 12px 20px; }
-  #close-rule { margin-left: auto; }
-  @media (max-width: 650px) {
-    .toolbar-inner, .panel { width: calc(100% - 28px); }
-    .panel { padding-block: 16px; }
-    .project-layout { grid-template-columns: minmax(0, 1fr); }
-  }
-</style>
+<link rel="stylesheet" href="./panel/panel.css">
 <header class="toolbar">
-  <div class="toolbar-inner">
-    <span class="brand">Cybercafe 本地调试</span>
-    <div class="toolbar-actions">
-      <button class="ghost" id="restart" type="button" title="重启 Whistle 以加载插件的最新代码">重启 Whistle</button>
-      <a class="entry" id="entry" href="https://cloudgametest2.migufun.com:18443/cybercafe-power/#/amsportal" target="_blank" rel="noreferrer">打开测试入口</a>
-    </div>
-  </div>
+  <span class="brand">Cybercafe 本地调试</span>
+  <button class="ghost" id="doctor" type="button">体检</button>
+  <button class="ghost" id="restart" type="button" title="重启 Whistle 以加载插件的最新代码">重启 Whistle</button>
+  <a class="entry" id="entry" href="https://cloudgametest2.migufun.com:18443/cybercafe-power/#/amsportal" target="_blank" rel="noreferrer">打开测试入口</a>
 </header>
 <main class="panel">
-  <section class="card" id="workspace-form" aria-labelledby="workspace-title">
-    <div class="workspace-controls">
-      <div class="workspace-info">
+  <section class="workspace-card" aria-labelledby="workspace-title">
+    <div class="workspace-row">
+      <div>
         <h2 id="workspace-title">项目工作区</h2>
         <p id="workspace">请选择包含 cybercafe-* 子项目的目录。</p>
       </div>
-      <button class="ghost" id="save-workspace" type="button">选择目录</button>
+      <button class="ghost workspace-picker" id="save-workspace" type="button">选择目录</button>
     </div>
     <p class="status" id="workspace-status" role="status"></p>
-    <p class="sync" id="sync" role="status">正在检查同步状态…</p>
+    <div class="workspace-sync">
+      <span class="sync" id="sync" role="status">正在检查同步状态…</span>
+      <button class="ghost" id="sync-now" type="button" hidden>立即同步</button>
+    </div>
   </section>
   <div class="project-layout">
-    <aside class="card projects-card">
-      <h2 id="projects-label">项目</h2>
-      <nav aria-labelledby="projects-label" id="projects"></nav>
-    </aside>
-    <section class="card project-card">
+    <nav aria-label="项目列表">
+      <input class="search" id="search" type="search" placeholder="搜索项目">
+      <label class="fav-filter"><input type="checkbox" id="only-fav"> 只看收藏</label>
+      <div class="list" id="projects"></div>
+    </nav>
+    <section class="project-card">
       <h1 id="title">选择项目</h1>
       <p class="meta" id="meta">在左侧选择项目后，可以启动本地开发服务。</p>
       <div class="actions">
         <button class="start" id="start" type="button" disabled>启动终端</button>
+        <button class="secondary" id="install" type="button" hidden>安装依赖</button>
         <a class="secondary" id="open" target="_blank" rel="noreferrer" hidden>打开项目页面</a>
+        <button class="secondary danger" id="stop" type="button" hidden>停止</button>
+        <button class="secondary primary" id="restart-service" type="button" hidden>重启服务</button>
+        <button class="secondary primary" id="takeover" type="button" hidden>接管并重启</button>
+        <button class="secondary" id="logs" type="button" hidden>查看日志</button>
         <button class="secondary" id="rules" type="button">查看规则</button>
       </div>
+      <div class="startup-result" id="startup-result" hidden>
+        <span id="startup-status" role="status"></span>
+        <button class="secondary" id="startup-log" type="button" hidden>查看本次日志</button>
+      </div>
       <p class="status" id="status" role="status"></p>
-      <p class="note">页面右下角的徽标会显示当前是「本地接管」还是「测试部署」。停止服务后，等插件完成同步，再刷新页面即可回到测试部署。</p>
+      <p class="note">页面右下角的徽标会显示当前是「本地接管」还是「测试部署」。缺少依赖时，启动会提示安装。</p>
     </section>
   </div>
 </main>
+
 <div class="modal" id="rule-modal" hidden>
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="rule-title">
-    <header class="modal-head">
-      <span id="rule-title">Cafe 自动代理</span>
-      <span class="modal-state" id="rule-state"></span>
-    </header>
+    <header class="modal-head"><span id="rule-title">Cafe 自动代理</span><span class="modal-state" id="rule-state"></span></header>
     <pre id="rule-text">正在读取…</pre>
     <footer class="modal-foot">
       <a class="secondary" href="http://127.0.0.1:8899/#rules" target="_blank" rel="noreferrer">在 Whistle 中打开</a>
       <button class="secondary" id="copy-rule" type="button">复制规则</button>
+      <span class="grow"></span>
       <button class="start" id="close-rule" type="button">关闭</button>
     </footer>
   </div>
 </div>
+
+<div class="modal" id="doctor-modal" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="doctor-title">
+    <header class="modal-head"><span id="doctor-title">环境体检</span><span class="modal-state" id="doctor-state"></span></header>
+    <ul class="checks" id="doctor-list"></ul>
+    <footer class="modal-foot">
+      <button class="secondary" id="rerun-doctor" type="button">重新检查</button>
+      <span class="grow"></span>
+      <button class="start" id="close-doctor" type="button">关闭</button>
+    </footer>
+  </div>
+</div>
+
+<div class="modal" id="log-modal" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="log-title">
+    <header class="modal-head"><span id="log-title">日志</span><span class="modal-state" id="log-state"></span></header>
+    <div class="log-tools">
+      <select id="log-run" aria-label="日志批次"></select>
+      <input id="log-search" type="search" maxlength="200" aria-label="搜索日志" placeholder="搜索日志">
+      <button class="secondary" id="copy-log" type="button">复制</button>
+      <button class="secondary" id="download-log" type="button">下载</button>
+    </div>
+    <div class="diags" id="log-diags"></div>
+    <pre id="log-text">正在读取…</pre>
+    <footer class="modal-foot">
+      <button class="secondary" id="refresh-log" type="button">刷新</button>
+      <button class="secondary danger" id="clear-log" type="button" disabled>清理日志</button>
+      <span class="grow log-notice" id="log-notice" role="status"></span>
+      <button class="start" id="close-log" type="button">关闭</button>
+    </footer>
+  </div>
+</div>
+<dialog id="install-prompt" aria-labelledby="install-title">
+  <form method="dialog">
+    <p id="install-title">缺少开发依赖。安装成功后将自动打开终端。</p>
+    <button class="secondary" value="cancel" autofocus>取消</button>
+    <button class="start" value="install">安装并启动</button>
+  </form>
+</dialog>
 <script type="module" src="./panel.mjs"></script>
 </html>
