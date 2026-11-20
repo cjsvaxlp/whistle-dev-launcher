@@ -44,3 +44,12 @@ npm --prefix whistle.cafe-projects test
 App 使用 ad-hoc 签名，首次打开如果提示「无法验证开发者」，右键选择「打开」即可。
 
 首次打开桌面端时，App 会自动通过登录 shell 查找 `w2`，并把工具目录里的 `whistle.cafe-projects` 链接到全局 `node_modules`，不需要再手动执行链接命令。若提示找不到 `w2`，先确认终端里 `w2 -h` 可用。
+
+## 打包
+
+```sh
+./打包.command             # macOS 安装包 + Windows 安装包
+./打包.command --mac-only  # 只打 macOS
+```
+
+需要 Xcode 命令行工具、Rust、Node.js；生成物在 `dist/`。没有全局安装 `terser` 时会使用复制模式打包（不压缩插件 JS，不影响功能）。
