@@ -1,3 +1,4 @@
+const { pacRoute, servePac } = require('../features/system-proxy/pac.cjs');
 const { selectWorkspace } = require('../features/workspace/server.cjs');
 const { openBrowser } = require('../features/browser/server.cjs');
 const { readFileSync, statSync } = require('node:fs');
@@ -64,6 +65,7 @@ async function handle(request, response) {
   response.setHeader('X-Content-Type-Options', 'nosniff');
   const url = new URL(request.url, origin);
   const path = url.pathname;
+  if (path === pacRoute && ['GET', 'HEAD'].includes(request.method)) return servePac(response, request.method);
   if (request.method === 'GET') {
     if (panelAssets.has(path)) return servePanel(response, path);
     if (path === '/api/token') return json(response, 200, { token });

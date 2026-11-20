@@ -1,3 +1,4 @@
+const { pacBody, pacUrl } = require('../system-proxy/pac.cjs');
 const { execFile, execFileSync } = require('node:child_process');
 const { randomBytes, X509Certificate } = require('node:crypto');
 const { existsSync, lstatSync, mkdirSync, realpathSync, renameSync, symlinkSync, unlinkSync, writeFileSync } = require('node:fs');
@@ -6,7 +7,7 @@ const { tmpdir } = require('node:os');
 const { dirname, join } = require('node:path');
 const { promisify } = require('node:util');
 const { pathToFileURL } = require('node:url');
-const { pluginDir, isWindows, POWERSHELL, readWorkspace, stateDir, origin, ruleName, testHost, pacFile } = require('../../shared/config/config.cjs');
+const { pluginDir, isWindows, POWERSHELL, readWorkspace, stateDir, origin, ruleName, pacFile } = require('../../shared/config/config.cjs');
 const { listProjects } = require('../projects/store.cjs');
 const { depInfo, windowsCommand } = require('../terminal/launcher.cjs');
 const { runSync } = require('../projects/server.cjs');
@@ -134,8 +135,8 @@ async function doctor() {
       const localProxy = setting('HTTPSEnable') === '1'
         && ['127.0.0.1', 'localhost'].includes(setting('HTTPSProxy')) && setting('HTTPSPort') === '8899';
       const usingPAC = setting('ProxyAutoConfigEnable') === '1'
-        && setting('ProxyAutoConfigURLString') === pathToFileURL(pacFile).href
-        && existsSync(pacFile);
+        && (setting('ProxyAutoConfigURLString') === pacUrl
+          || (setting('ProxyAutoConfigURLString') === pathToFileURL(pacFile).href && existsSync(pacFile)));
       proxy = localProxy || usingPAC
         ? { status: 'ok', detail: usingPAC ? '已启用本工具生成的 PAC' : 'HTTPS 代理为本机 Whistle' }
         : {
@@ -222,15 +223,9 @@ async function fix(request, response, action) {
     }
     if (action === 'write-pac') {
       mkdirSync(stateDir, { recursive: true });
-      const pac = [
-        'function FindProxyForURL(url, host) {',
-        "  return host === '" + testHost + "' ? 'PROXY 127.0.0.1:8899; DIRECT' : 'DIRECT';",
-        '}',
-        '',
-      ].join('\n');
-      writeFileSync(pacFile, pac);
+      writeFileSync(pacFile, pacBody);
       json(response, 200, {
-        message: `PAC 已生成。请将 ${pathToFileURL(pacFile).href} 填入系统或浏览器的自动代理配置。`,
+        message: `请将 ${pacUrl} 填入系统或浏览器的自动代理配置。`,
         path: pacFile,
       });
       return;

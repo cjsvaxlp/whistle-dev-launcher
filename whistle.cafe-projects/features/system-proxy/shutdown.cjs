@@ -1,3 +1,4 @@
+const { pacUrl } = require('./pac.cjs');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const { pathToFileURL } = require('node:url');
@@ -6,6 +7,7 @@ const { isWindows, POWERSHELL, tools, stateDir, pacFile } = require('../../share
 const run = promisify(execFile);
 
 const managedPAC = new Set([
+  pacUrl,
   'http://127.0.0.1:18899/cybercafe.pac',
   pathToFileURL(pacFile).href,
 ]);

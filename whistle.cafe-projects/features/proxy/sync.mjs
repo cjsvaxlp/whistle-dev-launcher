@@ -285,6 +285,8 @@ export function buildRule(projects, locals, compat = {}) {
     lines.push(`${HOST}${prefixOf(project)} http://127.0.0.1:${port}${prefixOf(project)} reqHeaders://host=127.0.0.1:${port} cache://no-store`);
     if (engine === 'webpack') {
       lines.push(`wss://${HOST}${prefixOf(project)}__hmr ws://127.0.0.1:${port}/ws`);
+    } else if (engine === 'vite') {
+      lines.push(`wss://${HOST}${prefixOf(project)} ws://127.0.0.1:${port}${prefixOf(project)}`);
     }
   }
   for (const project of Object.keys(compat)) {
