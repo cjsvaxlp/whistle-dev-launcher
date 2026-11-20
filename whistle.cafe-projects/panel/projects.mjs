@@ -202,6 +202,10 @@ function render() {
   install.hidden = !info || info.deps.status === 'ready' || installing || active || unmatched;
   install.textContent = info && info.deps.status === 'stale' ? '重新安装依赖' : '安装依赖';
   open.hidden = !info || unmatched;
+  const canOpen = Boolean(info && info.active);
+  open.classList.toggle('disabled', !canOpen);
+  open.setAttribute('aria-disabled', String(!canOpen));
+  open.tabIndex = canOpen ? 0 : -1;
   if (info) {
     open.href = info.url;
     open.dataset.project = info.name;
@@ -335,6 +339,10 @@ function showLogs(project) {
   }
   openLogs(project);
 }
+
+open.addEventListener('click', event => {
+  if (open.getAttribute('aria-disabled') === 'true') event.preventDefault();
+});
 
 logs.addEventListener('click', () => selected && showLogs(selected));
 startupLog.addEventListener('click', () => selected && showLogs(selected));
