@@ -1,12 +1,12 @@
 #!/bin/zsh
 # 一键构建 Cybercafe macOS 安装包（以及可选的 Windows 安装包）。
 # 用法：
-#   ./打包.command             # macOS + Windows
-#   ./打包.command --mac-only  # 只打 macOS
+#   ./scripts/commands/打包.command             # macOS + Windows
+#   ./scripts/commands/打包.command --mac-only  # 只打 macOS
 set -eu
 set -o pipefail
 
-tool_dir=${0:A:h}
+tool_dir=${0:A:h:h:h}
 state_dir="$tool_dir/.cafe-tools"
 dist_dir="$tool_dir/dist"
 mac_only=0
@@ -46,11 +46,11 @@ if (( ${#missing[@]} )); then
 fi
 
 if (( ! mac_only )) && ! command -v python3 >/dev/null 2>&1; then
-  print -u2 '缺少 python3，无法生成 Windows 安装包；可以改用 ./打包.command --mac-only。'
+  print -u2 '缺少 python3，无法生成 Windows 安装包；可以改用 ./scripts/commands/打包.command --mac-only。'
   exit 1
 fi
 if (( ! mac_only )) && [[ "$(uname -m)" != "arm64" ]]; then
-  print -u2 'Windows 安装包目前从 arm64 的 macOS 包生成；请改用 ./打包.command --mac-only。'
+  print -u2 'Windows 安装包目前从 arm64 的 macOS 包生成；请改用 ./scripts/commands/打包.command --mac-only。'
   exit 1
 fi
 

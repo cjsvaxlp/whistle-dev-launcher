@@ -127,7 +127,7 @@ async function openTerminal(project, file, launchId, runtime) {
 
   const child = spawn(process.execPath, [
     join(pluginDir, 'features/logs/run-log.cjs'), file,
-    '/bin/zsh', join(tools, '启动任意项目.command'), project,
+    '/bin/zsh', join(tools, 'scripts/commands/启动任意项目.command'), project,
   ], {
     cwd: projectDir,
     detached: true,

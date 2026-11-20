@@ -2,7 +2,7 @@
 set -eu
 
 workspace="${CAFE_WORKSPACE:-}"
-tool_dir=${0:A:h}
+tool_dir=${0:A:h:h:h}
 workspace_file="${CAFE_STATE_DIR:-${CAFE_TOOLS_DIR:-$tool_dir}/.cafe-tools}/workspace"
 if [[ ! -s "$workspace_file" && -z "${CAFE_STATE_DIR:-}" ]]; then
   workspace_file="$HOME/.cache/cafe-tools/workspace"

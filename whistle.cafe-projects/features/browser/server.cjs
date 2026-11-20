@@ -48,7 +48,7 @@ async function openBrowser(request, response, url, chrome) {
   }
   try {
     if (isWindows) await openWindowsChrome(launchUrl);
-    else await run('/bin/zsh', [join(tools, '打开测试环境.command'), launchUrl], { timeout: 8000 });
+    else await run('/bin/zsh', [join(tools, 'scripts/commands/打开测试环境.command'), launchUrl], { timeout: 8000 });
     return json(response, 200, { ok: true });
   } catch (error) {
     return json(response, 500, { message: error.stderr?.trim() || error.message || '打开开发 Chrome 失败。' });

@@ -328,7 +328,7 @@ pub fn open_test() -> Result<(), String> {
     }
     let contents = app_contents()?;
     let output = Command::new("/bin/zsh")
-        .arg(tools_directory(&contents)?.join("打开测试环境.command"))
+        .arg(tools_directory(&contents)?.join("scripts/commands/打开测试环境.command"))
         .output()
         .map_err(|error| format!("打开浏览器失败：{error}"))?;
     error_output(output, "打开浏览器失败")

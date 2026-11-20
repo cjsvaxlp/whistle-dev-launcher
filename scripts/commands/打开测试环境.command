@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -eu
 
-tool_dir=${0:A:h}
+tool_dir=${0:A:h:h:h}
 
 test_origin='https://cloudgametest2.migufun.com:18443'
 url=${1:-"$test_origin/cybercafe-power/#/amsportal"}

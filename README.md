@@ -13,12 +13,12 @@ Cybercafe 本地开发工具：把测试环境里的任意 `cybercafe-*` 子应�
 
 ## macOS 桌面端
 
-双击 [启动桌面端.command](启动桌面端.command) 打开 Cybercafe。首次运行需要 Rust 和 Xcode 命令行工具。已有应用包时可直接启动。打开应用时会自动启动 Whistle，已有实例会直接复用。在面板里启动项目时，桌面端会在应用内打开终端页面显示服务输出，可以直接停止服务并返回面板；手动在外部终端启动的服务会在终端页提示无法读取实时输出，可一键接管并重启。菜单栏可启动或停止 Whistle，退出桌面应用时只会停止由它启动、且尚未被替换的实例。
+双击 [启动桌面端.command](scripts/commands/启动桌面端.command) 打开 Cybercafe。首次运行需要 Rust 和 Xcode 命令行工具。已有应用包时可直接启动。打开应用时会自动启动 Whistle，已有实例会直接复用。在面板里启动项目时，桌面端会在应用内打开终端页面显示服务输出，可以直接停止服务并返回面板；手动在外部终端启动的服务会在终端页提示无法读取实时输出，可一键接管并重启。菜单栏可启动或停止 Whistle，退出桌面应用时只会停止由它启动、且尚未被替换的实例。
 
 修改 Rust、应用图标或启动配置后，先退出桌面应用，再从工具目录运行：
 
 ```zsh
-./启动桌面端.command --rebuild
+./scripts/commands/启动桌面端.command --rebuild
 ```
 
 应用构建在仓库的 `.cafe-tools/Cybercafe.app` 内。它会从工具目录复用 Whistle 插件和默认浏览器打开脚本，因此请保留该目录位置。构建时会记录当前终端找到的 `w2`，供 Finder 启动后的桌面端使用。切换 Node 或重新安装 Whistle 后，可用同一条命令更新路径。
@@ -48,8 +48,8 @@ App 使用 ad-hoc 签名，首次打开如果提示「无法验证开发者」�
 ## 打包
 
 ```sh
-./打包.command             # macOS 安装包 + Windows 安装包
-./打包.command --mac-only  # 只打 macOS
+./scripts/commands/打包.command             # macOS 安装包 + Windows 安装包
+./scripts/commands/打包.command --mac-only  # 只打 macOS
 ```
 
 需要 Xcode 命令行工具、Rust、Node.js；生成物在 `dist/`。没有全局安装 `terser` 时会使用复制模式打包（不压缩插件 JS，不影响功能）。
@@ -84,8 +84,9 @@ Whistle 插件按功能组织。每个功能的客户端、服务端和资源放
 | `desktop/ui/` | 桌面连接异常时显示的本地页面。 |
 | `desktop/icons/` | 桌面应用和菜单使用的图标资源。 |
 | `desktop/windows/` | Windows 安装和启动脚本。 |
+| `scripts/commands/` | 可双击使用的启动、同步、浏览器和打包 Shell 入口。 |
 | `scripts/browser/` | macOS 默认浏览器标签页查找、复用和新建。 |
 | `.cafe-tools/` | 本机状态、日志、构建缓存和桌面应用，由 Git 忽略。 |
 | `dist/` | 安装包输出，由 Git 忽略。 |
 
-`whistle.cafe-projects/index.cjs` 是 Whistle 插件入口。`desktop/src/main.rs` 负责注册桌面模块。`desktop/package-macos.sh`、`desktop/package-cross-platform.py` 负责收集完整功能目录并生成分发包。根目录的 `.command` 文件是用户可双击使用的启动、同步和打包入口。
+`whistle.cafe-projects/index.cjs` 是 Whistle 插件入口。`desktop/src/main.rs` 负责注册桌面模块。`desktop/package-macos.sh`、`desktop/package-cross-platform.py` 负责收集完整功能目录并生成分发包。`scripts/commands/` 中的 `.command` 文件是用户可双击使用的启动、同步和打包入口。

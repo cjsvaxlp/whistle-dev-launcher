@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -eu
 
-tool_dir=${0:A:h}
+tool_dir=${0:A:h:h:h}
 state_dir="$tool_dir/.cafe-tools"
 app="$state_dir/Cybercafe.app"
 if [[ "$#" -eq 0 && -x "$app/Contents/MacOS/cybercafe-desktop" ]]; then
