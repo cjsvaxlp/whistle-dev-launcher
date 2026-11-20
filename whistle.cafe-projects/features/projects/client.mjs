@@ -10,7 +10,13 @@ let proxyShutdown = false;
 const list = document.querySelector('#projects');
 const title = document.querySelector('#title');
 const meta = document.querySelector('#meta');
-const cmsEntryNote = document.querySelector('#cms-entry-note');
+const projectEntryNote = document.querySelector('#project-entry-note');
+const portalEntryNotes = {
+  power: '登录统一服务平台后，点击「算力管理模块」，进入账号可访问的业务页。',
+  hub: '如果首次打开返回统一门户，请登录后点击「云网吧服务模块」完成会话交换。',
+  open: '登录统一服务平台后，点击「算力开放模块」，由平台完成登录态交换。',
+  service: '登录统一服务平台后，点击「运营分析模块」，由平台完成登录态交换。',
+};
 const cmsEntryNotes = {
   cms: '使用 CMS 测试账号登录。需要使用 4A 时，请从 4A 的应用资源进入。',
   newcms: '用 CMS 测试账号登录后，在同一标签页从用户菜单选择「新业管」。',
@@ -226,8 +232,10 @@ function render() {
   install.hidden = !info || info.deps.status === 'ready' || installing || active || unmatched;
   install.textContent = info && info.deps.status === 'stale' ? '重新安装依赖' : '安装依赖';
   const cmsEntryNoteText = Object.hasOwn(cmsEntryNotes, info?.name) ? cmsEntryNotes[info.name] : '';
-  cmsEntryNote.hidden = !cmsEntryNoteText;
-  cmsEntryNote.textContent = cmsEntryNoteText;
+  const portalEntryNoteText = Object.hasOwn(portalEntryNotes, info?.name) ? portalEntryNotes[info.name] : '';
+  const entryNoteText = cmsEntryNoteText || portalEntryNoteText;
+  projectEntryNote.hidden = !entryNoteText;
+  projectEntryNote.textContent = entryNoteText;
   open.textContent = cmsEntryNoteText ? '打开 CMS 测试登录' : '打开项目页面';
   gameChannelField.hidden = info?.name !== 'game';
   gameChannel.required = !gameChannelField.hidden;

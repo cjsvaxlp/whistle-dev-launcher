@@ -260,6 +260,11 @@ pub fn start() -> Result<Status, String> {
     )
     .map_err(|error| error.to_string())?;
     let tools = tools_directory(&contents)?;
+    // An installer can replace the app bundle while the Whistle daemon is still running.
+    let working_directory = env::var_os("HOME")
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute() && path.is_dir())
+        .unwrap_or_else(|| PathBuf::from("/"));
     let mut command = Command::new(&executable);
     command.args(["start", "-H", "127.0.0.1", "-p", "8899"]);
     if tools.join(".installed").is_file() {
@@ -268,7 +273,7 @@ pub fn start() -> Result<Status, String> {
         ensure_plugin(&contents, &executable, &path)?;
     }
     let output = command
-        .current_dir(&tools)
+        .current_dir(working_directory)
         .env("PATH", path)
         .output()
         .map_err(|error| format!("启动 Whistle 失败：{error}"))?;
