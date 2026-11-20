@@ -1,4 +1,5 @@
-import { confirmAction, post } from './api.mjs';
+import { showError, reportError } from '../../shared/toast/toast.mjs';
+import { confirmAction, post } from '../../shared/http/client.mjs';
 
 const logModal = document.querySelector('#log-modal');
 const logTitle = document.querySelector('#log-title');
@@ -49,6 +50,7 @@ async function refreshLogs() {
       }
       throw new Error(data.message || '读取失败。');
     }
+    reportError('logs-load', '');
     renderRuns(data.runs, data.run);
     const atBottom = logText.scrollTop + logText.clientHeight >= logText.scrollHeight - 30;
     displayedLog = data.lines.join('\n');
@@ -75,7 +77,7 @@ async function refreshLogs() {
     if (!controller.signal.aborted) {
       copyLog.disabled = true;
       downloadLog.disabled = true;
-      logText.textContent = error.message;
+      reportError('logs-load', error.message);
     }
   }
 }
@@ -135,7 +137,7 @@ copyLog.addEventListener('click', async () => {
     if (!document.execCommand('copy')) throw new Error('复制失败');
     logState.textContent = '已复制当前显示的日志';
   } catch {
-    logState.textContent = '无法自动复制，可选中日志手动复制';
+    showError('无法自动复制，可选中日志手动复制');
   } finally {
     selection?.removeAllRanges();
   }
@@ -167,7 +169,7 @@ clearLog.addEventListener('click', async () => {
   } catch (error) {
     if (logProject === project) {
       clearLog.disabled = false;
-      logNotice.textContent = error.message;
+      showError(error.message);
     }
   } finally {
     clearing = false;

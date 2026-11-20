@@ -17,4 +17,4 @@ if ! /usr/bin/curl --noproxy '*' --fail --silent --max-time 3 \
   exit 1
 fi
 
-exec /usr/bin/osascript -l JavaScript "$tool_dir/scripts/open-browser.js" "$url"
+exec /usr/bin/osascript -l JavaScript "$tool_dir/scripts/browser/open-browser.js" "$url"

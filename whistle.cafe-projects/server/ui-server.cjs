@@ -1,30 +1,47 @@
-const { execFile, spawn } = require('node:child_process');
-const { promisify } = require('node:util');
-const { mkdir, rename, rm, writeFile } = require('node:fs/promises');
-const { workspaceFile } = require('../workspace.cjs');
-const { existsSync, readFileSync, statSync } = require('node:fs');
-const { isAbsolute, join, resolve } = require('node:path');
-const { origin, pluginDir, stateDir, isWindows, POWERSHELL, readWorkspace, tools, entryUrl, projectPageUrl } = require('./config.cjs');
-const { authorized, json, token } = require('./http.cjs');
-const { listProjects } = require('./project-store.cjs');
-const { projectAction, runSync, refreshWorkspace, snapshot, changeProxy } = require('./projects.cjs');
-const { doctor, fix } = require('./doctor.cjs');
-const { getLog, clearProjectLogs } = require('./log-routes.cjs');
-const { listLogRuns } = require('./logs.cjs');
-const { getRule, restartWhistle } = require('./whistle.cjs');
+const { selectWorkspace } = require('../features/workspace/server.cjs');
+const { openBrowser } = require('../features/browser/server.cjs');
+const { readFileSync, statSync } = require('node:fs');
+const { join } = require('node:path');
+const { origin, pluginDir, readWorkspace } = require('../shared/config/config.cjs');
+const { authorized, json, token } = require('../shared/http/http.cjs');
+const { listProjects } = require('../features/projects/store.cjs');
+const { projectAction, runSync, snapshot, changeProxy } = require('../features/projects/server.cjs');
+const { doctor, fix } = require('../features/doctor/server.cjs');
+const { getLog, clearProjectLogs } = require('../features/logs/routes.cjs');
+const { listLogRuns } = require('../features/logs/store.cjs');
+const { getRule, restartWhistle } = require('../features/whistle/server.cjs');
 
-const scriptType = 'text/javascript; charset=utf-8';
 const panelAssets = new Map([
-  ['/', ['panel.html', 'text/html; charset=utf-8']],
-  ['/panel.mjs', ['panel.mjs', scriptType]],
-  ['/panel/panel.css', ['panel/panel.css', 'text/css; charset=utf-8']],
-  ['/terminal.html', ['terminal.html', 'text/html; charset=utf-8']],
-  ['/terminal.mjs', ['terminal.mjs', scriptType]],
-  ['/terminal.css', ['terminal.css', 'text/css; charset=utf-8']],
-  ...['api', 'dialogs', 'logs', 'projects', 'whistle'].map(name => {
-    const file = 'panel/' + name + '.mjs';
-    return ['/' + file, [file, scriptType]];
-  }),
+  ["/features/doctor/client.mjs", ["features/doctor/client.mjs", "text/javascript; charset=utf-8"]],
+  ["/features/rules/client.mjs", ["features/rules/client.mjs", "text/javascript; charset=utf-8"]],
+  ["/", ["panel/index.html", "text/html; charset=utf-8"]],
+  ["/terminal.css", ["features/terminal/terminal.css", "text/css; charset=utf-8"]],
+  ["/features/terminal/terminal.css", ["features/terminal/terminal.css", "text/css; charset=utf-8"]],
+  ["/badge.html", ["features/badge/badge.html", "text/html; charset=utf-8"]],
+  ["/features/badge/badge.html", ["features/badge/badge.html", "text/html; charset=utf-8"]],
+  ["/panel.mjs", ["panel/app.mjs", "text/javascript; charset=utf-8"]],
+  ["/panel/app.mjs", ["panel/app.mjs", "text/javascript; charset=utf-8"]],
+  ["/terminal.html", ["features/terminal/terminal.html", "text/html; charset=utf-8"]],
+  ["/features/terminal/terminal.html", ["features/terminal/terminal.html", "text/html; charset=utf-8"]],
+  ["/badge.css", ["features/badge/badge.css", "text/css; charset=utf-8"]],
+  ["/features/badge/badge.css", ["features/badge/badge.css", "text/css; charset=utf-8"]],
+  ["/panel.html", ["panel/index.html", "text/html; charset=utf-8"]],
+  ["/panel/index.html", ["panel/index.html", "text/html; charset=utf-8"]],
+  ["/terminal.mjs", ["features/terminal/client.mjs", "text/javascript; charset=utf-8"]],
+  ["/features/terminal/client.mjs", ["features/terminal/client.mjs", "text/javascript; charset=utf-8"]],
+  ["/panel/api.mjs", ["shared/http/client.mjs", "text/javascript; charset=utf-8"]],
+  ["/shared/http/client.mjs", ["shared/http/client.mjs", "text/javascript; charset=utf-8"]],
+  ["/panel/toast.mjs", ["shared/toast/toast.mjs", "text/javascript; charset=utf-8"]],
+  ["/shared/toast/toast.mjs", ["shared/toast/toast.mjs", "text/javascript; charset=utf-8"]],
+  ["/panel/projects.mjs", ["features/projects/client.mjs", "text/javascript; charset=utf-8"]],
+  ["/features/projects/client.mjs", ["features/projects/client.mjs", "text/javascript; charset=utf-8"]],
+  ["/panel/toast.css", ["shared/toast/toast.css", "text/css; charset=utf-8"]],
+  ["/shared/toast/toast.css", ["shared/toast/toast.css", "text/css; charset=utf-8"]],
+  ["/panel/whistle.mjs", ["features/whistle/client.mjs", "text/javascript; charset=utf-8"]],
+  ["/features/whistle/client.mjs", ["features/whistle/client.mjs", "text/javascript; charset=utf-8"]],
+  ["/panel/logs.mjs", ["features/logs/client.mjs", "text/javascript; charset=utf-8"]],
+  ["/features/logs/client.mjs", ["features/logs/client.mjs", "text/javascript; charset=utf-8"]],
+  ["/panel/panel.css", ["panel/panel.css", "text/css; charset=utf-8"]],
 ]);
 const panelCache = new Map();
 
@@ -50,59 +67,6 @@ function servePanel(response, path) {
   } catch {
     json(response, 503, { message: '暂时无法读取面板文件，请刷新重试。' });
   }
-}
-
-const run = promisify(execFile);
-async function openWindowsChrome(url) {
-  const chrome = [process.env.LOCALAPPDATA, process.env.ProgramFiles, process.env['ProgramFiles(x86)']]
-    .filter(Boolean)
-    .map(directory => join(directory, 'Google', 'Chrome', 'Application', 'chrome.exe'))
-    .find(existsSync);
-  if (!chrome) throw new Error('找不到 Google Chrome，请先安装 Chrome。');
-  await mkdir(stateDir, { recursive: true });
-  await new Promise((resolve, reject) => {
-    const child = spawn(chrome, [
-      '--user-data-dir=' + join(stateDir, 'Chrome开发配置'),
-      '--proxy-server=http://127.0.0.1:8899',
-      url,
-    ], { detached: true, stdio: 'ignore' });
-    child.once('error', reject);
-    child.once('spawn', () => {
-      child.unref();
-      resolve();
-    });
-  });
-}
-
-let savingWorkspace = false;
-
-async function chooseWorkspace() {
-  const options = { timeout: 300000, windowsHide: true };
-  if (isWindows) {
-    const code = [
-      '$ErrorActionPreference = "Stop"',
-      '[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)',
-      'Add-Type -AssemblyName System.Windows.Forms',
-      '$dialog = New-Object System.Windows.Forms.FolderBrowserDialog',
-      "$dialog.Description = '请选择包含 cybercafe-* 子项目的目录'",
-      '$dialog.ShowNewFolderButton = $false',
-      'try { if ($dialog.ShowDialog() -eq "OK") { $dialog.SelectedPath } } finally { $dialog.Dispose() }',
-    ].join('\n');
-    const { stdout } = await run(POWERSHELL, [
-      '-NoProfile', '-STA', '-EncodedCommand', Buffer.from(code, 'utf16le').toString('base64'),
-    ], options);
-    return stdout.trim();
-  }
-
-  const { stdout } = await run('/usr/bin/osascript', [
-    '-e', 'try',
-    '-e', 'activate',
-    '-e', 'return POSIX path of (choose folder with prompt "请选择包含 cybercafe-* 子项目的目录")',
-    '-e', 'on error number -128',
-    '-e', 'return ""',
-    '-e', 'end try',
-  ], options);
-  return stdout.trim();
 }
 
 async function handle(request, response) {
@@ -146,45 +110,7 @@ async function handle(request, response) {
   }
 
   if (request.method === 'POST') {
-    if (path === '/api/workspace') {
-      if (!authorized(request)) {
-        json(response, 403, { message: '请从本机 Whistle 面板保存。' });
-        return;
-      }
-      if (savingWorkspace) {
-        json(response, 409, { message: '正在保存，请稍后重试。' });
-        return;
-      }
-      savingWorkspace = true;
-      const temporary = `${workspaceFile}.${process.pid}.tmp`;
-      try {
-        const selected = await chooseWorkspace();
-        if (!selected) {
-          json(response, 200, { cancelled: true });
-          return;
-        }
-        if (!isAbsolute(selected) || /[\x00-\x1f]/.test(selected)) {
-          json(response, 400, { message: '所选目录的路径无效。' });
-          return;
-        }
-        const directory = resolve(selected);
-        if (!listProjects(directory).length) {
-          json(response, 400, { message: '请选择包含 cybercafe-* 子项目的目录。' });
-          return;
-        }
-        await mkdir(stateDir, { recursive: true });
-        await writeFile(temporary, directory + '\n', { mode: 0o600 });
-        await rename(temporary, workspaceFile);
-        refreshWorkspace();
-        json(response, 200, { workspace: readWorkspace() });
-      } catch (error) {
-        json(response, 500, { message: `无法选择或保存工作区：${error.message}` });
-      } finally {
-        await rm(temporary, { force: true }).catch(() => {});
-        savingWorkspace = false;
-      }
-      return;
-    }
+    if (path === '/api/workspace') return selectWorkspace(request, response);
     if (path === '/api/proxy/on' || path === '/api/proxy/off') {
       return changeProxy(request, response, path.endsWith('/on'));
     }
@@ -193,32 +119,8 @@ async function handle(request, response) {
       const ok = await runSync();
       return json(response, ok ? 200 : 503, { message: ok ? '已同步。' : '同步失败，稍后会自动重试。' });
     }
-    const chrome = /^\/api\/open-chrome(?:\/([a-z0-9-]+))?$/.exec(path);
-    if (chrome) {
-      if (!authorized(request)) return json(response, 403, { message: '请从本机 Whistle 面板操作。' });
-      if (!isWindows && process.platform !== 'darwin') {
-        return json(response, 501, { message: '开发 Chrome 支持 macOS 和 Windows。' });
-      }
-      const project = chrome[1];
-      if (project && !listProjects().includes(project)) {
-        return json(response, 404, { message: '项目不存在。' });
-      }
-      let launchUrl = project ? projectPageUrl(project) : entryUrl;
-      if (project === 'game') {
-        const channelCode = url.searchParams.get('channelCode') || '';
-        if (!/^[A-Za-z0-9_-]{1,80}$/.test(channelCode)) {
-          return json(response, 400, { message: '请输入有效的游戏渠道编码。' });
-        }
-        launchUrl += '?' + new URLSearchParams({ channelCode });
-      }
-      try {
-        if (isWindows) await openWindowsChrome(launchUrl);
-        else await run('/bin/zsh', [join(tools, '打开测试环境.command'), launchUrl], { timeout: 8000 });
-        return json(response, 200, { ok: true });
-      } catch (error) {
-        return json(response, 500, { message: error.stderr?.trim() || error.message || '打开开发 Chrome 失败。' });
-      }
-    }
+    const browser = /^\/api\/open-chrome(?:\/([a-z0-9-]+))?$/.exec(path);
+    if (browser) return openBrowser(request, response, url, browser);
     if (path === '/api/restart') return restartWhistle(request, response);
     const fixMatch = /^\/api\/fix\/([a-z-]+)$/.exec(path);
     if (fixMatch) return fix(request, response, fixMatch[1]);

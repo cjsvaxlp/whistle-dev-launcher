@@ -2,8 +2,8 @@ const { spawn } = require('node:child_process');
 const { closeSync, existsSync, mkdirSync, openSync } = require('node:fs');
 const { homedir } = require('node:os');
 const { dirname, join } = require('node:path');
-const { origin, ruleName, logsDir, isWindows } = require('./config.cjs');
-const { json, authorized } = require('./http.cjs');
+const { origin, ruleName, logsDir, isWindows } = require('../../shared/config/config.cjs');
+const { json, authorized } = require('../../shared/http/http.cjs');
 
 function whistleCli() {
   const candidates = [];

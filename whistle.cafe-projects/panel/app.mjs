@@ -1,9 +1,12 @@
-import { post } from './panel/api.mjs';
-import { bindDialogs } from './panel/dialogs.mjs';
-import { hasWorkspace, load, openSelectedLogs, setStatus } from './panel/projects.mjs';
-import { bindWhistleControls } from './panel/whistle.mjs';
+import { showError } from '../shared/toast/toast.mjs';
+import { post } from '../shared/http/client.mjs';
+import { bindDoctor } from '../features/doctor/client.mjs';
+import { bindRules } from '../features/rules/client.mjs';
+import { hasWorkspace, load, openSelectedLogs, setStatus } from '../features/projects/client.mjs';
+import { bindWhistleControls } from '../features/whistle/client.mjs';
 
-const { showDoctor } = bindDialogs({ load });
+const { showDoctor } = bindDoctor({ load });
+bindRules();
 bindWhistleControls({ load, setStatus });
 
 const picker = document.querySelector('#save-workspace');
@@ -22,8 +25,8 @@ picker.addEventListener('click', async () => {
     await load();
     if (!picker.closest('.modal').hidden) await showDoctor();
   } catch (error) {
-    workspaceStatus.dataset.state = 'error';
-    workspaceStatus.textContent = error.message;
+    workspaceStatus.textContent = '';
+    showError(error.message);
   } finally {
     picker.disabled = false;
   }

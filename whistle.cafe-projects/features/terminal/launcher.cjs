@@ -3,8 +3,8 @@ const { accessSync, constants, existsSync, statSync } = require('node:fs');
 const { once } = require('node:events');
 const { dirname, join } = require('node:path');
 const { promisify } = require('node:util');
-const { pluginDir, readWorkspace, tools, stateDir, isWindows, POWERSHELL } = require('./config.cjs');
-const { installPolicy, runtimePath } = require('./runtime.cjs');
+const { pluginDir, readWorkspace, tools, stateDir, isWindows, POWERSHELL } = require('../../shared/config/config.cjs');
+const { installPolicy, runtimePath } = require('../runtime/runtime.cjs');
 const run = promisify(execFile);
 
 function hasDevDependency(directory, vite) {
@@ -105,7 +105,7 @@ async function openWindowsTerminal(project, file, launchId, runtime) {
     '$env:PATH = ' + psLiteral(runtimePath(runtime)),
     '$env:HOST = \'127.0.0.1\'',
     '$env:__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS = ' + psLiteral(host),
-    '& ' + [process.execPath, join(pluginDir, 'run-log.cjs'), file, runtime.node, cli, ...args]
+    '& ' + [process.execPath, join(pluginDir, 'features/logs/run-log.cjs'), file, runtime.node, cli, ...args]
       .map(psLiteral).join(' '),
   ].join('\n');
   const open = '$ErrorActionPreference = \'Stop\'; Start-Process -FilePath ' + psLiteral(POWERSHELL)
@@ -126,7 +126,7 @@ async function openTerminal(project, file, launchId, runtime) {
   }
 
   const child = spawn(process.execPath, [
-    join(pluginDir, 'run-log.cjs'), file,
+    join(pluginDir, 'features/logs/run-log.cjs'), file,
     '/bin/zsh', join(tools, '启动任意项目.command'), project,
   ], {
     cwd: projectDir,

@@ -20,24 +20,32 @@ app="$staging/payload/Cybercafe.app"
 contents="$app/Contents"
 tools="$contents/Resources/tools"
 plugin="$tools/whistle.cafe-projects"
-mkdir -p "$contents/MacOS" "$plugin/server" "$plugin/panel"
+mkdir -p "$contents/MacOS" "$plugin" "$tools/scripts/browser"
 /bin/cp -X "$CARGO_TARGET_DIR/debug/cybercafe-desktop" "$contents/MacOS/"
 /usr/bin/strip -S "$contents/MacOS/cybercafe-desktop"
 /bin/cp -X "$desktop_dir/Info.plist" "$contents/"
 /bin/cp -X "$desktop_dir/icons/Cybercafe.icns" "$contents/Resources/"
 : > "$tools/.installed"
 /bin/cp -X "$repo_dir"/{打开测试环境,启动任意项目}.command "$tools/"
+/bin/cp -X "$repo_dir/scripts/browser/open-browser.js" "$tools/scripts/browser/"
 
 source_plugin="$repo_dir/whistle.cafe-projects"
-for asset in "$source_plugin"/*.{cjs,mjs,js} "$source_plugin"/{server/*.cjs,panel/*.mjs}; do
+while IFS= read -r -d '' asset; do
   relative=${asset#"$source_plugin"/}
-  args=(--compress --mangle --comments false)
-  if [[ "$asset" == *.mjs ]]; then args+=(--module); fi
-  node "$terser_cli" "$asset" "${args[@]}" --output "$plugin/$relative"
-  node --check "$plugin/$relative"
-done
-/bin/cp -X "$source_plugin"/{package.json,*.html,*.css} "$plugin/"
-/bin/cp -X "$source_plugin/panel/panel.css" "$plugin/panel/"
+  mkdir -p "$(dirname "$plugin/$relative")"
+  case "$asset" in
+    *.cjs|*.mjs|*.js)
+      args=(--compress --mangle --comments false)
+      if [[ "$asset" == *.mjs ]]; then args+=(--module); fi
+      node "$terser_cli" "$asset" "${args[@]}" --output "$plugin/$relative"
+      node --check "$plugin/$relative"
+      ;;
+    *)
+      /bin/cp -X "$asset" "$plugin/$relative"
+      ;;
+  esac
+done < <(find "$source_plugin" -type d \( -name test -o -name node_modules \) -prune -o \
+  -type f \( -name '*.cjs' -o -name '*.mjs' -o -name '*.js' -o -name '*.html' -o -name '*.css' -o -name package.json \) -print0)
 
 /usr/bin/codesign --force --sign - "$app"
 /usr/bin/codesign --verify --strict "$app"

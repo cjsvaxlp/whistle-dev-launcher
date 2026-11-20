@@ -1,4 +1,4 @@
-import { confirmAction, post, currentServerToken } from './api.mjs';
+import { confirmAction, post, currentServerToken } from '../../shared/http/client.mjs';
 
 export function bindWhistleControls({ load, setStatus }) {
   const syncNow = document.querySelector('#sync-now');

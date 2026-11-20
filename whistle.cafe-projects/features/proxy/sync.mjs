@@ -8,7 +8,7 @@ import { dirname, join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import workspaceConfig from './workspace.cjs';
+import workspaceConfig from '../workspace/store.cjs';
 
 const run = promisify(execFile);
 const require = createRequire(import.meta.url);
@@ -23,9 +23,9 @@ const RULE_NAME = 'Cafe 自动代理';
 const MARKER = '# cafe-tools managed: cafe-auto-proxy';
 const POWERSHELL = join(process.env.SystemRoot || 'C:\\Windows',
   'System32/WindowsPowerShell/v1.0/powershell.exe');
-const BADGE_HTML = join(here, 'badge.html');
-const BADGE_JS = join(here, 'badge.js');
-const BADGE_CSS = join(here, 'badge.css');
+const BADGE_HTML = join(here, '../badge/badge.html');
+const BADGE_JS = join(here, '../badge/badge.js');
+const BADGE_CSS = join(here, '../badge/badge.css');
 const PROJECT_RE = /^cybercafe-[a-z0-9-]+$/;
 const prefixOf = project => `/cybercafe-${project}/`;
 

@@ -1,6 +1,6 @@
-const { readWorkspace, stateDir } = require('../workspace.cjs');
+const { readWorkspace, stateDir } = require('../../features/workspace/store.cjs');
 const { join } = require('node:path');
-const pluginDir = join(__dirname, '..');
+const pluginDir = join(__dirname, '../..');
 
 const isWindows = process.platform === 'win32';
 const POWERSHELL = join(process.env.SystemRoot || 'C:\\Windows',

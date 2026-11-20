@@ -1,5 +1,5 @@
 const { randomUUID } = require('node:crypto');
-const { readLog, diagnose } = require('./logs.cjs');
+const { readLog, diagnose } = require('../logs/store.cjs');
 
 const STARTUP_TIMEOUT = 45000;
 const attempts = new Map();

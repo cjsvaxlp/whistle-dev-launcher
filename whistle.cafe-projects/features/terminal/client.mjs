@@ -1,4 +1,5 @@
-import { confirmAction, post } from './panel/api.mjs';
+import { showError, reportError } from '../../shared/toast/toast.mjs';
+import { confirmAction, post } from '../../shared/http/client.mjs';
 
 const project = new URLSearchParams(location.search).get('project') || '';
 const title = document.querySelector('#title');
@@ -49,6 +50,7 @@ async function refresh() {
     const response = await fetch(`./api/logs/${encodeURIComponent(project)}`, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || '读取失败。');
+    reportError('terminal-load', '');
     const atBottom = output.scrollTop + output.clientHeight >= output.scrollHeight - 30;
     const text = data.lines.join('\n');
     output.textContent = text || '（暂无日志）';
@@ -77,7 +79,7 @@ async function refresh() {
     }
   } catch (error) {
     setStatus('等待 Whistle…', 'warn');
-    output.textContent = error.message;
+    reportError('terminal-load', error.message);
     stop.disabled = true;
     takeover.hidden = true;
   } finally {
@@ -97,7 +99,8 @@ async function serviceAction(button, action, message, pendingText) {
     if (!response.ok) throw new Error(data.message || '操作失败。');
     await refresh();
   } catch (error) {
-    setStatus(error.message, 'warn');
+    setStatus('操作失败', 'warn');
+    showError(error.message);
   } finally {
     pending = false;
     if (button === takeover) button.disabled = false;

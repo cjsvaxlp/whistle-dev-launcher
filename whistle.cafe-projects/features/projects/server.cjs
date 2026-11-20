@@ -3,18 +3,18 @@ const { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } = require('
 const { join } = require('node:path');
 const { promisify } = require('node:util');
 const { pathToFileURL } = require('node:url');
-const { stateDir, proxyDisabledFile, isLocalProxyEnabled } = require('../workspace.cjs');
-const { openLog } = require('../run-log.cjs');
-const { pluginDir, readWorkspace, ruleName, entryUrl, projectPageUrl, isWindows, POWERSHELL } = require('./config.cjs');
-const { listProjects, readState, readPrefs, writePrefs, stateEntry } = require('./project-store.cjs');
-const { archiveNames, logPath, prepareLog, isRunning, logWriterPid } = require('./logs.cjs');
-const { depInfo, cliFor, windowsCommand, openTerminal } = require('./terminal.cjs');
-const { authorized, json } = require('./http.cjs');
-const { nodeRuntime, runtimePath, installPolicy, installInvocation } = require('./runtime.cjs');
+const { stateDir, proxyDisabledFile, isLocalProxyEnabled } = require('../workspace/store.cjs');
+const { openLog } = require('../logs/run-log.cjs');
+const { pluginDir, readWorkspace, ruleName, entryUrl, projectPageUrl, isWindows, POWERSHELL } = require('../../shared/config/config.cjs');
+const { listProjects, readState, readPrefs, writePrefs, stateEntry } = require('./store.cjs');
+const { archiveNames, logPath, prepareLog, isRunning, logWriterPid } = require('../logs/store.cjs');
+const { depInfo, cliFor, windowsCommand, openTerminal } = require('../terminal/launcher.cjs');
+const { authorized, json } = require('../../shared/http/http.cjs');
+const { nodeRuntime, runtimePath, installPolicy, installInvocation } = require('../runtime/runtime.cjs');
 const {
   beginStartup, waitForService, failStartup, observeStartup, startupSnapshot,
   hasPendingStartup, hasWaitingStartup, clearStartup,
-} = require('./startup.cjs');
+} = require('../startup/startup.cjs');
 const run = promisify(execFile);
 
 const SYNC_INTERVAL = 10000;
@@ -215,7 +215,7 @@ async function launchAfterInstall(project, attempt, runtime) {
 }
 
 // 插件自己按节奏同步规则和状态；在进程内调用，避免每 5 秒起一个 node 子进程。
-const syncScript = join(pluginDir, 'sync.mjs');
+const syncScript = join(pluginDir, 'features/proxy/sync.mjs');
 let syncInFlight;
 let syncTimer;
 let syncError = null;

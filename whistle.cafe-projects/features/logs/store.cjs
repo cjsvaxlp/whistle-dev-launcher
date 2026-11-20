@@ -4,8 +4,8 @@ const {
   closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, statSync, unlinkSync, writeFileSync,
 } = require('node:fs');
 const { join } = require('node:path');
-const { MAX_SIZE } = require('../run-log.cjs');
-const { logsDir, isWindows } = require('./config.cjs');
+const { MAX_SIZE } = require('./run-log.cjs');
+const { logsDir, isWindows } = require('../../shared/config/config.cjs');
 const archiveDir = join(logsDir, 'archive');
 
 function logPath(project) {

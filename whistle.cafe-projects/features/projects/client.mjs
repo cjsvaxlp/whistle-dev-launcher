@@ -1,5 +1,6 @@
-import { confirmAction, post } from './api.mjs';
-import { openLogs } from './logs.mjs';
+import { showError, reportError } from '../../shared/toast/toast.mjs';
+import { confirmAction, post } from '../../shared/http/client.mjs';
+import { openLogs } from '../logs/client.mjs';
 
 const proxySwitch = document.querySelector('#local-proxy');
 const proxyNotice = document.querySelector('#proxy-notice');
@@ -58,6 +59,10 @@ function clock(iso) {
 }
 
 export function setStatus(text, state) {
+  if (state === 'error') {
+    showError(text);
+    text = '';
+  }
   status.textContent = text;
   status.dataset.state = state || '';
 }
@@ -166,7 +171,7 @@ function render() {
     sync.dataset.state = '';
     syncNow.hidden = true;
   } else if (snapshot.syncError) {
-    sync.textContent = `同步失败：${snapshot.syncError}${snapshot.updatedAt ? ` · 上次成功：${ago(snapshot.updatedAt)}` : ''}`;
+    sync.textContent = '同步失败';
     sync.dataset.state = 'warn';
     syncNow.hidden = false;
   } else if (!snapshot.updatedAt) {
@@ -243,7 +248,7 @@ function render() {
   const startup = info?.startup;
   startupResult.hidden = !startup || (startup.stage === 'ready' && (!active || snapshot.stale));
   startupResult.dataset.stage = startup?.stage || '';
-  const message = startupResult.hidden ? '' : startup.message || '';
+  const message = startupResult.hidden ? '' : (startup.stage === 'failed' ? '启动失败，可查看本次日志。' : startup.message) || '';
   if (startupStatus.textContent !== message) startupStatus.textContent = message;
   startupLog.hidden = !startup?.hasLog || !info.log;
 }
@@ -271,7 +276,8 @@ proxySwitch.addEventListener('change', async () => {
     await load();
     proxyNotice.textContent = data.message;
   } catch (error) {
-    proxyNotice.textContent = error.message;
+    proxyNotice.textContent = '';
+    showError(error.message);
   } finally {
     changingProxy = false;
     render();
@@ -289,14 +295,20 @@ export function load() {
         throw new Error(data.message || '读取状态失败。');
       }
       loadError = '';
+      reportError('projects-load', '');
+      reportError('sync', data.syncError || '');
+      for (const project of data.projects) {
+        reportError('startup-' + project.name, project.startup?.stage === 'failed' ? project.startup.message : '');
+      }
       snapshot = data;
       render();
     })
     .catch(error => {
       snapshot ??= { projects: [] };
-      loadError = `无法读取项目列表：${error.message}`;
+      reportError('projects-load', error.message);
+      loadError = '暂时无法读取项目列表';
       render();
-      sync.textContent = `无法读取状态：${error.message}`;
+      sync.textContent = '暂时无法读取状态';
       sync.dataset.state = 'warn';
     })
     .finally(() => {

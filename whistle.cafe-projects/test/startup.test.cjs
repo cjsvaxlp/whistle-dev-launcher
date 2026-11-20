@@ -6,7 +6,7 @@ const { spawnSync } = require('node:child_process');
 const test = require('node:test');
 const {
   beginStartup, waitForService, failStartup, observeStartup, startupSnapshot, hasPendingStartup, clearStartup,
-} = require('../server/startup.cjs');
+} = require('../features/startup/startup.cjs');
 
 test('a successful scan must have started after the terminal launch', () => {
   const attempt = beginStartup('fresh', 'starting');
@@ -42,7 +42,7 @@ test('a terminal process exit uses diagnostics from the current attempt', t => {
   waitForService(attempt);
   assert.equal(startupSnapshot('early-exit').stage, 'waiting');
   const child = spawnSync(process.execPath, [
-    join(__dirname, '..', 'run-log.cjs'), attempt.logFile,
+    join(__dirname, '..', 'features/logs/run-log.cjs'), attempt.logFile,
     process.execPath, '-e', 'console.error("Error: EADDRINUSE"); process.exitCode = 12',
   ], { env: { ...process.env, CAFE_LAUNCH_ID: attempt.id }, encoding: 'utf8' });
   assert.equal(child.status, 12);

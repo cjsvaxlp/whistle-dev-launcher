@@ -4,4 +4,4 @@
 set -u
 dir=${0:A:h}
 command -v node >/dev/null 2>&1 || { print -u2 '找不到 node，请先安装 Node.js 20+ 并确认 PATH。'; exit 1; }
-exec /usr/bin/env node "$dir/whistle.cafe-projects/sync.mjs"
+exec /usr/bin/env node "$dir/whistle.cafe-projects/features/proxy/sync.mjs"

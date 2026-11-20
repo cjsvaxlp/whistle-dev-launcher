@@ -1,7 +1,7 @@
-const { workspaceFile, workspaceId } = require('../workspace.cjs');
+const { workspaceFile, workspaceId } = require('../workspace/store.cjs');
 const { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
-const { readWorkspace, stateDir, stateFile, prefsFile } = require('./config.cjs');
+const { readWorkspace, stateDir, stateFile, prefsFile } = require('../../shared/config/config.cjs');
 
 function listProjects(directory = readWorkspace()) {
   if (!directory) return [];

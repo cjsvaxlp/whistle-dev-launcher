@@ -6,11 +6,11 @@ const { tmpdir } = require('node:os');
 const { dirname, join } = require('node:path');
 const { promisify } = require('node:util');
 const { pathToFileURL } = require('node:url');
-const { pluginDir, isWindows, POWERSHELL, readWorkspace, stateDir, origin, ruleName, testHost, pacFile } = require('./config.cjs');
-const { listProjects } = require('./project-store.cjs');
-const { depInfo, windowsCommand } = require('./terminal.cjs');
-const { runSync } = require('./projects.cjs');
-const { json, authorized } = require('./http.cjs');
+const { pluginDir, isWindows, POWERSHELL, readWorkspace, stateDir, origin, ruleName, testHost, pacFile } = require('../../shared/config/config.cjs');
+const { listProjects } = require('../projects/store.cjs');
+const { depInfo, windowsCommand } = require('../terminal/launcher.cjs');
+const { runSync } = require('../projects/server.cjs');
+const { json, authorized } = require('../../shared/http/http.cjs');
 const run = promisify(execFile);
 
 function npmCliPath() {

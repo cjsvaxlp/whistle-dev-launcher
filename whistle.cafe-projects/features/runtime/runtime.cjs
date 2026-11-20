@@ -3,7 +3,7 @@ const { existsSync, readFileSync, readdirSync, realpathSync } = require('node:fs
 const { createRequire } = require('node:module');
 const { homedir } = require('node:os');
 const { delimiter, dirname, join } = require('node:path');
-const { isWindows, readWorkspace } = require('./config.cjs');
+const { isWindows, readWorkspace } = require('../../shared/config/config.cjs');
 
 const LOCKFILES = { npm: 'package-lock.json', pnpm: 'pnpm-lock.yaml', yarn: 'yarn.lock' };
 const nodeName = isWindows ? 'node.exe' : 'node';

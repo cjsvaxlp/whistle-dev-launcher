@@ -1,12 +1,12 @@
 const { createReadStream, existsSync, unlinkSync, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
-const { isWindows } = require('./config.cjs');
+const { isWindows } = require('../../shared/config/config.cjs');
 const { setTimeout: delay } = require('node:timers/promises');
-const { json } = require('./http.cjs');
-const { archiveDir, archiveNames, logPath, listLogRuns, clearLogs, readLog, diagnose, isRunning, liveLogWriter } = require('./logs.cjs');
-const { jobs, isProjectBusy } = require('./projects.cjs');
-const { stateEntry } = require('./project-store.cjs');
-const { startupSnapshot } = require('./startup.cjs');
+const { json } = require('../../shared/http/http.cjs');
+const { archiveDir, archiveNames, logPath, listLogRuns, clearLogs, readLog, diagnose, isRunning, liveLogWriter } = require('./store.cjs');
+const { jobs, isProjectBusy } = require('../projects/server.cjs');
+const { stateEntry } = require('../projects/store.cjs');
+const { startupSnapshot } = require('../startup/startup.cjs');
 
 async function getLog(response, url, project) {
   let file = logPath(project);

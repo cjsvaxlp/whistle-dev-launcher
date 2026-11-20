@@ -3,7 +3,7 @@ const { mkdtempSync, rmSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { delimiter, join } = require('node:path');
 const test = require('node:test');
-const { nodeRuntime, runtimePath, installPolicy, installInvocation } = require('../server/runtime.cjs');
+const { nodeRuntime, runtimePath, installPolicy, installInvocation } = require('../features/runtime/runtime.cjs');
 
 function fixture(t) {
   const directory = mkdtempSync(join(tmpdir(), 'cafe-runtime-'));

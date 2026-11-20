@@ -3,7 +3,7 @@ const { existsSync, readFileSync } = require('node:fs');
 const { homedir } = require('node:os');
 const { join, resolve } = require('node:path');
 
-const tools = process.env.CAFE_TOOLS_DIR || join(__dirname, '..');
+const tools = process.env.CAFE_TOOLS_DIR || join(__dirname, '../../..');
 const defaultStateDir = existsSync(join(tools, '.installed'))
   ? process.platform === 'win32'
     ? join(process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local'), 'Cybercafe', 'data')
