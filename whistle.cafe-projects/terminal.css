@@ -1,0 +1,54 @@
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  background: #0b1220;
+  color: #d7e0ea;
+  font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #1e293b;
+  background: #111a2b;
+}
+header strong { font-size: 13px; font-weight: 600; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #64748b; flex: none; }
+.dot.on { background: #22c55e; }
+.dot.warn { background: #f59e0b; }
+.muted { color: #94a3b8; font-size: 12px; }
+.grow { flex: 1; }
+.button {
+  padding: 4px 10px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #1e293b;
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.button:hover { background: #273449; }
+.button:disabled { opacity: .5; cursor: default; }
+.diags { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px 0; }
+.diags:empty { display: none; }
+.diag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #422006;
+  color: #fcd34d;
+  font-size: 12px;
+}
+.output {
+  flex: 1;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #d7e0ea;
+}

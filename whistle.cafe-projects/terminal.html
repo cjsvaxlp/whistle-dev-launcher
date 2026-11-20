@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>终端 · Cybercafe</title>
+<link rel="stylesheet" href="./terminal.css">
+<header>
+  <span class="dot" id="dot"></span>
+  <strong id="title">终端</strong>
+  <span class="muted" id="status">正在连接…</span>
+  <span class="grow"></span>
+  <button class="button" id="stop" type="button" disabled>停止服务</button>
+  <button class="button" id="close" type="button">关闭窗口</button>
+</header>
+<div class="diags" id="diags"></div>
+<pre class="output" id="output" aria-live="polite">正在读取日志…</pre>
+<script type="module" src="./terminal.mjs"></script>
+</html>

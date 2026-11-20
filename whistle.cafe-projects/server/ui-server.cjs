@@ -18,6 +18,9 @@ const panelAssets = new Map([
   ['/', ['panel.html', 'text/html; charset=utf-8']],
   ['/panel.mjs', ['panel.mjs', scriptType]],
   ['/panel/panel.css', ['panel/panel.css', 'text/css; charset=utf-8']],
+  ['/terminal.html', ['terminal.html', 'text/html; charset=utf-8']],
+  ['/terminal.mjs', ['terminal.mjs', scriptType]],
+  ['/terminal.css', ['terminal.css', 'text/css; charset=utf-8']],
   ...['api', 'dialogs', 'logs', 'projects', 'whistle'].map(name => {
     const file = 'panel/' + name + '.mjs';
     return ['/' + file, [file, scriptType]];
@@ -40,7 +43,7 @@ function servePanel(response, path) {
   try {
     const data = readPanel(file);
     response.setHeader('Content-Type', type);
-    if (path === '/') {
+    if (path === '/' || path === '/terminal.html') {
       response.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'");
     }
     response.end(path === '/' ? data.replace('CAFE_CSRF', token) : data);

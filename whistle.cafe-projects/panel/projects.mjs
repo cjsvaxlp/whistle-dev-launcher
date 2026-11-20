@@ -267,6 +267,12 @@ async function toggleFavorite(project) {
   }
 }
 
+function openDesktopTerminal(project) {
+  if (!window.cafeDesktopTerminal) return false;
+  location.href = './terminal.html?project=' + encodeURIComponent(project);
+  return true;
+}
+
 function confirmInstall() {
   installPrompt.returnValue = '';
   const choice = new Promise(resolve => {
@@ -297,7 +303,9 @@ async function projectAction(action, pending) {
     if (!response.ok) throw new Error(data.message || '操作失败。');
     if (selected === project) {
       setStatus(action === 'stop' ? data.message : '');
-      if (action === 'install' || action === 'install-and-start') openLogs(project);
+      const terminalActions = ['start', 'install', 'install-and-start', 'restart-service', 'takeover'];
+      const desktopTerminal = terminalActions.includes(action) && openDesktopTerminal(project);
+      if (!desktopTerminal && (action === 'install' || action === 'install-and-start')) openLogs(project);
     }
   } catch (error) {
     if (selected === project) setStatus(error.message, 'error');
@@ -320,8 +328,16 @@ takeover.addEventListener('click', async () => {
   }
 });
 
-logs.addEventListener('click', () => selected && openLogs(selected));
-startupLog.addEventListener('click', () => selected && openLogs(selected));
+function showLogs(project) {
+  if (window.cafeDesktopTerminal) {
+    location.href = './terminal.html?project=' + encodeURIComponent(project);
+    return;
+  }
+  openLogs(project);
+}
+
+logs.addEventListener('click', () => selected && showLogs(selected));
+startupLog.addEventListener('click', () => selected && showLogs(selected));
 
 search.addEventListener('input', () => {
   query = search.value.trim().toLowerCase();
