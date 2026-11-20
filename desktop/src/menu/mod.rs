@@ -1,9 +1,10 @@
+mod icon;
+
 use std::{
     sync::atomic::{AtomicBool, Ordering},
     thread,
 };
 use tauri::{
-    image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
     App, AppHandle, Manager,
@@ -114,13 +115,10 @@ pub fn setup(app: &App) -> tauri::Result<()> {
         busy: AtomicBool::new(false),
     });
 
-    let icon = app
-        .default_window_icon()
-        .cloned()
-        .unwrap_or_else(|| Image::new_owned(vec![255; 16 * 16 * 4], 16, 16));
     TrayIconBuilder::new()
-        .icon(icon)
+        .icon(icon::tray_icon())
         .icon_as_template(true)
+        .tooltip("Cybercafe 本地调试")
         .menu(&menu)
         .on_menu_event(|app, event| match event.id().as_ref() {
             "quit" => app.exit(0),

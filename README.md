@@ -78,7 +78,7 @@ Whistle 插件按功能组织。每个功能的客户端、服务端和资源放
 | `whistle.cafe-projects/panel/` | 主面板页面、全局布局与功能模块初始化。 |
 | `whistle.cafe-projects/server/` | Whistle UI 服务入口、静态资源映射和 API 路由分发。 |
 | `whistle.cafe-projects/test/` | 启动生命周期、运行时选择与日志功能的回归测试。 |
-| `desktop/src/menu/` | Tauri 菜单栏、异步操作和状态反馈。 |
+| `desktop/src/menu/` | Tauri 菜单栏、独立单色菜单图标、异步操作和状态反馈。 |
 | `desktop/src/services/` | 本机 Whistle 的发现、启动、停止和浏览器入口。 |
 | `desktop/src/window/` | 面板与终端窗口、导航范围和下载处理。 |
 | `desktop/ui/` | 桌面连接异常时显示的本地页面。 |
