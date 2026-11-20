@@ -334,20 +334,29 @@ takeover.addEventListener('click', async () => {
   }
 });
 
-function showLogs(project) {
+function openTerminalPage(project) {
+  const url = './terminal.html?project=' + encodeURIComponent(project);
   if (window.cafeDesktopTerminal) {
-    location.href = './terminal.html?project=' + encodeURIComponent(project);
+    location.href = url;
     return;
   }
-  openLogs(project);
+  const opened = window.open(url, '_blank');
+  if (opened) return;
+  // 老桌面端会拦截新窗口，退回到面板内的日志弹层，至少能看到输出。
+  if (window.cafeDesktop) {
+    openLogs(project);
+    return;
+  }
+  location.href = url;
 }
 
 open.addEventListener('click', event => {
   if (open.getAttribute('aria-disabled') === 'true') event.preventDefault();
 });
 
-logs.addEventListener('click', () => selected && showLogs(selected));
-startupLog.addEventListener('click', () => selected && showLogs(selected));
+terminal.addEventListener('click', () => selected && openTerminalPage(selected));
+logs.addEventListener('click', () => selected && openLogs(selected));
+startupLog.addEventListener('click', () => selected && openLogs(selected));
 
 search.addEventListener('input', () => {
   query = search.value.trim().toLowerCase();
