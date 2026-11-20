@@ -279,7 +279,7 @@ proxySwitch.addEventListener('change', async () => {
     const response = await post('./api/proxy/' + (proxySwitch.checked ? 'on' : 'off'));
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || '切换本地代理失败。');
-    proxyShutdown = data.proxyEnabled === false;
+    proxyShutdown = false;
     if (proxyShutdown) clearTimeout(refreshTimer);
     await refreshInFlight;
     snapshot.proxyEnabled = data.proxyEnabled;

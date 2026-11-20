@@ -1,4 +1,3 @@
-
 use tauri::{
     webview::{DownloadEvent, NewWindowResponse},
     AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder,
@@ -100,9 +99,13 @@ fn open_panel(app: &AppHandle) -> tauri::Result<()> {
         .set_focus()
 }
 
+fn is_tauri_asset(url: &Url) -> bool {
+    (url.scheme() == "tauri" && url.host_str() == Some("localhost"))
+        || (matches!(url.scheme(), "http" | "https") && url.host_str() == Some("tauri.localhost"))
+}
+
 fn is_start_proxy_action(url: &Url) -> bool {
-    url.scheme() == "tauri"
-        && url.host_str() == Some("localhost")
+    is_tauri_asset(url)
         && url.path() == "/start-proxy"
         && url.query().is_none()
         && url.fragment().is_none()
@@ -126,9 +129,7 @@ fn open_connection_window(app: &AppHandle) -> tauri::Result<()> {
                 let _ = handle.run_on_main_thread(move || crate::menu::run_action(&app, "start"));
                 return false;
             }
-            url.scheme() == "tauri"
-                && url.host_str() == Some("localhost")
-                && matches!(url.path(), "/" | "/index.html")
+            is_tauri_asset(url) && matches!(url.path(), "/" | "/index.html" | "/start-proxy")
         })
         .build()?
         .set_focus()
@@ -154,6 +155,9 @@ mod tests {
     fn start_proxy_action_only_accepts_the_local_connection_route() {
         assert!(is_start_proxy_action(
             &"tauri://localhost/start-proxy".parse().unwrap()
+        ));
+        assert!(is_start_proxy_action(
+            &"http://tauri.localhost/start-proxy".parse().unwrap()
         ));
         assert!(!is_start_proxy_action(
             &"http://localhost/start-proxy".parse().unwrap()

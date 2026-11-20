@@ -9,7 +9,6 @@ const { pluginDir, readWorkspace, ruleName, entryUrl, projectPageUrl, isWindows,
 const { listProjects, readState, readPrefs, writePrefs, stateEntry } = require('./store.cjs');
 const { archiveNames, logPath, prepareLog, isRunning, logWriterPid } = require('../logs/store.cjs');
 const { depInfo, cliFor, openTerminal } = require('../terminal/launcher.cjs');
-const { prepareProxyShutdown } = require('../whistle/server.cjs');
 const { authorized, json } = require('../../shared/http/http.cjs');
 const { nodeRuntime } = require('../runtime/runtime.cjs');
 const {
@@ -201,21 +200,11 @@ async function changeProxy(request, response, enabled) {
       saveProxyEnabled(previous);
       return json(response, 503, { message: syncError || '切换本地代理失败。' });
     }
-    if (!enabled) {
-      const shutdown = await prepareProxyShutdown();
-      response.once('finish', () => setTimeout(() => {
-        try {
-          shutdown();
-        } catch (error) {
-          console.error('停止 Whistle 失败：', error);
-        }
-      }, 400));
-    }
     return json(response, 200, {
       proxyEnabled: enabled,
       message: enabled
         ? '已开启本地代理，刷新测试页面即可生效。'
-        : '已停用转发，正在关闭 Whistle。重新开启请从桌面菜单或开始菜单启动 Cybercafe。',
+        : '已停用转发，测试域名改走测试部署；可以随时在面板重新开启。',
     });
   } catch (error) {
     return json(response, 503, { message: error.message });

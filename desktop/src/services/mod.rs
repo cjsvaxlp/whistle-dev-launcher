@@ -68,22 +68,37 @@ pub fn resume_proxy() -> Result<Status, String> {
     let token = response["token"]
         .as_str()
         .ok_or("无法获取本机 Whistle 操作令牌。")?;
-    let response = Command::new("/usr/bin/curl")
-        .args([
-            "--noproxy",
-            "*",
-            "-fsS",
-            "--max-time",
-            "20",
-            "-X",
-            "POST",
-            "-H",
-        ])
-        .arg(format!("X-Cafe-Token: {token}"))
-        .arg(format!("{PANEL_URL}api/proxy/on"))
-        .output()
-        .map_err(|error| error.to_string())?;
-    error_output(response, "无法恢复本地代理")?;
+    let mut last_error = None;
+    for _ in 0..3 {
+        let response = Command::new("/usr/bin/curl")
+            .args([
+                "--noproxy",
+                "*",
+                "-fsS",
+                "--max-time",
+                "20",
+                "-X",
+                "POST",
+                "-H",
+            ])
+            .arg(format!("X-Cafe-Token: {token}"))
+            .arg(format!("{PANEL_URL}api/proxy/on"))
+            .output()
+            .map_err(|error| error.to_string())?;
+        match error_output(response, "无法恢复本地代理") {
+            Ok(()) => {
+                last_error = None;
+                break;
+            }
+            Err(error) => {
+                last_error = Some(error);
+                thread::sleep(Duration::from_millis(500));
+            }
+        }
+    }
+    if let Some(error) = last_error {
+        return Err(error);
+    }
     Ok(status)
 }
 
@@ -248,8 +263,19 @@ fn ensure_plugin(contents: &Path, w2: &Path, path: &std::ffi::OsStr) -> Result<(
 pub fn start() -> Result<Status, String> {
     let mut owned = OWNED_WHISTLE.lock().expect("Whistle lifecycle lock");
     let current = status();
-    if current != Status::Offline {
+    if current == Status::Ready {
         return Ok(current);
+    }
+    if current == Status::PanelUnavailable {
+        // Whistle 的端口先起来、插件后加载；这里等插件可用，避免菜单刚启动就报“面板不可用”。
+        for _ in 0..40 {
+            thread::sleep(Duration::from_millis(250));
+            let next = status();
+            if next == Status::Ready {
+                return Ok(next);
+            }
+        }
+        return Ok(Status::PanelUnavailable);
     }
     let contents = app_contents()?;
     let executable = find_w2(&contents)?;
@@ -281,15 +307,22 @@ pub fn start() -> Result<Status, String> {
         .lines()
         .any(|line| line.contains("Whistle@") && line.trim_end().ends_with(" started"));
     error_output(output, "启动 Whistle 失败")?;
-    for _ in 0..12 {
+    let mut panel_seen = false;
+    for _ in 0..40 {
         let current = status();
-        if current != Status::Offline {
+        if current == Status::Ready {
             if started {
                 *owned = listener_pid();
             }
             return Ok(current);
         }
+        if current == Status::PanelUnavailable {
+            panel_seen = true;
+        }
         thread::sleep(Duration::from_millis(250));
+    }
+    if panel_seen {
+        return Ok(Status::PanelUnavailable);
     }
     Err("Whistle 启动后未监听 8899。".into())
 }
@@ -338,7 +371,6 @@ pub fn open_test() -> Result<(), String> {
         .map_err(|error| format!("打开浏览器失败：{error}"))?;
     error_output(output, "打开浏览器失败")
 }
-
 
 pub fn open_browser_url(url: &str) -> Result<(), String> {
     let contents = app_contents()?;
