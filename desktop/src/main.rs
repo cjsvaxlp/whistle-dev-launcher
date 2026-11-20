@@ -8,7 +8,14 @@ fn main() {
     let app = tauri::Builder::default()
         .setup(|app| {
             menu::setup(app)?;
-            menu::run_action(app.handle(), "start");
+            menu::run_action(
+                app.handle(),
+                if services::proxy_paused() {
+                    "panel"
+                } else {
+                    "start"
+                },
+            );
             Ok(())
         })
         .build(tauri::generate_context!())

@@ -87,6 +87,13 @@
     <ul class="checks" id="doctor-list"></ul>
     <div class="doctor-workspace">
       <span class="sync" id="sync" role="status">正在检查同步状态…</span>
+      <form class="workspace-path-form" id="workspace-path-form">
+        <label for="workspace-path">或直接输入工作区路径</label>
+        <div class="workspace-path-controls">
+          <input class="search" id="workspace-path" type="text" placeholder="/路径/cloudgame-cybercafe/cybercafe-front" required>
+          <button class="secondary" id="apply-workspace-path" type="submit">使用此路径</button>
+        </div>
+      </form>
       <p class="status" id="workspace-status" role="status"></p>
     </div>
     <footer class="modal-foot">

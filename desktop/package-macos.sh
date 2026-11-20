@@ -47,6 +47,9 @@ while IFS= read -r -d '' asset; do
 done < <(find "$source_plugin" -type d \( -name test -o -name node_modules \) -prune -o \
   -type f \( -name '*.cjs' -o -name '*.mjs' -o -name '*.js' -o -name '*.html' -o -name '*.css' -o -name package.json \) -print0)
 
+# 安装包由 root 安装，确保插件文件对所有用户可读。
+/bin/chmod -R a+rX "$app"
+
 /usr/bin/codesign --force --sign - "$app"
 /usr/bin/codesign --verify --strict "$app"
 

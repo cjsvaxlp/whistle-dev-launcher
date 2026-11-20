@@ -26,6 +26,10 @@ echo If you already started Whistle separately, stop it before reopening Cyberca
 goto failed
 
 :open_panel
+if exist "%LOCALAPPDATA%\Cybercafe\data\proxy-disabled" (
+  powershell.exe -NoProfile -Command "$p=$env:PANEL; $token=(Invoke-RestMethod -Uri ($p+'api/token') -TimeoutSec 4).token; Invoke-RestMethod -Uri ($p+'api/proxy/on') -Method Post -Headers @{'X-Cafe-Token'=$token} -TimeoutSec 20 | Out-Null"
+  if errorlevel 1 goto failed
+)
 start "" "%PANEL%"
 exit /b 0
 

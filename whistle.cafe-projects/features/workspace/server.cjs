@@ -1,7 +1,8 @@
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
-const { mkdir, rename, rm, writeFile } = require('node:fs/promises');
-const { isAbsolute, resolve } = require('node:path');
+const { mkdir, realpath, rename, rm, writeFile } = require('node:fs/promises');
+const { existsSync } = require('node:fs');
+const { isAbsolute, join, resolve } = require('node:path');
 const { workspaceFile, readWorkspace, stateDir } = require('./store.cjs');
 const { isWindows, POWERSHELL } = require('../../shared/config/config.cjs');
 const { authorized, json } = require('../../shared/http/http.cjs');
@@ -40,6 +41,28 @@ async function chooseWorkspace() {
   return stdout.trim();
 }
 
+async function readWorkspacePath(request) {
+  if (!request.headers['content-type']?.startsWith('application/x-www-form-urlencoded')) {
+    return null;
+  }
+  let body = '';
+  for await (const chunk of request) {
+    body += chunk;
+    if (body.length > 16384) return '';
+  }
+  return new URLSearchParams(body).get('directory')?.trim() || '';
+}
+
+async function resolveWorkspacePath(selected) {
+  const directory = await realpath(resolve(selected));
+  const candidates = [
+    join(directory, 'cloudgame-cybercafe', 'cybercafe-front'),
+    join(directory, 'cybercafe-front'),
+    directory,
+  ];
+  return candidates.find(candidate => existsSync(candidate) && listProjects(candidate).length);
+}
+
 async function selectWorkspace(request, response) {
   if (!authorized(request)) {
     json(response, 403, { message: '请从本机 Whistle 面板保存。' });
@@ -52,8 +75,9 @@ async function selectWorkspace(request, response) {
   savingWorkspace = true;
   const temporary = `${workspaceFile}.${process.pid}.tmp`;
   try {
-    const selected = await chooseWorkspace();
-    if (!selected) {
+    const entered = await readWorkspacePath(request);
+    const selected = entered ?? await chooseWorkspace();
+    if (!selected && entered === null) {
       json(response, 200, { cancelled: true });
       return;
     }
@@ -61,8 +85,8 @@ async function selectWorkspace(request, response) {
       json(response, 400, { message: '所选目录的路径无效。' });
       return;
     }
-    const directory = resolve(selected);
-    if (!listProjects(directory).length) {
+    const directory = await resolveWorkspacePath(selected);
+    if (!directory) {
       json(response, 400, { message: '请选择包含 cybercafe-* 子项目的目录。' });
       return;
     }
@@ -72,11 +96,15 @@ async function selectWorkspace(request, response) {
     refreshWorkspace();
     json(response, 200, { workspace: readWorkspace() });
   } catch (error) {
-    json(response, 500, { message: `无法选择或保存工作区：${error.message}` });
+    const message = error.code === 'ENOENT' || error.code === 'ENOTDIR'
+      ? '目录不存在，或所选路径不是文件夹。'
+      : `无法选择或保存工作区：${error.message}`;
+    json(response, error.code === 'ENOENT' || error.code === 'ENOTDIR' ? 400 : 500, { message });
   } finally {
     await rm(temporary, { force: true }).catch(() => {});
     savingWorkspace = false;
   }
+  return;
 }
 
 module.exports = { selectWorkspace };

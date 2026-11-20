@@ -5,6 +5,7 @@ import { openLogs } from '../logs/client.mjs';
 const proxySwitch = document.querySelector('#local-proxy');
 const proxyNotice = document.querySelector('#proxy-notice');
 let changingProxy = false;
+let proxyShutdown = false;
 
 const list = document.querySelector('#projects');
 const title = document.querySelector('#title');
@@ -154,7 +155,7 @@ function renderList() {
 function render() {
   if (!snapshot) return;
   if (!changingProxy) {
-    proxySwitch.disabled = !snapshot.workspace || typeof snapshot.proxyEnabled !== 'boolean' || Boolean(loadError);
+    proxySwitch.disabled = proxyShutdown || !snapshot.workspace || typeof snapshot.proxyEnabled !== 'boolean' || Boolean(loadError);
     proxySwitch.checked = snapshot.proxyEnabled === true;
   }
   const info = snapshot.projects.find(project => project.name === selected);
@@ -258,8 +259,12 @@ const ACTIVE_REFRESH_INTERVAL = 3000;
 let refreshInFlight;
 let refreshTimer;
 
+export function shouldOpenDirectly() {
+  return proxyShutdown || snapshot?.proxyEnabled === false;
+}
+
 function scheduleRefresh() {
-  if (document.hidden) return;
+  if (document.hidden || proxyShutdown) return;
   const pending = !loadError && snapshot?.projects.some(project => project.installing || project.launching);
   refreshTimer = setTimeout(load, pending ? ACTIVE_REFRESH_INTERVAL : IDLE_REFRESH_INTERVAL);
 }
@@ -272,9 +277,12 @@ proxySwitch.addEventListener('change', async () => {
     const response = await post('./api/proxy/' + (proxySwitch.checked ? 'on' : 'off'));
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || '切换本地代理失败。');
+    proxyShutdown = data.proxyEnabled === false;
+    if (proxyShutdown) clearTimeout(refreshTimer);
     await refreshInFlight;
-    await load();
+    snapshot.proxyEnabled = data.proxyEnabled;
     proxyNotice.textContent = data.message;
+    if (data.proxyEnabled) await load();
   } catch (error) {
     proxyNotice.textContent = '';
     showError(error.message);
@@ -285,6 +293,7 @@ proxySwitch.addEventListener('change', async () => {
 });
 
 export function load() {
+  if (proxyShutdown) return Promise.resolve();
   if (refreshInFlight) return refreshInFlight;
   clearTimeout(refreshTimer);
   refreshInFlight = fetch('./api/projects', { cache: 'no-store', signal: AbortSignal.timeout(5000) })

@@ -814,3 +814,21 @@ h1 {
   box-shadow: 0 3px 10px rgb(15 23 42 / 12%);
   font-size: 12px;
 }
+
+.workspace-path-form {
+  margin-top: 10px;
+  color: #475467;
+  font-size: 13px;
+}
+
+.workspace-path-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.workspace-path-controls .search {
+  flex: 1 1 230px;
+}

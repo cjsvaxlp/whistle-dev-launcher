@@ -1,8 +1,8 @@
 const tokenMeta = document.querySelector('meta[name="cafe-token"]');
 let token = tokenMeta.content;
 
-export async function post(path) {
-  const send = () => fetch(path, { method: 'POST', headers: { 'X-Cafe-Token': token } });
+export async function post(path, body) {
+  const send = () => fetch(path, { method: 'POST', headers: { 'X-Cafe-Token': token }, body });
   let response = await send();
   if (response.status !== 403) return response;
   try {
