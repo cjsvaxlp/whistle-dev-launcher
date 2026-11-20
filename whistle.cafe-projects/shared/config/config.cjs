@@ -17,11 +17,17 @@ const projectEntryRoutes = new Map([
   ['h5', '/download'],
   ['game', '/gameList/menu'],
   ['cms', '/testLogin'],
+  ['cloud', '/login'],
+  ['external', '/amsportal'],
+  ['hub', '/enterprise/manage'],
+  ['store', '/noPower'],
+  ['inter', '/noPower'],
+  ['monitor', '/noPower'],
 ]);
 
 function projectPageUrl(project) {
-  if (project === 'power') return entryUrl;
-  if (project === 'service') return entryUrl + '?project=service';
+  // These modules use the portal to exchange the session before entering a business page.
+  if (['power', 'service', 'open'].includes(project)) return entryUrl;
   // New CMS reads the session established by CMS in the same browser tab.
   const entryProject = project === 'newcms' ? 'cms' : project;
   const url = new URL('/cybercafe-' + entryProject + '/', entryUrl);
