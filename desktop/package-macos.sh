@@ -39,6 +39,9 @@ done
 /bin/cp -X "$source_plugin"/{package.json,*.html,*.css} "$plugin/"
 /bin/cp -X "$source_plugin/panel/panel.css" "$plugin/panel/"
 
+# 安装包由 root 安装，确保插件文件对所有用户可读。
+/bin/chmod -R a+rX "$app"
+
 /usr/bin/codesign --force --sign - "$app"
 /usr/bin/codesign --verify --strict "$app"
 
