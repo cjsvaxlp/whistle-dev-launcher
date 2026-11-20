@@ -1,3 +1,0 @@
-cloudgametest2.migufun.com:18443 enable://capture
-# Store → 本地。按前缀转发页面、模块和 Vite 的热更新连接。
-cloudgametest2.migufun.com:18443/cybercafe-store/ http://127.0.0.1:15173/cybercafe-store/

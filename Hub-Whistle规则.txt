@@ -1,3 +1,0 @@
-cloudgametest2.migufun.com:18443 enable://capture
-wss://cloudgametest2.migufun.com:18443/cybercafe-hub/__hmr ws://127.0.0.1:18081/ws
-cloudgametest2.migufun.com:18443/cybercafe-hub/ http://127.0.0.1:18081/cybercafe-hub/

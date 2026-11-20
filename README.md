@@ -90,3 +90,5 @@ Whistle 插件按功能组织。每个功能的客户端、服务端和资源放
 | `dist/` | 安装包输出，由 Git 忽略。 |
 
 `whistle.cafe-projects/index.cjs` 是 Whistle 插件入口。`desktop/src/main.rs` 负责注册桌面模块。`desktop/package-macos.sh`、`desktop/package-cross-platform.py` 负责收集完整功能目录并生成分发包。`scripts/commands/` 中的 `.command` 文件是用户可双击使用的启动、同步和打包入口。
+
+当前 Shell 入口包括通用项目启动、手动同步、桌面端启动、浏览器打开和打包，统一位于 `scripts/commands/`。项目代理规则由插件自动生成。

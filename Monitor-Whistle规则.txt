@@ -1,2 +1,0 @@
-cloudgametest2.migufun.com:18443 enable://capture
-cloudgametest2.migufun.com:18443/cybercafe-monitor/ http://127.0.0.1:15174/cybercafe-monitor/
