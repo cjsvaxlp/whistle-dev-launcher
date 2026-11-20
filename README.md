@@ -56,39 +56,72 @@ App 使用 ad-hoc 签名，首次打开如果提示「无法验证开发者」�
 
 ## 代码目录与职责
 
-Whistle 插件按功能组织。每个功能的客户端、服务端和资源放在同一目录，公共通信与界面组件放在 shared 中。插件入口和页面 URL 保持兼容，修改功能时应同步检查客户端、服务端和打包入口。
+代码按功能放在独立文件夹中。下表按职责列出具体文件，便于找到界面与服务端实现。同一功能目录中的 `client.mjs` 负责页面交互，`server.cjs`、`store.cjs` 等负责本机操作和状态。
+
+### Web UI
+
+以下路径相对于 `whistle.cafe-projects/`。
+
+| 目录或文件 | 功能和目的 |
+| --- | --- |
+| `panel/` | 主面板 HTML、全局布局样式和功能初始化入口。 |
+| `features/projects/client.mjs` | 项目列表、搜索、收藏、启动进度和操作按钮。 |
+| `features/terminal/client.mjs`、`terminal.html`、`terminal.css` | 应用内终端页面、输出展示和服务控制，均位于 `features/terminal/`。 |
+| `features/logs/client.mjs` | 日志批次、搜索、复制、下载和日志弹层。 |
+| `features/doctor/client.mjs` | 环境体检结果、工作区设置和修复操作界面。 |
+| `features/rules/` | 规则预览、复制及内嵌 Whistle 编辑器。 |
+| `features/whistle/client.mjs` | 面板中的 Whistle 重启、同步和浏览器打开操作。 |
+| `features/badge/` | 注入测试页面的环境徽标及其样式。 |
+| `shared/toast/` | 共用 Apple 风格错误提示，2 秒自动消失，并对轮询错误去重。 |
+| `shared/http/client.mjs` | 客户端请求、令牌刷新和操作确认。 |
+
+### 业务服务与状态
+
+以下路径相对于 `whistle.cafe-projects/`。
+
+| 目录或文件 | 功能和目的 |
+| --- | --- |
+| `features/projects/server.cjs`、`store.cjs` | 项目操作编排、依赖安装、项目状态和偏好存储，均位于 `features/projects/`。 |
+| `features/workspace/` | 目录选择、路径持久化和本地代理开关。 |
+| `features/proxy/` | 检测本地服务、生成 Whistle 规则并写入同步状态。 |
+| `features/startup/` | 跟踪启动阶段、服务退出、接管结果和超时。 |
+| `features/runtime/` | 解析 Node 版本约束，选择运行时和依赖安装命令。 |
+| `features/terminal/launcher.cjs` | 后台启动开发服务并连接日志采集。 |
+| `features/logs/store.cjs`、`routes.cjs`、`run-log.cjs` | 日志采集、容量限制、归档、诊断与读写 API，均位于 `features/logs/`。 |
+| `features/doctor/server.cjs` | 环境检查、证书、代理和插件配置修复。 |
+| `features/whistle/server.cjs` | Whistle 重启、规则查询和关闭代理前的清理。 |
+| `features/browser/` | 项目页面和测试入口的浏览器打开 API。 |
+| `shared/config/` | 公共路径、测试入口和项目路由配置。 |
+| `shared/http/http.cjs` | HTTP 响应、令牌与本机请求鉴权。 |
+| `server/` | UI 服务入口、静态资源映射和 API 路由分发。 |
+| `test/` | 启动生命周期、运行时选择和日志功能的回归测试。 |
+
+`whistle.cafe-projects/index.cjs` 是插件入口。调整功能目录时，需要同步检查模块引用、页面资源映射与打包入口。
+
+### Tauri 桌面端
+
+| 目录或文件 | 功能和目的 |
+| --- | --- |
+| `desktop/src/main.rs` | 注册桌面模块，处理应用启动和退出事件。 |
+| `desktop/src/menu/` | 菜单栏、单色菜单图标、异步操作和状态反馈。 |
+| `desktop/src/window/` | 面板与终端窗口、导航范围和下载处理。 |
+| `desktop/src/services/` | 本机 Whistle 的发现、启动、停止和浏览器入口。 |
+| `desktop/ui/` | 连接异常时显示的本地页面。 |
+| `desktop/icons/` | 桌面应用图标资源。 |
+
+### 工具脚本与打包
+
+| 目录或文件 | 功能和目的 |
+| --- | --- |
+| `scripts/commands/` | 可双击使用的通用项目启动、手动同步、桌面端启动、浏览器打开和打包入口。 |
+| `scripts/browser/` | macOS 默认浏览器标签页查找、复用和新建。 |
+| `desktop/windows/` | Windows 安装和启动脚本。 |
+| `desktop/package-macos.sh` | 收集功能模块、脚本与桌面资源，生成 macOS 安装包。 |
+| `desktop/package-cross-platform.py` | 从 macOS 分发包收集插件文件，生成跨平台分发包。 |
+
+### 本机数据与构建产物
 
 | 目录 | 功能和目的 |
 | --- | --- |
-| `whistle.cafe-projects/features/projects/` | 项目列表、搜索收藏、启动停止与安装操作，以及项目状态和偏好存储。 |
-| `whistle.cafe-projects/features/workspace/` | 工作区路径持久化和本地代理开关，供启动与同步共用。 |
-| `whistle.cafe-projects/features/proxy/` | 检测本地服务、生成 Whistle 规则并写入同步状态。 |
-| `whistle.cafe-projects/features/startup/` | 跟踪启动阶段、接管结果、退出和超时，提供准确的启动进度。 |
-| `whistle.cafe-projects/features/runtime/` | 解析 Node 版本约束、选择本机运行时和依赖安装命令。 |
-| `whistle.cafe-projects/features/terminal/` | 后台启动开发服务及应用内终端页面，连接服务控制与实时输出。 |
-| `whistle.cafe-projects/features/logs/` | 日志采集、容量限制、历史批次、诊断、下载与日志查看界面。 |
-| `whistle.cafe-projects/features/doctor/` | 环境检查、证书、代理与插件配置修复。 |
-| `whistle.cafe-projects/features/whistle/` | Whistle 重启、规则查询和面板中的代理控制。 |
-| `whistle.cafe-projects/features/browser/` | 项目页面和测试入口的浏览器打开 API，保留已有接口地址。 |
-| `whistle.cafe-projects/features/badge/` | 注入测试页面的环境徽标，显示本地接管状态。 |
-| `whistle.cafe-projects/shared/config/` | 公共路径、测试入口与项目路由配置。 |
-| `whistle.cafe-projects/shared/http/` | HTTP 响应、请求鉴权、客户端令牌刷新和请求方法。 |
-| `whistle.cafe-projects/features/rules/` | 规则预览、复制和内嵌 Whistle 编辑器的页面路由。 |
-| `whistle.cafe-projects/shared/toast/` | 共用 Apple 风格错误提示、2 秒自动消失和轮询错误去重。 |
-| `whistle.cafe-projects/panel/` | 主面板页面、全局布局与功能模块初始化。 |
-| `whistle.cafe-projects/server/` | Whistle UI 服务入口、静态资源映射和 API 路由分发。 |
-| `whistle.cafe-projects/test/` | 启动生命周期、运行时选择与日志功能的回归测试。 |
-| `desktop/src/menu/` | Tauri 菜单栏、独立单色菜单图标、异步操作和状态反馈。 |
-| `desktop/src/services/` | 本机 Whistle 的发现、启动、停止和浏览器入口。 |
-| `desktop/src/window/` | 面板与终端窗口、导航范围和下载处理。 |
-| `desktop/ui/` | 桌面连接异常时显示的本地页面。 |
-| `desktop/icons/` | 桌面应用和菜单使用的图标资源。 |
-| `desktop/windows/` | Windows 安装和启动脚本。 |
-| `scripts/commands/` | 可双击使用的启动、同步、浏览器和打包 Shell 入口。 |
-| `scripts/browser/` | macOS 默认浏览器标签页查找、复用和新建。 |
 | `.cafe-tools/` | 本机状态、日志、构建缓存和桌面应用，由 Git 忽略。 |
 | `dist/` | 安装包输出，由 Git 忽略。 |
-
-`whistle.cafe-projects/index.cjs` 是 Whistle 插件入口。`desktop/src/main.rs` 负责注册桌面模块。`desktop/package-macos.sh`、`desktop/package-cross-platform.py` 负责收集完整功能目录并生成分发包。`scripts/commands/` 中的 `.command` 文件是用户可双击使用的启动、同步和打包入口。
-
-当前 Shell 入口包括通用项目启动、手动同步、桌面端启动、浏览器打开和打包，统一位于 `scripts/commands/`。项目代理规则由插件自动生成。
