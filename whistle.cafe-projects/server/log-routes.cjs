@@ -1,5 +1,5 @@
 const { execFileSync } = require('node:child_process');
-const { createReadStream } = require('node:fs');
+const { createReadStream, existsSync } = require('node:fs');
 const { join } = require('node:path');
 const { json } = require('./http.cjs');
 const { archiveDir, archiveNames, logPath, listLogRuns, clearLogs, logWriterPid, readLog, diagnose } = require('./logs.cjs');
@@ -60,15 +60,18 @@ function isRunning(pid) {
 
 function liveLogWriter(project) {
   const pid = logWriterPid(project);
-  if (!isRunning(pid)) return { pid: null, verified: false };
-  if (isWindows) return { pid, verified: false };
+  if (!isRunning(pid)) return { pid: null, canSignal: false };
+  if (isWindows) return { pid, canSignal: false };
   const expected = logPath(project);
+  if (!existsSync(expected + '.signal')) {
+    return { pid, canSignal: false };
+  }
   try {
     const command = execFileSync('ps', ['-p', String(pid), '-o', 'command='], {
       encoding: 'utf8', timeout: 2000, windowsHide: true,
     });
     const ours = command.includes('run-log.cjs') && command.includes(expected);
-    return ours ? { pid, verified: true } : { pid: null, verified: false };
+    return { pid, canSignal: ours };
   } catch {
     // 某些环境里 ps 不可用，用 pgrep 再确认一次是不是日志进程。
   }
@@ -77,10 +80,10 @@ function liveLogWriter(project) {
       encoding: 'utf8', timeout: 2000, windowsHide: true,
     });
     const matched = list.split('\n').some(line => line.startsWith(pid + ' ') && line.includes(expected));
-    return matched ? { pid, verified: true } : { pid: null, verified: false };
+    return { pid, canSignal: matched };
   } catch {
     // 看不到进程信息时保守处理：保留当前日志。
-    return { pid, verified: false };
+    return { pid, canSignal: false };
   }
 }
 
@@ -90,7 +93,7 @@ async function clearProjectLogs(response, project) {
   let cleared = false;
   if (writer.pid) {
     keptCurrent = true;
-    if (writer.verified) {
+    if (writer.canSignal) {
       try {
         process.kill(writer.pid, 'SIGUSR1');
         cleared = true;

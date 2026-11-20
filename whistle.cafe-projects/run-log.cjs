@@ -1,4 +1,4 @@
-const { closeSync, fstatSync, ftruncateSync, openSync, readSync, writeFileSync, writeSync } = require('node:fs');
+const { closeSync, fstatSync, ftruncateSync, openSync, readSync, unlinkSync, writeFileSync, writeSync } = require('node:fs');
 const { spawn } = require('node:child_process');
 
 const MAX_SIZE = 4 * 1024 * 1024;
@@ -38,6 +38,15 @@ if (require.main === module) {
   try {
     log = openLog(file);
     writeFileSync(file + '.pid', String(process.pid));
+    // 标记当前 writer 支持 SIGUSR1 截断；旧进程没有这个文件，不能被信号误杀。
+    writeFileSync(file + '.signal', '1');
+    process.on('exit', () => {
+      try {
+        unlinkSync(file + '.signal');
+      } catch {
+        // 忽略
+      }
+    });
   } catch (error) {
     console.error(error.message);
   }
