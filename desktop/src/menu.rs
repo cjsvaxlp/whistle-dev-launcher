@@ -19,12 +19,27 @@ struct MenuState {
     busy: AtomicBool,
 }
 
+fn update_connection_status(app: &AppHandle, text: &str, busy: bool) {
+    if let Some(window) = app.get_webview_window("connection") {
+        let text = serde_json::to_string(text).expect("JSON string");
+        let _ = window.eval(
+            format!("document.getElementById('connection-status').textContent = {text};")
+                + &format!(
+            "document.getElementById('start-proxy').setAttribute('aria-disabled', '{busy}');"
+        ),
+        );
+    }
+}
+
 pub fn run_action(app: &AppHandle, action: &str) {
     let state = app.state::<MenuState>();
     if state.busy.swap(true, Ordering::AcqRel) {
         return;
     }
     let panel = matches!(action, "panel" | "start");
+    if action == "start" {
+        update_connection_status(app, "正在启动 Whistle…", true);
+    }
     let task = action.to_owned();
     let _ = state.status.set_text(match action {
         "start" => "正在启动 Whistle…",
@@ -35,7 +50,7 @@ pub fn run_action(app: &AppHandle, action: &str) {
 
     thread::spawn(move || {
         let result = match task.as_str() {
-            "start" => services::start(),
+            "start" => services::resume_proxy(),
             "stop" => services::stop(),
             "test" => services::open_test().map(|_| Status::Ready),
             _ => Ok(services::status()),
@@ -45,10 +60,17 @@ pub fn run_action(app: &AppHandle, action: &str) {
             let state = handle.state::<MenuState>();
             state.busy.store(false, Ordering::Release);
             let text = match result {
-                Ok(status) if panel => match show_window(&handle, &status) {
-                    Ok(()) => status.description().to_owned(),
-                    Err(error) => format!("打开面板失败：{error}"),
-                },
+                Ok(status) if panel => {
+                    if task == "start" && status == Status::Ready {
+                        if let Some(window) = handle.get_webview_window("panel") {
+                            let _ = window.reload();
+                        }
+                    }
+                    match show_window(&handle, &status) {
+                        Ok(()) => status.description().to_owned(),
+                        Err(error) => format!("打开面板失败：{error}"),
+                    }
+                }
                 Ok(status) => {
                     if task == "stop" && status == Status::Offline {
                         if let Some(window) = handle.get_webview_window("panel") {
@@ -64,6 +86,9 @@ pub fn run_action(app: &AppHandle, action: &str) {
                     error
                 }
             };
+            if task == "start" {
+                update_connection_status(&handle, &text, false);
+            }
             let _ = state.status.set_text(text);
         });
     });
@@ -72,7 +97,7 @@ pub fn run_action(app: &AppHandle, action: &str) {
 pub fn setup(app: &App) -> tauri::Result<()> {
     let status = MenuItem::with_id(app, "status", "正在检查…", false, None::<&str>)?;
     let panel = MenuItem::with_id(app, "panel", "打开面板", true, None::<&str>)?;
-    let start = MenuItem::with_id(app, "start", "启动 Whistle", true, None::<&str>)?;
+    let start = MenuItem::with_id(app, "start", "开启代理 / 启动 Whistle", true, None::<&str>)?;
     let stop = MenuItem::with_id(app, "stop", "停止 Whistle", true, None::<&str>)?;
     let test = MenuItem::with_id(app, "test", "打开测试入口", true, None::<&str>)?;
     let refresh = MenuItem::with_id(app, "refresh", "刷新连接状态", true, None::<&str>)?;

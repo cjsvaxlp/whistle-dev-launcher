@@ -1,6 +1,6 @@
 import { confirmAction, post, currentServerToken } from './api.mjs';
 
-export function bindWhistleControls({ load, setStatus }) {
+export function bindWhistleControls({ load, setStatus, shouldOpenDirectly }) {
   const syncNow = document.querySelector('#sync-now');
   const restart = document.querySelector('#restart');
 
@@ -10,6 +10,13 @@ export function bindWhistleControls({ load, setStatus }) {
       link.title = '在开发 Chrome 中通过 Whistle 打开';
       link.addEventListener('click', async event => {
         if (event.defaultPrevented) return;
+        if (shouldOpenDirectly()) {
+          if (window.cafeDesktop) {
+            event.preventDefault();
+            location.assign(link.href);
+          }
+          return;
+        }
         event.preventDefault();
         const project = link.dataset.project;
         let path = project ? './api/open-chrome/' + encodeURIComponent(project) : './api/open-chrome';

@@ -32,6 +32,61 @@ fn tools_directory(contents: &Path) -> Result<PathBuf, String> {
         .ok_or_else(|| "找不到工具目录，请通过仓库中的启动脚本打开应用。".into())
 }
 
+pub fn proxy_paused() -> bool {
+    if let Some(dir) = env::var_os("CAFE_STATE_DIR") {
+        return PathBuf::from(dir).join("proxy-disabled").is_file();
+    }
+    let Ok(contents) = app_contents() else {
+        return false;
+    };
+    let Ok(tools) = tools_directory(&contents) else {
+        return false;
+    };
+    let state = if tools.join(".installed").is_file() {
+        let Some(home) = env::var_os("HOME") else {
+            return false;
+        };
+        PathBuf::from(home).join("Library/Application Support/Cybercafe")
+    } else {
+        tools.join(".cafe-tools")
+    };
+    state.join("proxy-disabled").is_file()
+}
+
+pub fn resume_proxy() -> Result<Status, String> {
+    let status = start()?;
+    if status != Status::Ready || !proxy_paused() {
+        return Ok(status);
+    }
+    let response = Command::new("/usr/bin/curl")
+        .args(["--noproxy", "*", "-fsS", "--max-time", "4"])
+        .arg(format!("{PANEL_URL}api/token"))
+        .output()
+        .map_err(|error| error.to_string())?;
+    let response: serde_json::Value =
+        serde_json::from_slice(&response.stdout).map_err(|_| "无法获取本机 Whistle 操作令牌。")?;
+    let token = response["token"]
+        .as_str()
+        .ok_or("无法获取本机 Whistle 操作令牌。")?;
+    let response = Command::new("/usr/bin/curl")
+        .args([
+            "--noproxy",
+            "*",
+            "-fsS",
+            "--max-time",
+            "20",
+            "-X",
+            "POST",
+            "-H",
+        ])
+        .arg(format!("X-Cafe-Token: {token}"))
+        .arg(format!("{PANEL_URL}api/proxy/on"))
+        .output()
+        .map_err(|error| error.to_string())?;
+    error_output(response, "无法恢复本地代理")?;
+    Ok(status)
+}
+
 #[derive(PartialEq)]
 pub enum Status {
     Offline,

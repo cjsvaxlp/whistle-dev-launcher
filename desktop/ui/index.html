@@ -6,11 +6,25 @@
 <style>
   :root { color-scheme: light dark; }
   body { margin: 32px; font: 15px/1.65 -apple-system, sans-serif; }
-  h1 { font-size: 22px; }
+  h1 { font-size: 22px; margin: 0 0 8px; }
+  p { margin: 0 0 16px; }
+  .action {
+    display: inline-block;
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: #0066cc;
+    color: white;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .action:focus-visible { outline: 2px solid #0066cc; outline-offset: 3px; }
+  .action[aria-disabled="true"] { opacity: .65; pointer-events: none; }
+  #connection-status { margin: 12px 0 0; overflow-wrap: anywhere; }
 </style>
 <main>
-  <h1>无法连接 Whistle 面板</h1>
-  <p>请从系统菜单栏的 Cybercafe 图标中选择「启动 Whistle」。</p>
-  <p>如果 Whistle 已运行，请确认插件已加载，再选择「打开面板」。</p>
+  <h1>Whistle 面板未连接</h1>
+  <p>开启代理后会自动打开项目面板。</p>
+  <a class="action" id="start-proxy" href="./start-proxy">开启代理 / 启动 Whistle</a>
+  <p id="connection-status" role="status"></p>
 </main>
 </html>
