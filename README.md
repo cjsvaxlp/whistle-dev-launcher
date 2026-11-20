@@ -30,3 +30,17 @@ cargo fmt --manifest-path desktop/Cargo.toml --check
 cargo test --locked --manifest-path desktop/Cargo.toml
 npm --prefix whistle.cafe-projects test
 ```
+
+## 分发给其他人
+
+把整个工具目录（包含 `.cafe-tools/Cybercafe.app`）打包发给对方即可，不需要发送本机的 `.git`、`Chrome开发配置`、日志和状态文件。
+
+对方机器需要：
+
+- macOS、Node.js 20+、全局 Whistle（`npm i -g whistle`）；
+- 不需要 Rust/Xcode（使用已构建好的 App 时）；
+- 测试页面需要 Chrome；HTTPS 证书和代理按 [使用说明.md](使用说明.md) 配置。
+
+App 使用 ad-hoc 签名，首次打开如果提示「无法验证开发者」，右键选择「打开」即可。
+
+首次打开桌面端时，App 会自动通过登录 shell 查找 `w2`，并把工具目录里的 `whistle.cafe-projects` 链接到全局 `node_modules`，不需要再手动执行链接命令。若提示找不到 `w2`，先确认终端里 `w2 -h` 可用。

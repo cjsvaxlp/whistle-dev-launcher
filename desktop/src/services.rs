@@ -97,6 +97,91 @@ fn listener_pid() -> Option<u32> {
     pids.next().is_none().then_some(pid)
 }
 
+fn find_w2(contents: &Path) -> Result<PathBuf, String> {
+    let configured = fs::read_to_string(contents.join("Resources/w2-path")).unwrap_or_default();
+    let path = PathBuf::from(configured.trim());
+    if path.is_absolute() && path.is_file() {
+        return Ok(path);
+    }
+    // 换机器或重装 Node 后，构建时记录的路径会失效；用登录 shell 重新找一次。
+    if let Ok(output) = Command::new("/bin/zsh")
+        .args(["-lc", "whence -p w2"])
+        .output()
+    {
+        let found = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !found.is_empty() && Path::new(&found).is_file() {
+            return Ok(PathBuf::from(found));
+        }
+    }
+    if let Some(home) = env::var_os("HOME") {
+        let versions = PathBuf::from(home).join(".nvm/versions/node");
+        if let Ok(entries) = fs::read_dir(versions) {
+            let mut found: Vec<PathBuf> = entries
+                .flatten()
+                .map(|entry| entry.path().join("bin/w2"))
+                .filter(|path| path.is_file())
+                .collect();
+            found.sort();
+            if let Some(path) = found.pop() {
+                return Ok(path);
+            }
+        }
+    }
+    for candidate in ["/opt/homebrew/bin/w2", "/usr/local/bin/w2"] {
+        let path = PathBuf::from(candidate);
+        if path.is_file() {
+            return Ok(path);
+        }
+    }
+    Err("找不到 w2。请先安装 Node.js 和 Whistle（npm i -g whistle），再启动桌面端。".into())
+}
+
+fn ensure_plugin(contents: &Path, w2: &Path) -> Result<(), String> {
+    let tools = tools_directory(contents)?;
+    let plugin = tools.join("whistle.cafe-projects");
+    if !plugin.is_dir() {
+        return Err("工具目录里缺少 whistle.cafe-projects 插件。".into());
+    }
+    let bin = w2
+        .parent()
+        .ok_or_else(|| "找不到 Node 安装目录。".to_string())?;
+    let npm = bin.join("npm");
+    let output = if npm.is_file() {
+        Command::new(&npm).args(["root", "-g"]).output()
+    } else {
+        Command::new("/bin/zsh")
+            .args(["-lc", "npm root -g"])
+            .output()
+    }
+    .map_err(|error| format!("查找全局 node_modules 失败：{error}"))?;
+    if !output.status.success() {
+        return Err("查找全局 node_modules 失败，请确认 npm 可用。".into());
+    }
+    let root = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if root.is_empty() {
+        return Err("npm root -g 没有返回路径。".into());
+    }
+    let target = PathBuf::from(root).join("whistle.cafe-projects");
+    if target.exists() {
+        let same = fs::canonicalize(&target).ok() == fs::canonicalize(&plugin).ok();
+        return if same {
+            Ok(())
+        } else {
+            Err(format!(
+                "全局已存在另一份 whistle.cafe-projects：{}。请先移除它。",
+                target.display()
+            ))
+        };
+    }
+    std::os::unix::fs::symlink(&plugin, &target).map_err(|error| {
+        format!(
+            "链接插件失败：{error}。请手动把 {} 链接到 {}。",
+            plugin.display(),
+            target.display()
+        )
+    })
+}
+
 pub fn start() -> Result<Status, String> {
     let mut owned = OWNED_WHISTLE.lock().expect("Whistle lifecycle lock");
     let current = status();
@@ -104,11 +189,8 @@ pub fn start() -> Result<Status, String> {
         return Ok(current);
     }
     let contents = app_contents()?;
-    let configured = fs::read_to_string(contents.join("Resources/w2-path")).unwrap_or_default();
-    let executable = PathBuf::from(configured.trim_end_matches('\n'));
-    if !executable.is_absolute() || !executable.is_file() {
-        return Err("找不到 w2。配置 Whistle 后，请运行启动桌面端.command --rebuild。".into());
-    }
+    let executable = find_w2(&contents)?;
+    ensure_plugin(&contents, &executable)?;
     let bin = executable.parent().expect("w2 parent");
     let path = env::join_paths(
         std::iter::once(bin.to_path_buf())

@@ -206,10 +206,9 @@ function render() {
   open.classList.toggle('disabled', !canOpen);
   open.setAttribute('aria-disabled', String(!canOpen));
   open.tabIndex = canOpen ? 0 : -1;
-  if (info) {
-    open.href = info.url;
-    open.dataset.project = info.name;
-  }
+  if (info && canOpen) open.href = info.url;
+  else open.removeAttribute('href');
+  if (info) open.dataset.project = info.name;
   takeover.hidden = !info || !(unmatched || info.compat);
   stop.hidden = !info?.canStop;
   restartService.hidden = !info?.canStop || !active;
