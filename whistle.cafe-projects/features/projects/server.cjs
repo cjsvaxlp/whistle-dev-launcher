@@ -1,4 +1,4 @@
-const { execFile, spawn } = require('node:child_process');
+const { execFile } = require('node:child_process');
 const { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
 const { promisify } = require('node:util');
@@ -8,10 +8,10 @@ const { openLog } = require('../logs/run-log.cjs');
 const { pluginDir, readWorkspace, ruleName, entryUrl, projectPageUrl, isWindows, POWERSHELL } = require('../../shared/config/config.cjs');
 const { listProjects, readState, readPrefs, writePrefs, stateEntry } = require('./store.cjs');
 const { archiveNames, logPath, prepareLog, isRunning, logWriterPid } = require('../logs/store.cjs');
-const { depInfo, cliFor, windowsCommand, openTerminal } = require('../terminal/launcher.cjs');
+const { depInfo, cliFor, openTerminal } = require('../terminal/launcher.cjs');
 const { prepareProxyShutdown } = require('../whistle/server.cjs');
 const { authorized, json } = require('../../shared/http/http.cjs');
-const { nodeRuntime, runtimePath, installPolicy, installInvocation } = require('../runtime/runtime.cjs');
+const { nodeRuntime } = require('../runtime/runtime.cjs');
 const {
   beginStartup, waitForService, failStartup, observeStartup, startupSnapshot,
   hasPendingStartup, hasWaitingStartup, clearStartup,
@@ -20,7 +20,7 @@ const run = promisify(execFile);
 
 const SYNC_INTERVAL = 10000;
 const STALE_AFTER = 30000;
-const jobs = new Map();
+const { jobs, startInstall } = require('../dependencies/installer.cjs');
 const operations = new Set();
 
 function snapshot() {
@@ -68,73 +68,6 @@ function snapshot() {
     entryUrl,
     projects,
   };
-}
-
-function startInstall(project, launchAfter, attempt, runtime) {
-  const existing = jobs.get(project);
-  if (existing && existing.status === 'running') {
-    return { error: '这个项目正在安装依赖。' };
-  }
-  const directory = join(readWorkspace(), 'cybercafe-' + project);
-  const policy = installPolicy(directory);
-  const { command, args } = installInvocation(runtime, policy);
-  attempt.notice = policy.notice;
-  const file = prepareLog(project);
-  attempt.logFile = file;
-  const log = openLog(file);
-  log.append(`[Node ${runtime.version}] ${runtime.node}\n`);
-  if (policy.notice) log.append(policy.notice + '\n');
-  log.append(`$ ${command} ${args.join(' ')}\n`);
-  const env = {
-    ...process.env,
-    PATH: runtimePath(runtime),
-    COREPACK_ENABLE_AUTO_PIN: '0',
-  };
-  const child = spawn(isWindows ? POWERSHELL : command, isWindows ? windowsCommand(command, args) : args, {
-    cwd: directory,
-    env,
-    windowsHide: true,
-  });
-  const job = { status: 'running', type: 'install', startedAt: Date.now() };
-  const append = data => {
-    try {
-      log.append(data);
-    } catch {
-      // 忽略写日志失败
-    }
-  };
-  child.stdout.on('data', append);
-  child.stderr.on('data', append);
-  child.on('error', error => {
-    job.message = error.message;
-    append(`\n${error.message}\n`);
-  });
-  child.on('close', async code => {
-    append('\n[install exit ' + code + ']\n');
-    if (code === 0 && launchAfter) {
-      try {
-        await launchAfterInstall(project, attempt, runtime);
-      } catch (error) {
-        job.message = error.message;
-        append('\n[启动失败] ' + error.message + '\n');
-      }
-    }
-    if (code !== 0 || job.message) {
-      job.message ||= '依赖安装失败（退出状态 ' + (code ?? '已中止') + '）。';
-      failStartup(attempt, job.message);
-    } else if (!launchAfter) {
-      attempt.stage = 'installed';
-      attempt.message = '依赖安装完成，可以启动服务。';
-    }
-    log.close();
-    job.status = code === 0 && !job.message ? 'done' : 'failed';
-    const timer = setTimeout(() => {
-      if (jobs.get(project) === job) jobs.delete(project);
-    }, 60000);
-    timer.unref();
-  });
-  jobs.set(project, job);
-  return { message: policy.notice || `开始安装依赖（${policy.manager}，Node ${runtime.version}）…` };
 }
 
 async function pidMatches(entry, project) {
@@ -367,7 +300,7 @@ async function projectAction(request, response, action, project) {
       }
       attempt = beginStartup(project, 'installing');
       attempt.nodeVersion = runtime.version;
-      const result = startInstall(project, action === 'install-and-start', attempt, runtime);
+      const result = startInstall(project, action === 'install-and-start', attempt, runtime, launchAfterInstall);
       json(response, result.error ? 409 : 200, result.error ? { message: result.error } : result);
       return;
     }

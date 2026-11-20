@@ -23,10 +23,11 @@ if ! command -v w2 >/dev/null && [[ -s "$HOME/.nvm/nvm.sh" ]]; then
   nvm use --silent default >/dev/null || true
   setopt nounset
 fi
-whistle_cli="$(whence -p w2 || true)"
 
-export CARGO_TARGET_DIR="$state_dir/desktop-target"
-cargo build --locked --profile dev --manifest-path "$tool_dir/desktop/Cargo.toml" "$@"
+if (( $# )); then
+  print -u2 '启动脚本仅支持 --rebuild。'
+  exit 2
+fi
 
 mkdir -p "$state_dir"
 staging=$(mktemp -d "$state_dir/desktop-build.XXXXXX")
@@ -40,14 +41,7 @@ cleanup() {
 }
 trap cleanup EXIT
 candidate="$staging/Cybercafe.app"
-contents="$candidate/Contents"
-mkdir -p "$contents/MacOS" "$contents/Resources"
-/bin/cp -X "$CARGO_TARGET_DIR/debug/cybercafe-desktop" "$contents/MacOS/cybercafe-desktop"
-/bin/cp -X "$tool_dir/desktop/icons/Cybercafe.icns" "$contents/Resources/Cybercafe.icns"
-/bin/cp -X "$tool_dir/desktop/Info.plist" "$contents/Info.plist"
-printf '%s\n' "$whistle_cli" > "$contents/Resources/w2-path"
-/usr/bin/codesign --sign - "$candidate"
-/usr/bin/codesign --verify --strict "$candidate"
+"$tool_dir/desktop/packaging/build-app.sh" "$candidate" dev repository
 
 zmodload zsh/system
 lock="$state_dir/desktop-package.lock"

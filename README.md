@@ -39,7 +39,7 @@ npm --prefix whistle.cafe-projects test
 
 - macOS、Node.js 20+、全局 Whistle（`npm i -g whistle`）；
 - 不需要 Rust/Xcode（使用已构建好的 App 时）；
-- 测试页面需要 Chrome；HTTPS 证书和代理按 [使用说明.md](使用说明.md) 配置。
+- 测试页面使用默认浏览器；HTTPS 证书和代理按 [使用说明.md](使用说明.md) 配置。
 
 App 使用 ad-hoc 签名，首次打开如果提示「无法验证开发者」，右键选择「打开」即可。
 
@@ -52,7 +52,12 @@ App 使用 ad-hoc 签名，首次打开如果提示「无法验证开发者」�
 ./scripts/commands/打包.command --mac-only  # 只打 macOS
 ```
 
-需要 Xcode 命令行工具、Rust、Node.js；生成物在 `dist/`。没有全局安装 `terser` 时会使用复制模式打包（不压缩插件 JS，不影响功能）。
+macOS 分发生成 DMG，打开后将 Cybercafe.app 拖到「应用程序」安装。使用 release 构建，需要 Xcode 命令行工具、Rust、Node.js 和 Python 3。Windows 插件安装包可以单独生成，需要 Node.js 和 Python 3，运行时通过浏览器打开面板。
+
+版本以 desktop/Cargo.toml 为来源，打包前校验 tauri.conf.json 的版本一致，应用的 Info.plist 在组装时自动同步。产物默认放在 dist/<版本号>/，例如 Cybercafe-0.1.0-macOS-arm64.dmg 和 Cybercafe-0.1.0-Windows.zip。
+
+支持 --windows-only 单独生成 Windows 包，--output-dir 指定输出根目录，例如 ./scripts/commands/打包.command --mac-only --output-dir /tmp/cybercafe-dist。也可通过 CAFE_DIST_DIR 指定输出根目录。TERSER_CLI 可指定 Terser 入口，未安装时直接复制插件脚本。安装包只携带运行所需的插件、浏览器和项目启动脚本。
+
 
 ## 代码目录与职责
 
@@ -85,6 +90,8 @@ App 使用 ad-hoc 签名，首次打开如果提示「无法验证开发者」�
 | `features/workspace/` | 目录选择、路径持久化和本地代理开关。 |
 | `features/proxy/` | 检测本地服务、生成 Whistle 规则并写入同步状态。 |
 | `features/startup/` | 跟踪启动阶段、服务退出、接管结果和超时。 |
+| `features/dependencies/` | 依赖安装进程、安装日志与安装后启动，维护安装任务状态。 |
+| `features/system-proxy/` | 关闭本工具管理的系统代理，并清理旧开发浏览器实例。 |
 | `features/runtime/` | 解析 Node 版本约束，选择运行时和依赖安装命令。 |
 | `features/terminal/launcher.cjs` | 后台启动开发服务并连接日志采集。 |
 | `features/logs/store.cjs`、`routes.cjs`、`run-log.cjs` | 日志采集、容量限制、归档、诊断与读写 API，均位于 `features/logs/`。 |
@@ -116,8 +123,9 @@ App 使用 ad-hoc 签名，首次打开如果提示「无法验证开发者」�
 | `scripts/commands/` | 可双击使用的通用项目启动、手动同步、桌面端启动、浏览器打开和打包入口。 |
 | `scripts/browser/` | macOS 默认浏览器标签页查找、复用和新建。 |
 | `desktop/windows/` | Windows 安装和启动脚本。 |
-| `desktop/package-macos.sh` | 收集功能模块、脚本与桌面资源，生成 macOS 安装包。 |
-| `desktop/package-cross-platform.py` | 从 macOS 分发包收集插件文件，生成跨平台分发包。 |
+| `desktop/packaging/` | 共用资源收集、版本校验、应用组装和签名，供开发启动和分发打包使用。 |
+| `desktop/package-macos.sh` | 收集功能模块、脚本与桌面资源，生成可拖拽安装的 macOS DMG。 |
+| `desktop/package-cross-platform.py` | 独立收集共用插件资源，生成 Windows 插件安装包。 |
 
 ### 本机数据与构建产物
 
