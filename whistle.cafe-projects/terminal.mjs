@@ -6,6 +6,9 @@ const output = document.querySelector('#output');
 const diags = document.querySelector('#diags');
 const stop = document.querySelector('#stop');
 const back = document.querySelector('#back');
+const notice = document.querySelector('#notice');
+const noticeText = document.querySelector('#notice-text');
+const takeover = document.querySelector('#takeover');
 
 let token = '';
 let stopped = false;
@@ -61,7 +64,18 @@ async function refresh() {
     renderDiagnostics(data.diagnostics || []);
     const exited = hasExit(data.lines);
     stopped = exited;
-    stop.disabled = exited || !text;
+    if (data.source === 'external') {
+      notice.hidden = false;
+      noticeText.textContent = '这个服务是在外部终端启动的，工具读不到它的实时输出。可以到原终端查看，或让工具接管并重启（会结束当前进程）。';
+      takeover.hidden = false;
+    } else if (data.source === 'none') {
+      notice.hidden = false;
+      noticeText.textContent = '服务未运行，下面显示最近一次运行日志。';
+      takeover.hidden = true;
+    } else {
+      notice.hidden = true;
+    }
+    stop.disabled = data.source === 'none' || exited;
     if (data.job && data.job.status === 'running') {
       setStatus(data.job.type === 'install' ? '正在安装依赖…' : '正在运行…', 'on');
     } else if (exited) {
@@ -76,6 +90,27 @@ async function refresh() {
     output.textContent = error.message;
   }
 }
+
+takeover.addEventListener('click', async () => {
+  if (!window.confirm('会结束当前外部启动的进程，再由工具重新启动并接管日志。继续？')) return;
+  takeover.disabled = true;
+  setStatus('正在接管并重启…', 'warn');
+  try {
+    const current = await fetchToken();
+    const response = await fetch(`./api/restart-service/${encodeURIComponent(project)}`, {
+      method: 'POST',
+      headers: { 'X-Cafe-Token': current },
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || '接管失败。');
+    setStatus('已提交，等待新日志…', 'on');
+    await refresh();
+  } catch (error) {
+    setStatus(error.message, 'warn');
+  } finally {
+    takeover.disabled = false;
+  }
+});
 
 stop.addEventListener('click', async () => {
   if (stopped) return;

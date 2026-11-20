@@ -1,10 +1,9 @@
-const { execFileSync } = require('node:child_process');
 const { createReadStream, existsSync } = require('node:fs');
 const { join } = require('node:path');
 const { json } = require('./http.cjs');
-const { archiveDir, archiveNames, logPath, listLogRuns, clearLogs, logWriterPid, readLog, diagnose } = require('./logs.cjs');
+const { archiveDir, archiveNames, logPath, listLogRuns, clearLogs, readLog, diagnose, isRunning, liveLogWriter } = require('./logs.cjs');
 const { jobs, isProjectBusy } = require('./projects.cjs');
-const { isWindows } = require('./config.cjs');
+const { stateEntry } = require('./project-store.cjs');
 const { startupSnapshot } = require('./startup.cjs');
 
 async function getLog(response, url, project) {
@@ -36,9 +35,15 @@ async function getLog(response, url, project) {
   const search = (url.searchParams.get('q') || '').slice(0, 200).toLowerCase();
   const { lines, count } = readLog(file, search);
   const job = !run || run === 'current' ? jobs.get(project) : null;
+  const writer = liveLogWriter(project);
+  const entry = stateEntry(project);
+  const source = writer.pid ? 'panel'
+    : isRunning(Number(entry?.pid)) ? 'external' : 'none';
   json(response, 200, {
     project,
     run: run && run !== 'current' ? run : 'current',
+    source,
+    pid: entry?.pid || null,
     runs: listLogRuns(project),
     lines,
     count,
@@ -46,45 +51,6 @@ async function getLog(response, url, project) {
     startup: !run || run === 'current' ? startupSnapshot(project) : null,
     job: job ? { status: job.status, type: job.type, startedAt: job.startedAt, message: job.message } : null,
   });
-}
-
-function isRunning(pid) {
-  if (!Number.isSafeInteger(pid) || pid < 2) return false;
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return error.code !== 'ESRCH';
-  }
-}
-
-function liveLogWriter(project) {
-  const pid = logWriterPid(project);
-  if (!isRunning(pid)) return { pid: null, canSignal: false };
-  if (isWindows) return { pid, canSignal: false };
-  const expected = logPath(project);
-  if (!existsSync(expected + '.signal')) {
-    return { pid, canSignal: false };
-  }
-  try {
-    const command = execFileSync('ps', ['-p', String(pid), '-o', 'command='], {
-      encoding: 'utf8', timeout: 2000, windowsHide: true,
-    });
-    const ours = command.includes('run-log.cjs') && command.includes(expected);
-    return { pid, canSignal: ours };
-  } catch {
-    // 某些环境里 ps 不可用，用 pgrep 再确认一次是不是日志进程。
-  }
-  try {
-    const list = execFileSync('pgrep', ['-fl', 'run-log.cjs'], {
-      encoding: 'utf8', timeout: 2000, windowsHide: true,
-    });
-    const matched = list.split('\n').some(line => line.startsWith(pid + ' ') && line.includes(expected));
-    return { pid, canSignal: matched };
-  } catch {
-    // 看不到进程信息时保守处理：保留当前日志。
-    return { pid, canSignal: false };
-  }
 }
 
 async function clearProjectLogs(response, project) {

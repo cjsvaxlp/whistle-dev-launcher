@@ -12,6 +12,10 @@
   <button class="button" id="stop" type="button" disabled>停止服务</button>
   <button class="button" id="back" type="button">返回面板</button>
 </header>
+<div class="notice" id="notice" hidden>
+  <span id="notice-text"></span>
+  <button class="button" id="takeover" type="button" hidden>接管并重启</button>
+</div>
 <div class="diags" id="diags"></div>
 <pre class="output" id="output" aria-live="polite">正在读取日志…</pre>
 <script type="module" src="./terminal.mjs"></script>

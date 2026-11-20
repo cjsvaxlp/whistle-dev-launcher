@@ -1,10 +1,11 @@
+const { execFileSync } = require('node:child_process');
 const { randomBytes } = require('node:crypto');
 const {
   closeSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, statSync, unlinkSync, writeFileSync,
 } = require('node:fs');
 const { join } = require('node:path');
 const { MAX_SIZE } = require('../run-log.cjs');
-const { logsDir } = require('./config.cjs');
+const { logsDir, isWindows } = require('./config.cjs');
 const archiveDir = join(logsDir, 'archive');
 
 function logPath(project) {
@@ -119,4 +120,47 @@ function diagnose(text) {
   return DIAGNOSTICS.filter(item => item.re.test(text)).map(item => ({ text: item.text, action: item.action }));
 }
 
-module.exports = { archiveDir, logPath, archiveNames, prepareLog, listLogRuns, clearLogs, logWriterPid, readLog, diagnose };
+
+function isRunning(pid) {
+  if (!Number.isSafeInteger(pid) || pid < 2) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code !== 'ESRCH';
+  }
+}
+
+function liveLogWriter(project) {
+  const pid = logWriterPid(project);
+  if (!isRunning(pid)) return { pid: null, canSignal: false };
+  if (isWindows) return { pid, canSignal: false };
+  const expected = logPath(project);
+  if (!existsSync(expected + '.signal')) {
+    return { pid, canSignal: false };
+  }
+  try {
+    const command = execFileSync('ps', ['-p', String(pid), '-o', 'command='], {
+      encoding: 'utf8', timeout: 2000, windowsHide: true,
+    });
+    const ours = command.includes('run-log.cjs') && command.includes(expected);
+    return { pid, canSignal: ours };
+  } catch {
+    // 某些环境里 ps 不可用，用 pgrep 再确认一次是不是日志进程。
+  }
+  try {
+    const list = execFileSync('pgrep', ['-fl', 'run-log.cjs'], {
+      encoding: 'utf8', timeout: 2000, windowsHide: true,
+    });
+    const matched = list.split('\n').some(line => line.startsWith(pid + ' ') && line.includes(expected));
+    return { pid, canSignal: matched };
+  } catch {
+    // 看不到进程信息时保守处理。
+    return { pid, canSignal: false };
+  }
+}
+
+module.exports = {
+  archiveDir, logPath, archiveNames, prepareLog, listLogRuns, clearLogs, logWriterPid,
+  readLog, diagnose, isRunning, liveLogWriter,
+};

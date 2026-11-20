@@ -6,7 +6,7 @@ const { pathToFileURL } = require('node:url');
 const { openLog } = require('../run-log.cjs');
 const { pluginDir, readWorkspace, ruleName, entryUrl, isWindows, POWERSHELL } = require('./config.cjs');
 const { listProjects, readState, readPrefs, writePrefs, stateEntry } = require('./project-store.cjs');
-const { archiveNames, logPath, prepareLog } = require('./logs.cjs');
+const { archiveNames, logPath, prepareLog, isRunning, logWriterPid } = require('./logs.cjs');
 const { depInfo, cliFor, windowsCommand, openTerminal } = require('./terminal.cjs');
 const { authorized, json } = require('./http.cjs');
 const { nodeRuntime, runtimePath, installPolicy, installInvocation } = require('./runtime.cjs');
@@ -31,6 +31,10 @@ function snapshot() {
     const unmatched = state && state.unmatched && state.unmatched[name];
     const job = jobs.get(name);
     const startup = startupSnapshot(name);
+    const entry = local || unmatched;
+    const terminalSource = isRunning(logWriterPid(name))
+      ? 'panel'
+      : entry && isRunning(Number(entry.pid)) ? 'external' : 'none';
     return {
       name,
       url: 'https://cloudgametest2.migufun.com:18443/cybercafe-' + name + '/',
@@ -49,6 +53,7 @@ function snapshot() {
       favorite: prefs.favorites.includes(name),
       recentAt: prefs.recent[name] || null,
       log: existsSync(logPath(name)) || archiveNames(name).length > 0,
+      terminalSource,
     };
   });
   return {

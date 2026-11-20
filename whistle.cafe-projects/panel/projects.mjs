@@ -8,6 +8,7 @@ const start = document.querySelector('#start');
 const install = document.querySelector('#install');
 const open = document.querySelector('#open');
 const logs = document.querySelector('#logs');
+const terminal = document.querySelector('#terminal');
 const takeover = document.querySelector('#takeover');
 const stop = document.querySelector('#stop');
 const restartService = document.querySelector('#restart-service');
@@ -214,6 +215,8 @@ function render() {
   restartService.hidden = !info?.canStop || !active;
   for (const button of [install, takeover, stop, restartService]) button.disabled = busy || installing || launching;
   logs.hidden = !info || !(info.log || info.active || installing);
+  terminal.hidden = !info || !(info.active || info.log);
+  terminal.textContent = info && info.terminalSource === 'external' ? '终端（外部）' : '终端';
   const startup = info?.startup;
   startupResult.hidden = !startup || (startup.stage === 'ready' && (!active || snapshot.stale));
   startupResult.dataset.stage = startup?.stage || '';
