@@ -5,7 +5,7 @@ const dot = document.querySelector('#dot');
 const output = document.querySelector('#output');
 const diags = document.querySelector('#diags');
 const stop = document.querySelector('#stop');
-const close = document.querySelector('#close');
+const back = document.querySelector('#back');
 
 let token = '';
 let stopped = false;
@@ -97,12 +97,8 @@ stop.addEventListener('click', async () => {
   }
 });
 
-close.addEventListener('click', () => {
-  // Rust 端会拦截 close=1 并关闭窗口；window.close() 作为浏览器兜底。
-  window.close();
-  setTimeout(() => {
-    location.href = './terminal.html?project=' + encodeURIComponent(project) + '&close=1';
-  }, 60);
+back.addEventListener('click', () => {
+  location.href = './?project=' + encodeURIComponent(project);
 });
 
 refresh();

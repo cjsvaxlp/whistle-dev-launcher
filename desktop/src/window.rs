@@ -37,42 +37,6 @@ fn terminal_project(url: &Url) -> Option<String> {
     Some(project)
 }
 
-fn open_terminal_window(app: &AppHandle, project: &str) -> tauri::Result<()> {
-    let label = format!("terminal-{project}");
-    if let Some(window) = app.get_webview_window(&label) {
-        window.unminimize()?;
-        window.show()?;
-        return window.set_focus();
-    }
-    let url: Url = format!("{PANEL_URL}terminal.html?project={project}")
-        .parse()
-        .expect("terminal URL");
-    let handle = app.clone();
-    let window_label = label.clone();
-    WebviewWindowBuilder::new(app, label, WebviewUrl::External(url))
-        .title(format!("终端 · cybercafe-{project}"))
-        .inner_size(920.0, 560.0)
-        .min_inner_size(560.0, 320.0)
-        .on_navigation(move |url| {
-            if terminal_project(url).is_none() {
-                return false;
-            }
-            if url
-                .query_pairs()
-                .any(|(key, value)| key == "close" && value == "1")
-            {
-                if let Some(window) = handle.get_webview_window(&window_label) {
-                    let _ = window.close();
-                }
-                return false;
-            }
-            true
-        })
-        .on_new_window(|_, _| NewWindowResponse::Deny)
-        .build()?
-        .set_focus()
-}
-
 fn is_log_download(url: &Url) -> bool {
     is_local(url)
         && url.path().starts_with("/plugin.cafe-projects/api/logs/")
@@ -89,7 +53,6 @@ fn open_panel(app: &AppHandle) -> tauri::Result<()> {
     }
 
     let url = PANEL_URL.parse().expect("panel URL");
-    let handle = app.clone();
     WebviewWindowBuilder::new(app, "panel", WebviewUrl::External(url))
         .title("Cybercafe 本地调试")
         .inner_size(1100.0, 740.0)
@@ -97,17 +60,9 @@ fn open_panel(app: &AppHandle) -> tauri::Result<()> {
         .initialization_script(
             "if (location.origin === 'http://127.0.0.1:8899') { window.cafeDesktop = true; window.cafeDesktopTerminal = true; }",
         )
-        .on_navigation(move |url| {
-            if let Some(project) = terminal_project(url) {
-                // 在导航回调里直接建窗口容易和 WebKit 的决策回调重入，交给主线程异步处理。
-                let app = handle.clone();
-                std::thread::spawn(move || {
-                    let inner = app.clone();
-                    let _ = app.run_on_main_thread(move || {
-                        let _ = open_terminal_window(&inner, &project);
-                    });
-                });
-                return false;
+        .on_navigation(|url| {
+            if terminal_project(url).is_some() {
+                return true;
             }
             (is_local(url) && url.path() == "/plugin.cafe-projects/")
                 || is_rules_page(url)
