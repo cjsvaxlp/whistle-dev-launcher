@@ -20,6 +20,10 @@ function openLog(file) {
       }
       size += writeSync(fd, chunk.subarray(Math.max(0, chunk.length - (MAX_SIZE - size))));
     },
+    truncate() {
+      ftruncateSync(fd, 0);
+      size = 0;
+    },
     close() {
       closeSync(fd);
     },
@@ -37,6 +41,13 @@ if (require.main === module) {
   } catch (error) {
     console.error(error.message);
   }
+  process.on('SIGUSR1', () => {
+    try {
+      log?.truncate();
+    } catch {
+      // 日志截断失败时保持原文件。
+    }
+  });
   const append = chunk => {
     if (!log) return;
     try {
