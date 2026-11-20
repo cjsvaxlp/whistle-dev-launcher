@@ -1,8 +1,9 @@
 const { execFile, spawn } = require('node:child_process');
-const { existsSync, realpathSync } = require('node:fs');
+const { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
 const { promisify } = require('node:util');
 const { pathToFileURL } = require('node:url');
+const { stateDir, proxyDisabledFile, isLocalProxyEnabled } = require('../workspace.cjs');
 const { openLog } = require('../run-log.cjs');
 const { pluginDir, readWorkspace, ruleName, entryUrl, projectPageUrl, isWindows, POWERSHELL } = require('./config.cjs');
 const { listProjects, readState, readPrefs, writePrefs, stateEntry } = require('./project-store.cjs');
@@ -59,6 +60,7 @@ function snapshot() {
   return {
     workspace: readWorkspace(),
     syncError,
+    proxyEnabled: state?.proxyEnabled ?? isLocalProxyEnabled(),
     updatedAt: updatedAt || null,
     stale: !(age <= STALE_AFTER),
     rule: ruleName,
@@ -241,6 +243,41 @@ function runSync() {
   return syncInFlight;
 }
 
+let changingProxy = false;
+
+function saveProxyEnabled(enabled) {
+  if (enabled) {
+    rmSync(proxyDisabledFile, { force: true });
+  } else {
+    mkdirSync(stateDir, { recursive: true });
+    writeFileSync(proxyDisabledFile, '');
+  }
+}
+
+async function changeProxy(request, response, enabled) {
+  if (!authorized(request)) return json(response, 403, { message: '请从本机 Whistle 面板操作。' });
+  if (!readWorkspace()) return json(response, 409, { message: '请先选择项目工作区。' });
+  if (changingProxy) return json(response, 409, { message: '正在切换本地代理。' });
+  changingProxy = true;
+  const previous = isLocalProxyEnabled();
+  try {
+    await syncInFlight;
+    saveProxyEnabled(enabled);
+    if (!await runSync()) {
+      saveProxyEnabled(previous);
+      return json(response, 503, { message: syncError || '切换本地代理失败。' });
+    }
+    return json(response, 200, {
+      proxyEnabled: enabled,
+      message: enabled ? '已开启本地代理，刷新测试页面即可生效。' : '已切回测试部署，刷新测试页面即可生效。',
+    });
+  } catch (error) {
+    return json(response, 503, { message: error.message });
+  } finally {
+    changingProxy = false;
+  }
+}
+
 function scheduleSync(delay) {
   clearTimeout(syncTimer);
   syncTimer = setTimeout(async () => {
@@ -351,4 +388,4 @@ async function refreshWorkspace() {
   scheduleSync(0);
 }
 
-module.exports = { refreshWorkspace, snapshot, projectAction, runSync, jobs, isProjectBusy };
+module.exports = { refreshWorkspace, snapshot, projectAction, runSync, jobs, isProjectBusy, changeProxy };

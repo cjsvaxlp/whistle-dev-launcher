@@ -97,6 +97,7 @@
     if (!state || !state.updatedAt) {
       return { kind: 'offline', label: '同步未运行' };
     }
+    if (state.proxyEnabled === false) return { kind: 'test', label: '测试部署' };
     const age = Date.now() - Date.parse(state.updatedAt);
     const local = state.projects && state.projects[project];
     if (!Number.isFinite(age) || age > STALE_AFTER) {

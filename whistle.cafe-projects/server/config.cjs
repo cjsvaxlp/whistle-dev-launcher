@@ -21,6 +21,7 @@ const projectEntryRoutes = new Map([
 
 function projectPageUrl(project) {
   if (project === 'power') return entryUrl;
+  if (project === 'service') return entryUrl + '?project=service';
   // New CMS reads the session established by CMS in the same browser tab.
   const entryProject = project === 'newcms' ? 'cms' : project;
   const url = new URL('/cybercafe-' + entryProject + '/', entryUrl);

@@ -11,6 +11,11 @@ const defaultStateDir = existsSync(join(tools, '.installed'))
   : join(tools, '.cafe-tools');
 const stateDir = resolve(process.env.CAFE_STATE_DIR || defaultStateDir);
 const workspaceFile = join(stateDir, 'workspace');
+const proxyDisabledFile = join(stateDir, 'proxy-disabled');
+
+function isLocalProxyEnabled() {
+  return !existsSync(proxyDisabledFile);
+}
 
 function readWorkspace() {
   const files = [workspaceFile];
@@ -30,4 +35,4 @@ function workspaceId(directory) {
   return createHash('sha256').update(directory).digest('hex');
 }
 
-module.exports = { stateDir, workspaceFile, readWorkspace, workspaceId };
+module.exports = { stateDir, workspaceFile, readWorkspace, workspaceId, proxyDisabledFile, isLocalProxyEnabled };

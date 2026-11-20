@@ -745,3 +745,72 @@ h1 {
   color: #475467;
   font-size: 13px;
 }
+
+.proxy-control {
+  position: relative;
+}
+
+.proxy-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px;
+  color: #344054;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.proxy-switch input {
+  position: absolute;
+  opacity: 0;
+}
+
+.proxy-switch-track {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 99px;
+  background: #667085;
+}
+
+.proxy-switch-track::before {
+  position: absolute;
+  inset: 2px auto auto 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  content: "";
+}
+
+.proxy-switch input:checked + .proxy-switch-track {
+  background: #0066cc;
+}
+
+.proxy-switch input:checked + .proxy-switch-track::before {
+  transform: translateX(14px);
+}
+
+.proxy-switch input:focus-visible + .proxy-switch-track {
+  outline: 2px solid #0066cc;
+  outline-offset: 2px;
+}
+
+.proxy-switch:has(input:disabled) {
+  opacity: .55;
+  cursor: default;
+}
+
+.proxy-notice:not(:empty) {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 9px);
+  right: 0;
+  width: min(240px, 70vw);
+  padding: 8px 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 3px 10px rgb(15 23 42 / 12%);
+  font-size: 12px;
+}

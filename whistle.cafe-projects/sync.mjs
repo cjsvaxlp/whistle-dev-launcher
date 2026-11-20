@@ -14,7 +14,7 @@ const run = promisify(execFile);
 const require = createRequire(import.meta.url);
 const isWindows = process.platform === 'win32';
 const here = dirname(fileURLToPath(import.meta.url));
-const { stateDir, readWorkspace, workspaceId } = workspaceConfig;
+const { stateDir, readWorkspace, workspaceId, isLocalProxyEnabled } = workspaceConfig;
 const whistleOrigin = process.env.CAFE_WHISTLE_ORIGIN || 'http://127.0.0.1:8899';
 const stateFile = join(stateDir, 'state.json');
 
@@ -326,10 +326,11 @@ async function readRule() {
   return data && data.value ? data.value : null;
 }
 
-async function writeRule(value) {
+async function writeRule(value, enabled) {
+  const action = enabled ? 'select' : 'unselect';
   let response;
   try {
-    response = await fetch(`${whistleOrigin}/cgi-bin/rules/select`, {
+    response = await fetch(`${whistleOrigin}/cgi-bin/rules/${action}`, {
       method: 'POST',
       body: new URLSearchParams({ name: RULE_NAME, value }),
       signal: AbortSignal.timeout(4000),
@@ -350,7 +351,7 @@ async function readState() {
   }
 }
 
-async function writeState(workspace, locals, compat, unmatched) {
+async function writeState(workspace, locals, compat, unmatched, proxyEnabled) {
   const prior = await readState();
   const now = new Date().toISOString();
   const projects = {};
@@ -368,7 +369,7 @@ async function writeState(workspace, locals, compat, unmatched) {
     if (merged[project].pid) projects[project].pid = merged[project].pid;
     if (compat[project]) projects[project].compat = true;
   }
-  const state = { workspaceId: workspaceId(workspace), updatedAt: now, rule: RULE_NAME, ruleSelected: true, projects };
+  const state = { workspaceId: workspaceId(workspace), updatedAt: now, rule: RULE_NAME, ruleSelected: proxyEnabled, proxyEnabled, projects };
   if (Object.keys(unmatched).length) state.unmatched = unmatched;
   await mkdir(stateDir, { recursive: true });
   const temporary = `${stateFile}.${process.pid}.tmp`;
@@ -380,16 +381,19 @@ async function writeState(workspace, locals, compat, unmatched) {
 export async function sync(workspace = readWorkspace()) {
   const projects = listProjects(workspace);
   const { locals, compat, unmatched } = await detectLocals(projects, workspace);
-  await writeCompatFiles(compat);
+  const proxyEnabled = isLocalProxyEnabled();
+  if (proxyEnabled) await writeCompatFiles(compat);
   const body = buildRule(projects, locals, compat);
   const current = await readRule();
   if (current && typeof current.value === 'string' && !current.value.startsWith(MARKER)) {
     throw new Error(`Whistle 里已有同名规则「${RULE_NAME}」，但不是本工具生成的；请改名或删除后重试。`);
   }
-  if (!current || current.value !== body || !current.selected) {
-    await writeRule(body);
+  if (proxyEnabled && (!current || current.value !== body || !current.selected)) {
+    await writeRule(body, true);
+  } else if (!proxyEnabled && current?.selected) {
+    await writeRule(current.value, false);
   }
-  return writeState(workspace, locals, compat, unmatched);
+  return writeState(workspace, locals, compat, unmatched, proxyEnabled);
 }
 
 async function main() {

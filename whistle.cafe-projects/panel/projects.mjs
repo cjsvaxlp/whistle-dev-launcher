@@ -1,6 +1,10 @@
 import { confirmAction, post } from './api.mjs';
 import { openLogs } from './logs.mjs';
 
+const proxySwitch = document.querySelector('#local-proxy');
+const proxyNotice = document.querySelector('#proxy-notice');
+let changingProxy = false;
+
 const list = document.querySelector('#projects');
 const title = document.querySelector('#title');
 const meta = document.querySelector('#meta');
@@ -80,7 +84,7 @@ function sortedProjects() {
 function renderList() {
   if (!snapshot) return;
   const projects = sortedProjects();
-  const key = JSON.stringify([snapshot.workspace, loadError]) + '|' + selected + '|' + query + '|' + favoritesOnly + '|' + projects.map(project =>
+  const key = JSON.stringify([snapshot.workspace, snapshot.proxyEnabled, loadError]) + '|' + selected + '|' + query + '|' + favoritesOnly + '|' + projects.map(project =>
     `${project.name}:${project.active}:${project.port}:${project.deps.status}:${project.installing}:${project.favorite}`,
   ).join('|');
   if (key === listKey) return;
@@ -111,7 +115,7 @@ function renderList() {
     }
     const tag = document.createElement('span');
     tag.className = project.active ? 'tag' : 'tag idle';
-    tag.textContent = project.active ? `:${project.port}` : '未接管';
+    tag.textContent = project.active ? (snapshot.proxyEnabled === false ? '运行中' : `:${project.port}`) : '未接管';
     button.append(tag);
     button.addEventListener('click', () => {
       if (selected !== project.name) setStatus('', '');
@@ -144,6 +148,10 @@ function renderList() {
 
 function render() {
   if (!snapshot) return;
+  if (!changingProxy) {
+    proxySwitch.disabled = !snapshot.workspace || typeof snapshot.proxyEnabled !== 'boolean' || Boolean(loadError);
+    proxySwitch.checked = snapshot.proxyEnabled === true;
+  }
   const info = snapshot.projects.find(project => project.name === selected);
   if (!info && snapshot.projects.length) {
     const preferred = snapshot.projects.find(project => project.active)
@@ -179,7 +187,9 @@ function render() {
   title.textContent = info ? `cybercafe-${info.name}` : '选择项目';
 
   if (info && info.active) {
-    meta.textContent = info.compat
+    meta.textContent = snapshot.proxyEnabled === false
+      ? `本地服务运行中 · 端口 ${info.port} · 测试地址当前走测试部署`
+      : info.compat
       ? `本地接管中（兼容模式）· 端口 ${info.port} · 资源路径由代理改写，HMR 已一并代理`
       : `本地接管中 · 端口 ${info.port} · ${info.engine} · ${clock(info.since)} 开始（服务已在运行，无需重复启动）`;
   } else if (info && info.unmatched) {
@@ -248,6 +258,25 @@ function scheduleRefresh() {
   const pending = !loadError && snapshot?.projects.some(project => project.installing || project.launching);
   refreshTimer = setTimeout(load, pending ? ACTIVE_REFRESH_INTERVAL : IDLE_REFRESH_INTERVAL);
 }
+
+proxySwitch.addEventListener('change', async () => {
+  changingProxy = true;
+  proxySwitch.disabled = true;
+  proxyNotice.textContent = '正在切换…';
+  try {
+    const response = await post('./api/proxy/' + (proxySwitch.checked ? 'on' : 'off'));
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || '切换本地代理失败。');
+    await refreshInFlight;
+    await load();
+    proxyNotice.textContent = data.message;
+  } catch (error) {
+    proxyNotice.textContent = error.message;
+  } finally {
+    changingProxy = false;
+    render();
+  }
+});
 
 export function load() {
   if (refreshInFlight) return refreshInFlight;

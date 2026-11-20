@@ -4,7 +4,7 @@ export function bindWhistleControls({ load, setStatus }) {
   const syncNow = document.querySelector('#sync-now');
   const restart = document.querySelector('#restart');
 
-  if (/Mac/.test(navigator.platform)) {
+  if (/^(Mac|Win)/.test(navigator.platform)) {
     for (const id of ['entry', 'open']) {
       const link = document.querySelector('#' + id);
       link.title = '在开发 Chrome 中通过 Whistle 打开';

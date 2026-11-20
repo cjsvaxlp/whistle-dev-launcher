@@ -32,6 +32,9 @@ function globalPluginTarget() {
 }
 
 function pluginLinkCheck() {
+  if (existsSync(join(dirname(pluginDir), '.installed'))) {
+    return { status: 'ok', detail: '已加载安装包内置的插件' };
+  }
   const target = globalPluginTarget();
   if (!target) {
     return { status: 'unknown', detail: '无法定位全局 node_modules', action: '' };

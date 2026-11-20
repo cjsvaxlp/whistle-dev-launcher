@@ -1,4 +1,4 @@
-const { closeSync, fstatSync, ftruncateSync, openSync, readSync, unlinkSync, writeFileSync, writeSync } = require('node:fs');
+const { closeSync, fstatSync, ftruncateSync, openSync, readSync, unlinkSync, unwatchFile, watchFile, writeFileSync, writeSync } = require('node:fs');
 const { spawn } = require('node:child_process');
 
 const MAX_SIZE = 4 * 1024 * 1024;
@@ -38,11 +38,25 @@ if (require.main === module) {
   try {
     log = openLog(file);
     writeFileSync(file + '.pid', String(process.pid));
-    // 标记当前 writer 支持 SIGUSR1 截断；旧进程没有这个文件，不能被信号误杀。
-    writeFileSync(file + '.signal', '1');
+    const windows = process.platform === 'win32';
+    const clearRequest = file + '.clear-' + process.pid;
+    const marker = windows ? clearRequest + '.ready' : file + '.signal';
+    if (windows) {
+      watchFile(clearRequest, { persistent: false, interval: 200 }, current => {
+        if (!current.nlink || !log) return;
+        try {
+          log.truncate();
+          unlinkSync(clearRequest);
+        } catch {
+          // The panel keeps the active log if the writer cannot confirm the clear.
+        }
+      });
+    }
+    writeFileSync(marker, '1');
     process.on('exit', () => {
+      if (windows) unwatchFile(clearRequest);
       try {
-        unlinkSync(file + '.signal');
+        unlinkSync(marker);
       } catch {
         // 忽略
       }
