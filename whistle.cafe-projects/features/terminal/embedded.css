@@ -1,0 +1,21 @@
+.project-card {
+  display: flex;
+  flex-direction: column;
+}
+.inline-terminal {
+  display: flex;
+  flex: 1 0 280px;
+  min-height: 280px;
+  margin-top: 20px;
+  overflow: hidden;
+  border: 1px solid #e5e5ea;
+  border-radius: 12px;
+  background: #fff;
+}
+.inline-terminal[hidden] { display: none; }
+.inline-terminal iframe {
+  flex: 1;
+  width: 100%;
+  min-height: 280px;
+  border: 0;
+}

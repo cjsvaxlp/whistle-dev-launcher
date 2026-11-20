@@ -1,4 +1,3 @@
-use std::process::{Command, Stdio};
 
 use tauri::{
     webview::{DownloadEvent, NewWindowResponse},
@@ -57,20 +56,12 @@ fn is_test_page(url: &Url) -> bool {
 }
 
 fn open_test_page(url: &Url) {
-    match Command::new("/usr/bin/open")
-        .arg(url.as_str())
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-    {
-        Ok(mut child) => {
-            std::thread::spawn(move || {
-                let _ = child.wait();
-            });
+    let url = url.as_str().to_owned();
+    std::thread::spawn(move || {
+        if let Err(error) = crate::services::open_browser_url(&url) {
+            eprintln!("打开测试页面失败：{error}");
         }
-        Err(error) => eprintln!("打开测试页面失败：{error}"),
-    }
+    });
 }
 
 fn open_panel(app: &AppHandle) -> tauri::Result<()> {

@@ -12,6 +12,9 @@ const { listLogRuns } = require('../features/logs/store.cjs');
 const { getRule, restartWhistle } = require('../features/whistle/server.cjs');
 
 const panelAssets = new Map([
+  ["/features/rules/dialog.css", ["features/rules/dialog.css", "text/css; charset=utf-8"]],
+  ["/features/terminal/embedded.mjs", ["features/terminal/embedded.mjs", "text/javascript; charset=utf-8"]],
+  ["/features/terminal/embedded.css", ["features/terminal/embedded.css", "text/css; charset=utf-8"]],
   ["/features/doctor/client.mjs", ["features/doctor/client.mjs", "text/javascript; charset=utf-8"]],
   ["/features/rules/client.mjs", ["features/rules/client.mjs", "text/javascript; charset=utf-8"]],
   ["/", ["panel/index.html", "text/html; charset=utf-8"]],
@@ -28,7 +31,6 @@ const panelAssets = new Map([
   ["/features/projects/client.mjs", ["features/projects/client.mjs", "text/javascript; charset=utf-8"]],
   ["/shared/toast/toast.css", ["shared/toast/toast.css", "text/css; charset=utf-8"]],
   ["/features/whistle/client.mjs", ["features/whistle/client.mjs", "text/javascript; charset=utf-8"]],
-  ["/features/logs/client.mjs", ["features/logs/client.mjs", "text/javascript; charset=utf-8"]],
   ["/panel/panel.css", ["panel/panel.css", "text/css; charset=utf-8"]],
 ]);
 const panelCache = new Map();

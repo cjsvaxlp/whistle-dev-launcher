@@ -6,6 +6,8 @@
 <title>Cybercafe 本地调试</title>
 <link rel="stylesheet" href="./shared/toast/toast.css">
 <link rel="stylesheet" href="./panel/panel.css">
+<link rel="stylesheet" href="./features/terminal/embedded.css">
+<link rel="stylesheet" href="./features/rules/dialog.css">
 <header class="toolbar">
   <span class="brand">Cybercafe 本地调试</span>
   <div class="proxy-control">
@@ -37,13 +39,10 @@
         <button class="secondary danger" id="stop" type="button" hidden>停止服务</button>
         <button class="secondary primary" id="restart-service" type="button" hidden>重启服务</button>
         <button class="secondary primary" id="takeover" type="button" hidden>接管并重启</button>
-        <button class="secondary" id="terminal" type="button" hidden>终端</button>
-      <button class="secondary" id="logs" type="button" hidden>查看日志</button>
-        <a class="secondary" href="#/rules">查看规则</a>
+        <button class="secondary" id="rules" type="button">查看规则</button>
       </div>
       <div class="startup-result" id="startup-result" hidden>
         <span id="startup-status" role="status"></span>
-        <button class="secondary" id="startup-log" type="button" hidden>查看本次日志</button>
       </div>
       <p class="status" id="status" role="status"></p>
       <label class="game-channel" id="game-channel-field" hidden>
@@ -52,30 +51,28 @@
       </label>
       <p class="note" id="project-entry-note" hidden></p>
       <p class="note">页面右下角的徽标会显示当前是「本地接管」还是「测试部署」。缺少依赖时，启动会提示安装。</p>
+      <div class="inline-terminal" id="inline-terminal" hidden>
+        <iframe id="terminal-frame" title="当前项目终端"></iframe>
+      </div>
     </section>
   </div>
-  <section class="rule-page" id="rule-page" aria-labelledby="rule-title" hidden>
-    <nav class="rule-breadcrumb" aria-label="面包屑">
-      <a href="#/">项目</a>
-      <span aria-hidden="true">›</span>
-      <a href="#/rules" id="rule-crumb" aria-current="page">规则</a>
-      <span id="rule-editor-crumb" hidden><span aria-hidden="true">›</span> <span aria-current="page">Whistle 管理</span></span>
-    </nav>
-    <div class="rule-page-body">
-      <header class="modal-head">
-        <h1 id="rule-title">Cafe 自动代理</h1>
-        <span class="modal-state" id="rule-state"></span>
-      </header>
-      <pre id="rule-text">正在读取…</pre>
-      <div id="rule-editor" hidden></div>
-      <footer class="modal-foot" id="rule-actions">
-        <a class="secondary" href="#/rules/whistle">在 Whistle 中打开</a>
-        <button class="secondary" id="copy-rule" type="button">复制规则</button>
-        <span class="status" id="rule-notice" role="status"></span>
-      </footer>
-    </div>
-  </section>
 </main>
+<dialog id="rule-dialog" aria-labelledby="rule-title">
+  <header class="modal-head">
+    <h2 id="rule-title">Cafe 自动代理</h2>
+    <span class="modal-state" id="rule-state"></span>
+    <button class="dialog-close" id="close-rule" type="button" aria-label="关闭规则" autofocus>×</button>
+  </header>
+  <pre id="rule-text">正在读取…</pre>
+  <div id="rule-editor" hidden></div>
+  <footer class="modal-foot">
+    <button class="secondary" id="edit-rule" type="button">在 Whistle 中打开</button>
+    <button class="secondary" id="preview-rule" type="button" hidden>返回规则预览</button>
+    <button class="secondary" id="copy-rule" type="button">复制规则</button>
+    <span class="status" id="rule-notice" role="status"></span>
+  </footer>
+</dialog>
+
 
 <div class="modal" id="doctor-modal" hidden>
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="doctor-title">
@@ -104,28 +101,6 @@
   </div>
 </div>
 
-<div class="modal" id="log-modal" hidden>
-  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="log-title">
-    <header class="modal-head">
-      <span id="log-title">日志</span>
-      <span class="modal-state" id="log-state"></span>
-      <button class="dialog-close" id="close-log" type="button" aria-label="关闭" title="关闭">×</button>
-    </header>
-    <div class="log-tools">
-      <select id="log-run" aria-label="日志批次"></select>
-      <input id="log-search" type="search" maxlength="200" aria-label="搜索日志" placeholder="搜索日志">
-      <button class="secondary" id="copy-log" type="button">复制</button>
-      <button class="secondary" id="download-log" type="button">下载</button>
-    </div>
-    <div class="diags" id="log-diags"></div>
-    <pre id="log-text">正在读取…</pre>
-    <footer class="modal-foot">
-      <button class="secondary" id="refresh-log" type="button">刷新</button>
-      <button class="secondary danger" id="clear-log" type="button" disabled>清理日志</button>
-      <span class="grow log-notice" id="log-notice" role="status"></span>
-    </footer>
-  </div>
-</div>
 <dialog class="action-dialog" id="confirm-action" aria-labelledby="confirm-title" aria-describedby="confirm-message">
   <form method="dialog">
     <header class="action-dialog-head">

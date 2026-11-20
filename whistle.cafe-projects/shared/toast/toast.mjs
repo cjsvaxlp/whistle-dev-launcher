@@ -7,13 +7,18 @@ export function showError(message) {
     toast = document.createElement('div');
     toast.className = 'error-toast';
     toast.setAttribute('role', 'alert');
+    toast.setAttribute('popover', 'manual');
     toast.hidden = true;
     document.body.append(toast);
   }
   clearTimeout(toastTimer);
   toast.textContent = message;
   toast.hidden = false;
-  toastTimer = setTimeout(() => { toast.hidden = true; }, 2000);
+  toast.showPopover?.();
+  toastTimer = setTimeout(() => {
+    toast.hidePopover?.();
+    toast.hidden = true;
+  }, 2000);
 }
 
 // Polling callers pass an empty message after recovery to allow future alerts.

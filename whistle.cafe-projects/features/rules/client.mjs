@@ -1,51 +1,50 @@
 import { showError } from '../../shared/toast/toast.mjs';
 
-const rulePage = document.querySelector('#rule-page');
 const ruleState = document.querySelector('#rule-state');
 const ruleText = document.querySelector('#rule-text');
 
 export function bindRules() {
-  const projectPage = document.querySelector('#project-page');
-  const ruleEditor = document.querySelector('#rule-editor');
-  const ruleCrumb = document.querySelector('#rule-crumb');
-  const editorCrumb = document.querySelector('#rule-editor-crumb');
-  const ruleTitle = document.querySelector('#rule-title');
-  const ruleActions = document.querySelector('#rule-actions');
+  const dialog = document.querySelector('#rule-dialog');
+  const editor = document.querySelector('#rule-editor');
+  const title = document.querySelector('#rule-title');
+  const edit = document.querySelector('#edit-rule');
+  const preview = document.querySelector('#preview-rule');
+  const copy = document.querySelector('#copy-rule');
   const ruleNotice = document.querySelector('#rule-notice');
 
-  function renderRoute() {
-    const editing = location.hash === '#/rules/whistle';
-    const viewing = location.hash === '#/rules';
-    projectPage.hidden = editing || viewing;
-    rulePage.hidden = !projectPage.hidden;
-    ruleTitle.textContent = editing ? 'Whistle 规则' : 'Cafe 自动代理';
-    editorCrumb.hidden = !editing;
-    if (viewing) ruleCrumb.setAttribute('aria-current', 'page');
-    else ruleCrumb.removeAttribute('aria-current');
-    ruleState.hidden = !viewing;
-    ruleText.hidden = !viewing;
-    ruleActions.hidden = !viewing;
-    ruleEditor.hidden = !editing;
+  function showEditor(editing) {
+    title.textContent = editing ? 'Whistle 规则管理' : 'Cafe 自动代理';
+    ruleText.hidden = editing;
+    ruleState.hidden = editing;
+    editor.hidden = !editing;
+    edit.hidden = editing;
+    preview.hidden = !editing;
+    copy.hidden = editing;
     ruleNotice.textContent = '';
-
+    editor.replaceChildren();
     if (editing) {
-      if (ruleEditor.firstChild) return;
       const frame = document.createElement('iframe');
       frame.title = 'Whistle 规则管理';
-      // Whistle reserves this prefix for its own UI, even from a plugin page.
       frame.src = new URL('/whistle/#rules', location.origin).href;
-      ruleEditor.append(frame);
+      editor.append(frame);
     } else {
-      ruleEditor.replaceChildren();
-      if (viewing) loadRulePreview();
+      loadRulePreview();
     }
   }
 
-  window.addEventListener('hashchange', renderRoute);
-  if (!location.hash && new URLSearchParams(location.search).get('rule') === '1') {
-    history.replaceState(null, '', '#/rules');
-  }
-  renderRoute();
+  document.querySelector('#rules').addEventListener('click', () => {
+    dialog.showModal();
+    showEditor(false);
+  });
+  document.querySelector('#close-rule').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('close', () => editor.replaceChildren());
+  dialog.addEventListener('click', event => {
+    const bounds = dialog.getBoundingClientRect();
+    if (event.target === dialog && (event.clientX < bounds.left || event.clientX > bounds.right
+      || event.clientY < bounds.top || event.clientY > bounds.bottom)) dialog.close();
+  });
+  edit.addEventListener('click', () => showEditor(true));
+  preview.addEventListener('click', () => showEditor(false));
 
   async function loadRulePreview() {
     ruleText.textContent = '正在读取…';

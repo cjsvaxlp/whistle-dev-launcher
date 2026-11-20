@@ -114,6 +114,8 @@ stop.addEventListener('click', () => serviceAction(
   stop, 'stop', '停止 cybercafe-' + project + ' 的本地服务？', '正在停止…',
 ));
 
+back.hidden = new URLSearchParams(location.search).get('embedded') === '1';
+
 back.addEventListener('click', () => {
   location.href = './?project=' + encodeURIComponent(project);
 });

@@ -13,7 +13,7 @@ Cybercafe 本地开发工具：把测试环境里的任意 `cybercafe-*` 子应�
 
 ## macOS 桌面端
 
-双击 [启动桌面端.command](scripts/commands/启动桌面端.command) 打开 Cybercafe。首次运行需要 Rust 和 Xcode 命令行工具。已有应用包时可直接启动。打开应用时会自动启动 Whistle，已有实例会直接复用。在面板里启动项目时，桌面端会在应用内打开终端页面显示服务输出，可以直接停止服务并返回面板；手动在外部终端启动的服务会在终端页提示无法读取实时输出，可一键接管并重启。菜单栏可启动或停止 Whistle，退出桌面应用时只会停止由它启动、且尚未被替换的实例。
+双击 [启动桌面端.command](scripts/commands/启动桌面端.command) 打开 Cybercafe。首次运行需要 Rust 和 Xcode 命令行工具。已有应用包时可直接启动。打开应用时会自动启动 Whistle，已有实例会直接复用。在面板里启动项目时，服务输出会直接显示在项目操作区下方的内嵌终端，可以在同一面板停止服务或切换项目；手动在外部终端启动的服务会在终端页提示无法读取实时输出，可一键接管并重启。菜单栏可启动或停止 Whistle，退出桌面应用时只会停止由它启动、且尚未被替换的实例。
 
 修改 Rust、应用图标或启动配置后，先退出桌面应用，再从工具目录运行：
 
@@ -72,9 +72,8 @@ macOS 分发生成 DMG，打开后将 Cybercafe.app 拖到「应用程序」安�
 | `panel/` | 主面板 HTML、全局布局样式和功能初始化入口。 |
 | `features/projects/client.mjs` | 项目列表、搜索、收藏、启动进度和操作按钮。 |
 | `features/terminal/client.mjs`、`terminal.html`、`terminal.css` | 应用内终端页面、输出展示和服务控制，均位于 `features/terminal/`。 |
-| `features/logs/client.mjs` | 日志批次、搜索、复制、下载和日志弹层。 |
 | `features/doctor/client.mjs` | 环境体检结果、工作区设置和修复操作界面。 |
-| `features/rules/` | 规则预览、复制及内嵌 Whistle 编辑器。 |
+| `features/rules/` | 规则预览、复制及内嵌 Whistle 编辑器弹框。 |
 | `features/whistle/client.mjs` | 面板中的 Whistle 重启、同步和浏览器打开操作。 |
 | `features/badge/` | 注入测试页面的环境徽标及其样式。 |
 | `shared/toast/` | 共用 Apple 风格错误提示，2 秒自动消失，并对轮询错误去重。 |
@@ -114,7 +113,7 @@ macOS 分发生成 DMG，打开后将 Cybercafe.app 拖到「应用程序」安�
 | `desktop/src/window/` | 面板与终端窗口、导航范围和下载处理。 |
 | `desktop/src/services/` | 本机 Whistle 的发现、启动、停止和浏览器入口。 |
 | `desktop/ui/` | 连接异常时显示的本地页面。 |
-| `desktop/icons/` | 桌面应用图标资源。 |
+| `desktop/icons/` | 应用包使用 Cybercafe.icns，Tauri 默认图标使用其同款 PNG，保持 Dock 与应用图标一致。 |
 
 ### 工具脚本与打包
 
@@ -133,3 +132,7 @@ macOS 分发生成 DMG，打开后将 Cybercafe.app 拖到「应用程序」安�
 | --- | --- |
 | `.cafe-tools/` | 本机状态、日志、构建缓存和桌面应用，由 Git 忽略。 |
 | `dist/` | 安装包输出，由 Git 忽略。 |
+
+应用图标更新时，同时更新 desktop/icons/Cybercafe.icns 与其导出的 icon.png。macOS 可执行 `sips -s format png desktop/icons/Cybercafe.icns --out desktop/icons/icon.png` 同步图案。
+
+启动项目后，终端输出直接显示在项目操作面板下方。切换左侧项目时终端同步切换。

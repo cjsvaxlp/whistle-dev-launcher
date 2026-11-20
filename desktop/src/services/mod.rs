@@ -338,3 +338,16 @@ pub fn open_test() -> Result<(), String> {
         .map_err(|error| format!("打开浏览器失败：{error}"))?;
     error_output(output, "打开浏览器失败")
 }
+
+
+pub fn open_browser_url(url: &str) -> Result<(), String> {
+    let contents = app_contents()?;
+    let script = tools_directory(&contents)?.join("scripts/browser/open-browser.js");
+    let output = Command::new("/usr/bin/osascript")
+        .args(["-l", "JavaScript"])
+        .arg(script)
+        .arg(url)
+        .output()
+        .map_err(|error| format!("打开浏览器失败：{error}"))?;
+    error_output(output, "打开浏览器失败")
+}

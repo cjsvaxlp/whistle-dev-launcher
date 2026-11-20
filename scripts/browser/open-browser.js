@@ -18,16 +18,36 @@ function run(args) {
   const browser = Application(bundle);
   if (!browser.running()) browser.launch();
   const windows = browser.windows();
+  // Login and SPA navigation change the hash after the entry page opens.
+  const entry = $.NSURL.URLWithString(url);
+  const project = entry.path.js.match(/^\/cybercafe-[a-z0-9-]+(?:\/|$)/)?.[0].replace(/\/$/, '');
+  let match = null;
   for (let w = 0; w < windows.length; w++) {
     const tabs = windows[w].tabs();
     for (let t = 0; t < tabs.length; t++) {
-      if (tabs[t].url() !== url) continue;
-      if (safari) windows[w].currentTab = tabs[t];
-      else windows[w].activeTabIndex = t + 1;
-      windows[w].index = 1;
-      browser.activate();
-      return;
+      const currentUrl = tabs[t].url();
+      if (currentUrl === url) {
+        match = { window: windows[w], tab: tabs[t], index: t + 1, exact: true };
+        break;
+      }
+      if (!match && project && currentUrl) {
+        const current = $.NSURL.URLWithString(currentUrl);
+        if (current && current.host && current.path && current.scheme.js === entry.scheme.js
+          && current.host.js === entry.host.js
+          && String(ObjC.unwrap(current.port)) === String(ObjC.unwrap(entry.port))
+          && (current.path.js === project || current.path.js.startsWith(project + '/'))) {
+          match = { window: windows[w], tab: tabs[t], index: t + 1, exact: false };
+        }
+      }
     }
+    if (match && match.exact) break;
+  }
+  if (match) {
+    if (safari) match.window.currentTab = match.tab;
+    else match.window.activeTabIndex = match.index;
+    match.window.index = 1;
+    browser.activate();
+    return;
   }
 
   if (!windows.length) {

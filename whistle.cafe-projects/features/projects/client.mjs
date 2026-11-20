@@ -1,6 +1,6 @@
+import { showTerminal, focusTerminal } from '../terminal/embedded.mjs';
 import { showError, reportError } from '../../shared/toast/toast.mjs';
 import { confirmAction, post } from '../../shared/http/client.mjs';
-import { openLogs } from '../logs/client.mjs';
 
 const proxySwitch = document.querySelector('#local-proxy');
 const proxyNotice = document.querySelector('#proxy-notice');
@@ -26,8 +26,6 @@ const install = document.querySelector('#install');
 const open = document.querySelector('#open');
 const gameChannel = document.querySelector('#game-channel');
 const gameChannelField = document.querySelector('#game-channel-field');
-const logs = document.querySelector('#logs');
-const terminal = document.querySelector('#terminal');
 const takeover = document.querySelector('#takeover');
 const stop = document.querySelector('#stop');
 const restartService = document.querySelector('#restart-service');
@@ -35,7 +33,6 @@ const installPrompt = document.querySelector('#install-prompt');
 const status = document.querySelector('#status');
 const startupResult = document.querySelector('#startup-result');
 const startupStatus = document.querySelector('#startup-status');
-const startupLog = document.querySelector('#startup-log');
 const sync = document.querySelector('#sync');
 const syncNow = document.querySelector('#sync-now');
 const search = document.querySelector('#search');
@@ -251,15 +248,12 @@ function render() {
   stop.hidden = !info?.canStop;
   restartService.hidden = !info?.canStop || !active;
   for (const button of [install, takeover, stop, restartService]) button.disabled = busy || installing || launching;
-  logs.hidden = !info || !(info.log || info.active || installing);
-  terminal.hidden = !info || !(info.active || info.log);
-  terminal.textContent = info && info.terminalSource === 'external' ? '终端（外部）' : '终端';
+  showTerminal(info?.name, Boolean(info && (info.active || info.log || installing || launching)));
   const startup = info?.startup;
   startupResult.hidden = !startup || (startup.stage === 'ready' && (!active || snapshot.stale));
   startupResult.dataset.stage = startup?.stage || '';
-  const message = startupResult.hidden ? '' : (startup.stage === 'failed' ? '启动失败，可查看本次日志。' : startup.message) || '';
+  const message = startupResult.hidden ? '' : (startup.stage === 'failed' ? '启动失败，请查看下方终端。' : startup.message) || '';
   if (startupStatus.textContent !== message) startupStatus.textContent = message;
-  startupLog.hidden = !startup?.hasLog || !info.log;
 }
 
 const IDLE_REFRESH_INTERVAL = 15000;
@@ -344,11 +338,6 @@ async function toggleFavorite(project) {
   }
 }
 
-function openDesktopTerminal(project) {
-  if (!window.cafeDesktopTerminal) return false;
-  location.href = './terminal.html?project=' + encodeURIComponent(project);
-  return true;
-}
 
 function confirmInstall() {
   installPrompt.returnValue = '';
@@ -381,8 +370,7 @@ async function projectAction(action, pending) {
     if (selected === project) {
       setStatus(action === 'stop' ? data.message : '');
       const terminalActions = ['start', 'install', 'install-and-start', 'restart-service', 'takeover'];
-      const desktopTerminal = terminalActions.includes(action) && openDesktopTerminal(project);
-      if (!desktopTerminal && (action === 'install' || action === 'install-and-start')) openLogs(project);
+      if (terminalActions.includes(action)) focusTerminal(project);
     }
   } catch (error) {
     if (selected === project) setStatus(error.message, 'error');
@@ -405,21 +393,6 @@ takeover.addEventListener('click', async () => {
   }
 });
 
-function openTerminalPage(project) {
-  const url = './terminal.html?project=' + encodeURIComponent(project);
-  if (window.cafeDesktopTerminal) {
-    location.href = url;
-    return;
-  }
-  const opened = window.open(url, '_blank');
-  if (opened) return;
-  // 老桌面端会拦截新窗口，退回到面板内的日志弹层，至少能看到输出。
-  if (window.cafeDesktop) {
-    openLogs(project);
-    return;
-  }
-  location.href = url;
-}
 
 open.addEventListener('click', event => {
   if (open.dataset.project !== 'game') return;
@@ -433,9 +406,6 @@ open.addEventListener('click', event => {
   open.href = url.href;
 });
 
-terminal.addEventListener('click', () => selected && openTerminalPage(selected));
-logs.addEventListener('click', () => selected && openLogs(selected));
-startupLog.addEventListener('click', () => selected && openLogs(selected));
 
 search.addEventListener('input', () => {
   query = search.value.trim().toLowerCase();
@@ -453,8 +423,4 @@ document.addEventListener('visibilitychange', () => {
 
 export function hasWorkspace() {
   return Boolean(snapshot?.workspace);
-}
-
-export function openSelectedLogs() {
-  if (selected) openLogs(selected);
 }

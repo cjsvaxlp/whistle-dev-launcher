@@ -1,5 +1,8 @@
 .error-toast {
   position: fixed;
+  margin: 0;
+  right: auto;
+  bottom: auto;
   z-index: 1000;
   top: 20px;
   left: 50%;

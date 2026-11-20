@@ -2,7 +2,7 @@ import { showError } from '../shared/toast/toast.mjs';
 import { post } from '../shared/http/client.mjs';
 import { bindDoctor } from '../features/doctor/client.mjs';
 import { bindRules } from '../features/rules/client.mjs';
-import { hasWorkspace, load, openSelectedLogs, setStatus, shouldOpenDirectly } from '../features/projects/client.mjs';
+import { hasWorkspace, load, setStatus, shouldOpenDirectly } from '../features/projects/client.mjs';
 import { bindWhistleControls } from '../features/whistle/client.mjs';
 
 const { showDoctor } = bindDoctor({ load });
@@ -54,4 +54,3 @@ await load();
 const params = new URLSearchParams(location.search);
 if (hasWorkspace()
   && !localStorage.getItem('cafe-doctor-seen') && params.get('doctor') !== '0') showDoctor({ auto: true });
-if (params.get('log') === '1') openSelectedLogs();
