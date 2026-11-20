@@ -7,7 +7,7 @@ export function bindWhistleControls({ load, setStatus }) {
   if (/^(Mac|Win)/.test(navigator.platform)) {
     for (const id of ['entry', 'open']) {
       const link = document.querySelector('#' + id);
-      link.title = '在开发 Chrome 中通过 Whistle 打开';
+      link.title = '在默认浏览器中打开';
       link.addEventListener('click', async event => {
         if (event.defaultPrevented) return;
         event.preventDefault();
@@ -22,8 +22,8 @@ export function bindWhistleControls({ load, setStatus }) {
           const data = await response.json();
           if (!response.ok) {
             throw new Error(response.status === 404 && !project
-              ? '请重启 Whistle 以加载开发 Chrome 入口。'
-              : data.message || '打开开发 Chrome 失败。');
+              ? '请重启 Whistle 以加载浏览器入口。'
+              : data.message || '打开浏览器失败。');
           }
           setStatus('');
         } catch (error) {

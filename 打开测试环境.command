@@ -2,10 +2,7 @@
 set -eu
 
 tool_dir=${0:A:h}
-profile_dir="$tool_dir/Chrome开发配置"
-if [[ -f "$tool_dir/.installed" ]]; then
-  profile_dir="$HOME/Library/Application Support/Cybercafe/Chrome开发配置"
-fi
+
 test_origin='https://cloudgametest2.migufun.com:18443'
 url=${1:-"$test_origin/cybercafe-power/#/amsportal"}
 
@@ -20,7 +17,4 @@ if ! /usr/bin/curl --noproxy '*' --fail --silent --max-time 3 \
   exit 1
 fi
 
-exec /usr/bin/open -na 'Google Chrome' --args \
-  "--user-data-dir=$profile_dir" \
-  '--proxy-server=http://127.0.0.1:8899' \
-  "$url"
+exec /usr/bin/osascript -l JavaScript "$tool_dir/scripts/open-browser.js" "$url"

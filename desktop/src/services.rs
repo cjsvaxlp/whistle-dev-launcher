@@ -275,6 +275,6 @@ pub fn open_test() -> Result<(), String> {
     let output = Command::new("/bin/zsh")
         .arg(tools_directory(&contents)?.join("打开测试环境.command"))
         .output()
-        .map_err(|error| format!("打开开发 Chrome 失败：{error}"))?;
-    error_output(output, "打开开发 Chrome 失败")
+        .map_err(|error| format!("打开浏览器失败：{error}"))?;
+    error_output(output, "打开浏览器失败")
 }
