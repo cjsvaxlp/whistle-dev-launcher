@@ -68,3 +68,15 @@ header strong { font-size: 13px; font-weight: 600; }
   word-break: break-word;
   color: #d7e0ea;
 }
+
+#confirm-action {
+  width: min(380px, calc(100% - 32px));
+  padding: 16px;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  background: #111a2b;
+  color: #d7e0ea;
+}
+
+#confirm-action::backdrop { background: rgb(2 6 23 / 65%); }
+#confirm-action .dialog-close { float: right; }

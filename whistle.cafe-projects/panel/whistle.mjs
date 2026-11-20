@@ -9,9 +9,14 @@ export function bindWhistleControls({ load, setStatus }) {
       const link = document.querySelector('#' + id);
       link.title = '在开发 Chrome 中通过 Whistle 打开';
       link.addEventListener('click', async event => {
+        if (event.defaultPrevented) return;
         event.preventDefault();
         const project = link.dataset.project;
-        const path = project ? './api/open-chrome/' + encodeURIComponent(project) : './api/open-chrome';
+        let path = project ? './api/open-chrome/' + encodeURIComponent(project) : './api/open-chrome';
+        if (project === 'game') {
+          const channelCode = new URLSearchParams(new URL(link.href).hash.split('?')[1]).get('channelCode');
+          path += '?' + new URLSearchParams({ channelCode });
+        }
         try {
           const response = await post(path);
           const data = await response.json();

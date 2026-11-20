@@ -18,12 +18,17 @@ fn app_contents() -> Result<PathBuf, String> {
         .ok_or_else(|| "请通过启动桌面端脚本运行 Cybercafe.app。".into())
 }
 
-fn tools_directory(contents: &Path) -> Result<&Path, String> {
+fn tools_directory(contents: &Path) -> Result<PathBuf, String> {
+    let bundled = contents.join("Resources/tools");
+    if bundled.join("whistle.cafe-projects").is_dir() {
+        return Ok(bundled);
+    }
     // The launcher keeps the local app bundle inside the repository’s .cafe-tools directory.
     contents
         .ancestors()
         .nth(3)
         .filter(|path| path.join("whistle.cafe-projects").is_dir())
+        .map(Path::to_path_buf)
         .ok_or_else(|| "找不到工具目录，请通过仓库中的启动脚本打开应用。".into())
 }
 
@@ -136,7 +141,7 @@ fn find_w2(contents: &Path) -> Result<PathBuf, String> {
     Err("找不到 w2。请先安装 Node.js 和 Whistle（npm i -g whistle），再启动桌面端。".into())
 }
 
-fn ensure_plugin(contents: &Path, w2: &Path) -> Result<(), String> {
+fn ensure_plugin(contents: &Path, w2: &Path, path: &std::ffi::OsStr) -> Result<(), String> {
     let tools = tools_directory(contents)?;
     let plugin = tools.join("whistle.cafe-projects");
     if !plugin.is_dir() {
@@ -147,7 +152,10 @@ fn ensure_plugin(contents: &Path, w2: &Path) -> Result<(), String> {
         .ok_or_else(|| "找不到 Node 安装目录。".to_string())?;
     let npm = bin.join("npm");
     let output = if npm.is_file() {
-        Command::new(&npm).args(["root", "-g"]).output()
+        Command::new(&npm)
+            .args(["root", "-g"])
+            .env("PATH", path)
+            .output()
     } else {
         Command::new("/bin/zsh")
             .args(["-lc", "npm root -g"])
@@ -190,16 +198,22 @@ pub fn start() -> Result<Status, String> {
     }
     let contents = app_contents()?;
     let executable = find_w2(&contents)?;
-    ensure_plugin(&contents, &executable)?;
     let bin = executable.parent().expect("w2 parent");
     let path = env::join_paths(
         std::iter::once(bin.to_path_buf())
             .chain(env::split_paths(&env::var_os("PATH").unwrap_or_default())),
     )
     .map_err(|error| error.to_string())?;
-    let output = Command::new(executable)
-        .args(["start", "-H", "127.0.0.1", "-p", "8899"])
-        .current_dir(tools_directory(&contents)?)
+    let tools = tools_directory(&contents)?;
+    let mut command = Command::new(&executable);
+    command.args(["start", "-H", "127.0.0.1", "-p", "8899"]);
+    if tools.join(".installed").is_file() {
+        command.arg("--addon").arg(&tools);
+    } else {
+        ensure_plugin(&contents, &executable, &path)?;
+    }
+    let output = command
+        .current_dir(&tools)
         .env("PATH", path)
         .output()
         .map_err(|error| format!("启动 Whistle 失败：{error}"))?;

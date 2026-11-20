@@ -736,3 +736,12 @@ h1 {
 .modal-state[hidden] + .dialog-close {
   margin-left: auto;
 }
+
+.game-channel:not([hidden]) {
+  display: grid;
+  gap: 5px;
+  max-width: 320px;
+  margin-top: 12px;
+  color: #475467;
+  font-size: 13px;
+}

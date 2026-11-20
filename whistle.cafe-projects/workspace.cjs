@@ -1,9 +1,15 @@
 const { createHash } = require('node:crypto');
-const { readFileSync } = require('node:fs');
+const { existsSync, readFileSync } = require('node:fs');
 const { homedir } = require('node:os');
 const { join, resolve } = require('node:path');
 
-const stateDir = resolve(process.env.CAFE_STATE_DIR || join(process.env.CAFE_TOOLS_DIR || join(__dirname, '..'), '.cafe-tools'));
+const tools = process.env.CAFE_TOOLS_DIR || join(__dirname, '..');
+const defaultStateDir = existsSync(join(tools, '.installed'))
+  ? process.platform === 'win32'
+    ? join(process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local'), 'Cybercafe', 'data')
+    : join(homedir(), 'Library', 'Application Support', 'Cybercafe')
+  : join(tools, '.cafe-tools');
+const stateDir = resolve(process.env.CAFE_STATE_DIR || defaultStateDir);
 const workspaceFile = join(stateDir, 'workspace');
 
 function readWorkspace() {

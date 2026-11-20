@@ -4,7 +4,7 @@ const { mkdir, rename, rm, writeFile } = require('node:fs/promises');
 const { workspaceFile } = require('../workspace.cjs');
 const { readFileSync, statSync } = require('node:fs');
 const { isAbsolute, join, resolve } = require('node:path');
-const { origin, pluginDir, stateDir, isWindows, POWERSHELL, readWorkspace, tools, entryUrl } = require('./config.cjs');
+const { origin, pluginDir, stateDir, isWindows, POWERSHELL, readWorkspace, tools, entryUrl, projectPageUrl } = require('./config.cjs');
 const { authorized, json, token } = require('./http.cjs');
 const { listProjects } = require('./project-store.cjs');
 const { projectAction, runSync, refreshWorkspace, snapshot } = require('./projects.cjs');
@@ -46,7 +46,7 @@ function servePanel(response, path) {
     if (path === '/' || path === '/terminal.html') {
       response.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'");
     }
-    response.end(path === '/' ? data.replace('CAFE_CSRF', token) : data);
+    response.end((path === '/' || path === '/terminal.html') ? data.replace('CAFE_CSRF', token) : data);
   } catch {
     json(response, 503, { message: '暂时无法读取面板文件，请刷新重试。' });
   }
@@ -179,9 +179,16 @@ async function handle(request, response) {
       if (project && !listProjects().includes(project)) {
         return json(response, 404, { message: '项目不存在。' });
       }
-      const url = project ? new URL('/cybercafe-' + project + '/', entryUrl).href : entryUrl;
+      let launchUrl = project ? projectPageUrl(project) : entryUrl;
+      if (project === 'game') {
+        const channelCode = url.searchParams.get('channelCode') || '';
+        if (!/^[A-Za-z0-9_-]{1,80}$/.test(channelCode)) {
+          return json(response, 400, { message: '请输入有效的游戏渠道编码。' });
+        }
+        launchUrl += '?' + new URLSearchParams({ channelCode });
+      }
       try {
-        await run('/bin/zsh', [join(tools, '打开测试环境.command'), url], { timeout: 8000 });
+        await run('/bin/zsh', [join(tools, '打开测试环境.command'), launchUrl], { timeout: 8000 });
         return json(response, 200, { ok: true });
       } catch (error) {
         return json(response, 500, { message: error.stderr?.trim() || '打开开发 Chrome 失败。' });

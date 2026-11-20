@@ -4,9 +4,16 @@ import { openLogs } from './logs.mjs';
 const list = document.querySelector('#projects');
 const title = document.querySelector('#title');
 const meta = document.querySelector('#meta');
+const cmsEntryNote = document.querySelector('#cms-entry-note');
+const cmsEntryNotes = {
+  cms: '使用 CMS 测试账号登录。需要使用 4A 时，请从 4A 的应用资源进入。',
+  newcms: '用 CMS 测试账号登录后，在同一标签页从用户菜单选择「新业管」。',
+};
 const start = document.querySelector('#start');
 const install = document.querySelector('#install');
 const open = document.querySelector('#open');
+const gameChannel = document.querySelector('#game-channel');
+const gameChannelField = document.querySelector('#game-channel-field');
 const logs = document.querySelector('#logs');
 const terminal = document.querySelector('#terminal');
 const takeover = document.querySelector('#takeover');
@@ -202,14 +209,20 @@ function render() {
 
   install.hidden = !info || info.deps.status === 'ready' || installing || active || unmatched;
   install.textContent = info && info.deps.status === 'stale' ? '重新安装依赖' : '安装依赖';
-  open.hidden = !info || unmatched;
-  const canOpen = Boolean(info && info.active);
-  open.classList.toggle('disabled', !canOpen);
-  open.setAttribute('aria-disabled', String(!canOpen));
-  open.tabIndex = canOpen ? 0 : -1;
-  if (info && canOpen) open.href = info.url;
-  else open.removeAttribute('href');
-  if (info) open.dataset.project = info.name;
+  const cmsEntryNoteText = Object.hasOwn(cmsEntryNotes, info?.name) ? cmsEntryNotes[info.name] : '';
+  cmsEntryNote.hidden = !cmsEntryNoteText;
+  cmsEntryNote.textContent = cmsEntryNoteText;
+  open.textContent = cmsEntryNoteText ? '打开 CMS 测试登录' : '打开项目页面';
+  gameChannelField.hidden = info?.name !== 'game';
+  gameChannel.required = !gameChannelField.hidden;
+  open.hidden = !info;
+  if (info) {
+    open.href = info.url;
+    open.dataset.project = info.name;
+  } else {
+    open.removeAttribute('href');
+    delete open.dataset.project;
+  }
   takeover.hidden = !info || !(unmatched || info.compat);
   stop.hidden = !info?.canStop;
   restartService.hidden = !info?.canStop || !active;
@@ -351,7 +364,15 @@ function openTerminalPage(project) {
 }
 
 open.addEventListener('click', event => {
-  if (open.getAttribute('aria-disabled') === 'true') event.preventDefault();
+  if (open.dataset.project !== 'game') return;
+  gameChannel.value = gameChannel.value.trim();
+  if (!gameChannel.reportValidity()) {
+    event.preventDefault();
+    return;
+  }
+  const url = new URL(open.href);
+  url.hash = '/gameList/menu?' + new URLSearchParams({ channelCode: gameChannel.value });
+  open.href = url.href;
 });
 
 terminal.addEventListener('click', () => selected && openTerminalPage(selected));

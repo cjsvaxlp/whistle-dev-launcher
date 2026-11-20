@@ -4,7 +4,7 @@ const { join } = require('node:path');
 const { promisify } = require('node:util');
 const { pathToFileURL } = require('node:url');
 const { openLog } = require('../run-log.cjs');
-const { pluginDir, readWorkspace, ruleName, entryUrl, isWindows, POWERSHELL } = require('./config.cjs');
+const { pluginDir, readWorkspace, ruleName, entryUrl, projectPageUrl, isWindows, POWERSHELL } = require('./config.cjs');
 const { listProjects, readState, readPrefs, writePrefs, stateEntry } = require('./project-store.cjs');
 const { archiveNames, logPath, prepareLog, isRunning, logWriterPid } = require('./logs.cjs');
 const { depInfo, cliFor, windowsCommand, openTerminal } = require('./terminal.cjs');
@@ -37,7 +37,7 @@ function snapshot() {
       : entry && isRunning(Number(entry.pid)) ? 'external' : 'none';
     return {
       name,
-      url: 'https://cloudgametest2.migufun.com:18443/cybercafe-' + name + '/',
+      url: projectPageUrl(name),
       active: Boolean(local),
       port: local ? local.port : null,
       engine: local ? local.engine : null,

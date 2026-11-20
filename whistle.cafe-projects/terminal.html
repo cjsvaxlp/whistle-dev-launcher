@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="cafe-token" content="CAFE_CSRF">
 <title>终端 · Cybercafe</title>
 <link rel="stylesheet" href="./terminal.css">
 <header>
@@ -18,5 +19,13 @@
 </div>
 <div class="diags" id="diags"></div>
 <pre class="output" id="output" aria-live="polite">正在读取日志…</pre>
+<dialog id="confirm-action" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+  <form method="dialog">
+    <strong id="confirm-title">确认操作</strong>
+    <button class="button dialog-close" value="cancel" aria-label="取消并关闭" autofocus>×</button>
+    <p id="confirm-message"></p>
+    <button class="button danger" value="confirm">继续</button>
+  </form>
+</dialog>
 <script type="module" src="./terminal.mjs"></script>
 </html>
