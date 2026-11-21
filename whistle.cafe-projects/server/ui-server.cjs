@@ -6,7 +6,7 @@ const { join } = require('node:path');
 const { origin, pluginDir, readWorkspace } = require('../shared/config/config.cjs');
 const { authorized, json, token } = require('../shared/http/http.cjs');
 const { listProjects } = require('../features/projects/store.cjs');
-const { projectAction, runSync, snapshot, changeProxy } = require('../features/projects/server.cjs');
+const { projectAction, stopAllServices, runSync, snapshot, changeProxy } = require('../features/projects/server.cjs');
 const { doctor, fix } = require('../features/doctor/server.cjs');
 const { getLog, clearProjectLogs } = require('../features/logs/routes.cjs');
 const { listLogRuns } = require('../features/logs/store.cjs');
@@ -102,6 +102,7 @@ async function handle(request, response) {
   }
 
   if (request.method === 'POST') {
+    if (path === '/api/stop-all') return stopAllServices(request, response);
     if (path === '/api/workspace') return selectWorkspace(request, response);
     if (path === '/api/proxy/on' || path === '/api/proxy/off') {
       return changeProxy(request, response, path.endsWith('/on'));

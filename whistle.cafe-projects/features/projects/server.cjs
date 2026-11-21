@@ -8,7 +8,7 @@ const { openLog } = require('../logs/run-log.cjs');
 const { pluginDir, readWorkspace, ruleName, entryUrl, projectPageUrl, isWindows, POWERSHELL } = require('../../shared/config/config.cjs');
 const { listProjects, readState, readPrefs, writePrefs, stateEntry } = require('./store.cjs');
 const { archiveNames, logPath, prepareLog, isRunning, logWriterPid } = require('../logs/store.cjs');
-const { depInfo, cliFor, openTerminal } = require('../terminal/launcher.cjs');
+const { depInfo, cliFor, openTerminal, stopLaunchedServices } = require('../terminal/launcher.cjs');
 const { authorized, json } = require('../../shared/http/http.cjs');
 const { nodeRuntime } = require('../runtime/runtime.cjs');
 const {
@@ -19,8 +19,9 @@ const run = promisify(execFile);
 
 const SYNC_INTERVAL = 10000;
 const STALE_AFTER = 30000;
-const { jobs, startInstall } = require('../dependencies/installer.cjs');
+const { jobs, startInstall, cancelInstalls } = require('../dependencies/installer.cjs');
 const operations = new Set();
+let stoppingServices = false;
 
 function snapshot() {
   const state = readState();
@@ -120,6 +121,7 @@ function isProjectBusy(project) {
 }
 
 async function launchProject(project, attempt, runtime) {
+  if (stoppingServices) throw new Error('面板正在关闭，已取消启动服务。');
   attempt.stage = 'starting';
   attempt.logFile = prepareLog(project);
   const log = openLog(attempt.logFile);
@@ -233,6 +235,7 @@ async function projectAction(request, response, action, project) {
     json(response, 404, { message: '项目不存在。' });
     return;
   }
+  if (stoppingServices) return json(response, 409, { message: '正在停止所有服务，请稍后重试。' });
   const lifecycle = action !== 'favorite' && action !== 'touch';
   if (lifecycle) {
     if (isProjectBusy(project)) {
@@ -323,4 +326,33 @@ async function refreshWorkspace() {
   scheduleSync(0);
 }
 
-module.exports = { refreshWorkspace, snapshot, projectAction, runSync, jobs, isProjectBusy, changeProxy };
+async function stopAllServices(request, response) {
+  if (!authorized(request)) return json(response, 403, { message: '请从本机面板操作。' });
+  if (stoppingServices) return json(response, 409, { message: '正在停止所有服务。' });
+  stoppingServices = true;
+  try {
+    cancelInstalls();
+    // Finish any start command already being dispatched before collecting its processes.
+    for (let tries = 0; operations.size && tries < 100; tries++) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (operations.size) throw new Error('项目操作尚未结束，请稍后再次关闭面板。');
+    await runSync();
+    const projects = listProjects();
+    const results = await Promise.allSettled(projects.map(async project => {
+      const entry = stateEntry(project);
+      if (entry?.pid && isRunning(entry.pid)) await stopProject(project);
+      clearStartup(project);
+    }));
+    await stopLaunchedServices();
+    await runSync();
+    const errors = results.filter(result => result.status === 'rejected').map(result => result.reason.message);
+    return json(response, errors.length ? 503 : 200, { message: errors.join('；') || '所有项目服务已停止。' });
+  } catch (error) {
+    return json(response, 503, { message: error.message });
+  } finally {
+    stoppingServices = false;
+  }
+}
+
+module.exports = { stopAllServices, refreshWorkspace, snapshot, projectAction, runSync, jobs, isProjectBusy, changeProxy };

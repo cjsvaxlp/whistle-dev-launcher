@@ -6,6 +6,7 @@ const { promisify } = require('node:util');
 const { pluginDir, readWorkspace, tools, stateDir, isWindows, POWERSHELL } = require('../../shared/config/config.cjs');
 const { installPolicy, runtimePath } = require('../runtime/runtime.cjs');
 const run = promisify(execFile);
+const launched = new Map();
 
 function hasDevDependency(directory, vite) {
   if (isWindows) return existsSync(cliFor(directory, vite));
@@ -142,7 +143,19 @@ async function openTerminal(project, file, launchId, runtime) {
     },
   });
   await once(child, 'spawn');
+  launched.set(child.pid, child);
+  child.once('close', () => launched.delete(child.pid));
   child.unref();
 }
 
-module.exports = { depInfo, cliFor, windowsCommand, openTerminal };
+async function stopLaunchedServices() {
+  for (const [pid, child] of launched) {
+    try {
+      process.kill(-pid, 'SIGTERM');
+    } catch (error) {
+      if (error.code !== 'ESRCH') throw error;
+    }
+  }
+}
+
+module.exports = { depInfo, cliFor, windowsCommand, openTerminal, stopLaunchedServices };

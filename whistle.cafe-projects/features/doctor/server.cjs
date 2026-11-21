@@ -1,7 +1,7 @@
 const { pacBody, pacUrl } = require('../system-proxy/pac.cjs');
 const { execFile, execFileSync } = require('node:child_process');
 const { randomBytes, X509Certificate } = require('node:crypto');
-const { existsSync, lstatSync, mkdirSync, realpathSync, renameSync, symlinkSync, unlinkSync, writeFileSync } = require('node:fs');
+const { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, symlinkSync, unlinkSync, writeFileSync } = require('node:fs');
 const { mkdtemp, writeFile, rm } = require('node:fs/promises');
 const { tmpdir } = require('node:os');
 const { dirname, join } = require('node:path');
@@ -127,6 +127,20 @@ async function doctor() {
     checks.push({ ...ca, status: 'warn', detail: error.message, fix: 'open-ca' });
   }
 
+  let pacGenerated = false;
+  try {
+    pacGenerated = readFileSync(pacFile, 'utf8') === pacBody;
+  } catch {
+    // A missing or outdated file can be generated from this check.
+  }
+  checks.push({
+    id: 'pac', label: 'PAC 配置文件',
+    status: pacGenerated ? 'ok' : 'unknown',
+    detail: pacGenerated ? '已生成，配置地址：' + pacUrl : '尚未生成，可按需生成当前 PAC 配置文件',
+    action: pacGenerated ? '将此地址填入系统或浏览器的自动代理配置，保存后重新体检。' : '',
+    fix: pacGenerated ? '' : 'write-pac',
+  });
+
   let proxy = { status: 'unknown', detail: '当前系统未做检测', fix: 'write-pac' };
   if (process.platform === 'darwin') {
     try {
@@ -148,6 +162,12 @@ async function doctor() {
     } catch {
       proxy = { status: 'unknown', detail: '无法读取系统代理设置', fix: 'write-pac' };
     }
+  }
+  delete proxy.fix;
+  if (proxy.status !== 'ok') {
+    proxy.action = pacGenerated
+      ? 'PAC 已生成，请配置自动代理地址后重新体检。'
+      : '可在 PAC 配置文件一项生成配置，再设置系统或浏览器的自动代理。';
   }
   checks.push({ id: 'proxy', label: '系统代理', ...proxy });
 
@@ -225,7 +245,7 @@ async function fix(request, response, action) {
       mkdirSync(stateDir, { recursive: true });
       writeFileSync(pacFile, pacBody);
       json(response, 200, {
-        message: `请将 ${pacUrl} 填入系统或浏览器的自动代理配置。`,
+        message: `PAC 已生成。请将 ${pacUrl} 填入系统或浏览器的自动代理配置，保存后重新体检。`,
         path: pacFile,
       });
       return;

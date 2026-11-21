@@ -23,6 +23,7 @@ export function bindDoctor({ load }) {
     if (action === 'clean-legacy' && !await confirmAction('删除体检列出的旧规则？')) return;
     if (action === 'install-ca' && !await confirmAction('在当前用户的系统证书库中信任本机 Whistle 的根证书？')) return;
     repairing = true;
+    doctorList.querySelectorAll('button').forEach(button => { button.disabled = true; });
     doctorState.textContent = '正在处理…';
     try {
       const response = await post(`./api/fix/${action}`);
@@ -36,6 +37,7 @@ export function bindDoctor({ load }) {
       showError(error.message);
     } finally {
       repairing = false;
+      doctorList.querySelectorAll('button').forEach(button => { button.disabled = false; });
     }
   }
 
@@ -45,7 +47,7 @@ export function bindDoctor({ load }) {
       const item = document.createElement('li');
       const badge = document.createElement('span');
       badge.className = 'badge ' + check.status;
-      badge.textContent = { ok: '正常', warn: '注意', fail: '异常', unknown: '待确认' }[check.status] || check.status;
+      badge.textContent = check.id === 'pac' && check.status === 'unknown' ? '可选' : { ok: '正常', warn: '注意', fail: '异常', unknown: '待确认' }[check.status] || check.status;
       const text = document.createElement('div');
       text.className = 'check-text';
       const name = document.createElement('b');

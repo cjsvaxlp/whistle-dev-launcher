@@ -33,8 +33,9 @@ function startInstall(project, launchAfter, attempt, runtime, launchAfterInstall
     cwd: directory,
     env,
     windowsHide: true,
+    detached: !isWindows,
   });
-  const job = { status: 'running', type: 'install', startedAt: Date.now() };
+  const job = { child, cancelled: false, status: 'running', type: 'install', startedAt: Date.now() };
   const append = data => {
     try {
       log.append(data);
@@ -50,7 +51,7 @@ function startInstall(project, launchAfter, attempt, runtime, launchAfterInstall
   });
   child.on('close', async code => {
     append('\n[install exit ' + code + ']\n');
-    if (code === 0 && launchAfter) {
+    if (code === 0 && launchAfter && !job.cancelled) {
       try {
         await launchAfterInstall(project, attempt, runtime);
       } catch (error) {
@@ -76,4 +77,17 @@ function startInstall(project, launchAfter, attempt, runtime, launchAfterInstall
   return { message: policy.notice || `开始安装依赖（${policy.manager}，Node ${runtime.version}）…` };
 }
 
-module.exports = { jobs, startInstall };
+function cancelInstalls() {
+  for (const job of jobs.values()) {
+    if (job.status !== 'running') continue;
+    job.cancelled = true;
+    try {
+      if (isWindows) spawn('taskkill', ['/PID', String(job.child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }).on('error', () => {});
+      else process.kill(-job.child.pid, 'SIGTERM');
+    } catch (error) {
+      if (error.code !== 'ESRCH') throw error;
+    }
+  }
+}
+
+module.exports = { jobs, startInstall, cancelInstalls };

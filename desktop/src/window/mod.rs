@@ -71,7 +71,9 @@ fn open_panel(app: &AppHandle) -> tauri::Result<()> {
     }
 
     let url = PANEL_URL.parse().expect("panel URL");
-    WebviewWindowBuilder::new(app, "panel", WebviewUrl::External(url))
+    let closing = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let handle = app.clone();
+    let window = WebviewWindowBuilder::new(app, "panel", WebviewUrl::External(url))
         .title("Cybercafe 本地调试")
         .inner_size(1100.0, 740.0)
         .min_inner_size(560.0, 400.0)
@@ -95,8 +97,36 @@ fn open_panel(app: &AppHandle) -> tauri::Result<()> {
             DownloadEvent::Requested { url, .. } => is_log_download(&url),
             _ => true,
         })
-        .build()?
-        .set_focus()
+        .build()?;
+    window.on_window_event(move |event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                if closing.swap(true, std::sync::atomic::Ordering::AcqRel) {
+                    return;
+                }
+                let handle = handle.clone();
+                let closing = closing.clone();
+                std::thread::spawn(move || {
+                    let result = crate::services::stop_project_services();
+                    let callback_handle = handle.clone();
+                    let _ = handle.run_on_main_thread(move || {
+                        closing.store(false, std::sync::atomic::Ordering::Release);
+                        if let Some(window) = callback_handle.get_webview_window("panel") {
+                            match result {
+                                Ok(()) => { let _ = window.destroy(); }
+                                Err(error) => {
+                                    let message = serde_json::to_string(&error).unwrap_or_default();
+                                    let _ = window.eval(&format!(
+                                        "import('./shared/toast/toast.mjs').then(m => m.showError({message}))"
+                                    ));
+                                }
+                            }
+                        }
+                    });
+                });
+            }
+        });
+    window.set_focus()
 }
 
 fn is_tauri_asset(url: &Url) -> bool {

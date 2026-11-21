@@ -383,3 +383,25 @@ pub fn open_browser_url(url: &str) -> Result<(), String> {
         .map_err(|error| format!("打开浏览器失败：{error}"))?;
     error_output(output, "打开浏览器失败")
 }
+
+
+pub fn stop_project_services() -> Result<(), String> {
+    if status() == Status::Offline {
+        return Ok(());
+    }
+    let response = Command::new("/usr/bin/curl")
+        .args(["--noproxy", "*", "-fsS", "--max-time", "4"])
+        .arg(format!("{PANEL_URL}api/token"))
+        .output()
+        .map_err(|error| error.to_string())?;
+    let data: serde_json::Value = serde_json::from_slice(&response.stdout)
+        .map_err(|_| "无法获取停止服务的操作令牌。")?;
+    let token = data["token"].as_str().ok_or("停止服务的操作令牌无效。")?;
+    let response = Command::new("/usr/bin/curl")
+        .args(["--noproxy", "*", "-fsS", "--max-time", "45", "-X", "POST", "-H"])
+        .arg(format!("X-Cafe-Token: {token}"))
+        .arg(format!("{PANEL_URL}api/stop-all"))
+        .output()
+        .map_err(|error| error.to_string())?;
+    error_output(response, "停止项目服务失败")
+}

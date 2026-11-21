@@ -25,6 +25,9 @@ fn main() {
             code: None, api, ..
         } => api.prevent_exit(),
         RunEvent::Exit => {
+            if let Err(error) = services::stop_project_services() {
+                eprintln!("停止项目服务失败：{error}");
+            }
             let _ = services::stop();
         }
         RunEvent::Reopen { .. } => menu::run_action(app, "panel"),
