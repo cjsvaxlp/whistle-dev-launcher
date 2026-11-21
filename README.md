@@ -91,6 +91,7 @@ macOS 分发生成 DMG，打开后将 Cybercafe.app 拖到「应用程序」安�
 | `features/startup/` | 跟踪启动阶段、服务退出、接管结果和超时。 |
 | `features/dependencies/` | 依赖安装进程、安装日志与安装后启动，维护安装任务状态。 |
 | `features/system-proxy/` | 关闭本工具管理的系统代理，并清理旧开发浏览器实例。 |
+| `features/cleanup/` | 清理工具生成的日志、临时文件、同步状态、兼容代理文件和 PAC。 |
 | `features/runtime/` | 解析 Node 版本约束，选择运行时和依赖安装命令。 |
 | `features/terminal/launcher.cjs` | 后台启动开发服务并连接日志采集。 |
 | `features/logs/store.cjs`、`routes.cjs`、`run-log.cjs` | 日志采集、容量限制、归档、诊断与读写 API，均位于 `features/logs/`。 |

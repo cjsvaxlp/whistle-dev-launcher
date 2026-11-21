@@ -1,3 +1,4 @@
+import { bindCleanup } from '../features/cleanup/client.mjs';
 import { showError } from '../shared/toast/toast.mjs';
 import { post } from '../shared/http/client.mjs';
 import { bindDoctor } from '../features/doctor/client.mjs';
@@ -7,6 +8,7 @@ import { bindWhistleControls } from '../features/whistle/client.mjs';
 
 const { showDoctor } = bindDoctor({ load });
 bindRules();
+bindCleanup({ load });
 bindWhistleControls({ load, setStatus, shouldOpenDirectly });
 
 const picker = document.querySelector('#save-workspace');

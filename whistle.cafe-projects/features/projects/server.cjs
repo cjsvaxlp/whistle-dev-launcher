@@ -236,6 +236,9 @@ async function projectAction(request, response, action, project) {
     return;
   }
   if (stoppingServices) return json(response, 409, { message: '正在停止所有服务，请稍后重试。' });
+  if (require('../cleanup/server.cjs').isCleaning()) {
+    return json(response, 409, { message: '正在清理生成文件，请稍后再操作。' });
+  }
   const lifecycle = action !== 'favorite' && action !== 'touch';
   if (lifecycle) {
     if (isProjectBusy(project)) {

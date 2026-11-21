@@ -1,3 +1,4 @@
+const { cleanGeneratedFiles } = require('../features/cleanup/server.cjs');
 const { pacRoute, servePac } = require('../features/system-proxy/pac.cjs');
 const { selectWorkspace } = require('../features/workspace/server.cjs');
 const { openBrowser } = require('../features/browser/server.cjs');
@@ -13,6 +14,7 @@ const { listLogRuns } = require('../features/logs/store.cjs');
 const { getRule, restartWhistle } = require('../features/whistle/server.cjs');
 
 const panelAssets = new Map([
+  ["/features/cleanup/client.mjs", ["features/cleanup/client.mjs", "text/javascript; charset=utf-8"]],
   ["/features/rules/dialog.css", ["features/rules/dialog.css", "text/css; charset=utf-8"]],
   ["/features/terminal/embedded.mjs", ["features/terminal/embedded.mjs", "text/javascript; charset=utf-8"]],
   ["/features/terminal/embedded.css", ["features/terminal/embedded.css", "text/css; charset=utf-8"]],
@@ -103,6 +105,7 @@ async function handle(request, response) {
 
   if (request.method === 'POST') {
     if (path === '/api/stop-all') return stopAllServices(request, response);
+    if (path === '/api/cleanup') return cleanGeneratedFiles(request, response);
     if (path === '/api/workspace') return selectWorkspace(request, response);
     if (path === '/api/proxy/on' || path === '/api/proxy/off') {
       return changeProxy(request, response, path.endsWith('/on'));
