@@ -50,6 +50,7 @@ App 使用 ad-hoc 签名，首次打开如果提示「无法验证开发者」�
 ```sh
 ./scripts/commands/打包.command             # macOS DMG，并提示 Windows 在线构建入口
 ./scripts/commands/打包.command --mac-only  # 只打 macOS
+./scripts/commands/本地打包.command        # 本机生成 macOS DMG
 ```
 
 macOS 分发生成 DMG，打开后将 Cybercafe.app 拖到「应用程序」安装。使用 release 构建，需要 Xcode 命令行工具、Rust、Node.js 和 Python 3。Windows 原生桌面端由 Windows runner 编译，并通过 NSIS 生成 EXE 安装包。

@@ -12,17 +12,40 @@ const managedPAC = new Set([
   pathToFileURL(pacFile).href,
 ]);
 
-async function disableMacSystemProxy() {
-  const networksetup = '/usr/sbin/networksetup';
-  const call = async (...args) => (await run(networksetup, args, { timeout: 5000 })).stdout;
-  const result = await call('-listallnetworkservices');
-  const services = result.trim().split(/\r?\n/).slice(1).map(line => line.replace(/^\*/, ''));
-  for (const service of services) {
-    const pac = await call('-getautoproxyurl', service);
-    const pacUrl = pac.match(/^URL:\s*(.+)$/m)?.[1].trim();
-    if (/^Enabled: Yes$/m.test(pac) && managedPAC.has(pacUrl)) {
-      await call('-setautoproxystate', service, 'off');
+const macNetworkSetup = async (...args) =>
+  (await run('/usr/sbin/networksetup', args, { timeout: 5000 })).stdout;
+
+async function macNetworkServices() {
+  const result = await macNetworkSetup('-listallnetworkservices');
+  return result.trim().split(/\r?\n/).slice(1).map(line => line.replace(/^\*/, '')).filter(Boolean);
+}
+
+async function setManagedMacPacEnabled(enabled) {
+  if (process.platform !== 'darwin') return;
+  const changed = [];
+  try {
+    for (const service of await macNetworkServices()) {
+      const pac = await macNetworkSetup('-getautoproxyurl', service);
+      const url = pac.match(/^URL:\s*(.+)$/m)?.[1].trim();
+      const active = /^Enabled: Yes$/m.test(pac);
+      if (!managedPAC.has(url) || active === enabled) continue;
+      await macNetworkSetup('-setautoproxystate', service, enabled ? 'on' : 'off');
+      changed.push(service);
     }
+  } catch (error) {
+    for (const service of changed.reverse()) {
+      await macNetworkSetup('-setautoproxystate', service, enabled ? 'off' : 'on').catch(rollbackError => {
+        console.error('恢复 PAC 配置失败：', rollbackError.message);
+      });
+    }
+    throw new Error('无法切换 macOS 的 Cybercafe 自动代理：' + (error.stderr?.trim() || error.message));
+  }
+}
+
+async function disableMacSystemProxy() {
+  await setManagedMacPacEnabled(false);
+  const call = macNetworkSetup;
+  for (const service of await macNetworkServices()) {
     for (const kind of ['web', 'secureweb', 'socksfirewall']) {
       const settings = await call('-get' + kind + 'proxy', service);
       if (/^Enabled: Yes$/m.test(settings)
@@ -83,4 +106,4 @@ async function prepareSystemProxyShutdown() {
   }
 }
 
-module.exports = { prepareSystemProxyShutdown };
+module.exports = { prepareSystemProxyShutdown, setManagedMacPacEnabled };

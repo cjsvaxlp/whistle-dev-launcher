@@ -279,22 +279,23 @@ export function buildRule(projects, locals, compat = {}) {
   for (const project of projects) {
     lines.push(`${HOST}${prefixOf(project)} ${ruleUrl('htmlAppend', BADGE_HTML)}`);
   }
+  // Whistle can match the generic HTTP rule on WebSocket upgrades too. Put HMR first.
   for (const project of Object.keys(locals)) {
     const { port, engine } = locals[project];
     lines.push(`# local: cybercafe-${project} → 127.0.0.1:${port} (${engine})`);
-    lines.push(`${HOST}${prefixOf(project)} http://127.0.0.1:${port}${prefixOf(project)} reqHeaders://host=127.0.0.1:${port} cache://no-store`);
     if (engine === 'webpack') {
       lines.push(`wss://${HOST}${prefixOf(project)}__hmr ws://127.0.0.1:${port}/ws`);
     } else if (engine === 'vite') {
       lines.push(`wss://${HOST}${prefixOf(project)} ws://127.0.0.1:${port}${prefixOf(project)}`);
     }
+    lines.push(`${HOST}${prefixOf(project)} http://127.0.0.1:${port}${prefixOf(project)} reqHeaders://host=127.0.0.1:${port} cache://no-store`);
   }
   for (const project of Object.keys(compat)) {
     const { port } = compat[project];
     lines.push(`# compat: cybercafe-${project} → 127.0.0.1:${port} (base /)`);
+    lines.push(`wss://${HOST}${prefixOf(project)} ws://127.0.0.1:${port}/`);
     lines.push(`${HOST}${prefixOf(project)} http://127.0.0.1:${port}/ reqHeaders://host=127.0.0.1:${port} cache://no-store`);
     lines.push(`${HOST}${prefixOf(project)} ${ruleUrl('resReplace', compatFile(project))}`);
-    lines.push(`wss://${HOST}${prefixOf(project)} ws://127.0.0.1:${port}/`);
   }
   return lines.join('\n');
 }
