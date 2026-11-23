@@ -48,22 +48,22 @@ App 使用 ad-hoc 签名，首次打开如果提示「无法验证开发者」�
 ## 打包
 
 ```sh
-./scripts/commands/打包.command             # macOS 安装包 + Windows 安装包
+./scripts/commands/打包.command             # macOS DMG，并提示 Windows 在线构建入口
 ./scripts/commands/打包.command --mac-only  # 只打 macOS
 ```
 
-macOS 分发生成 DMG，打开后将 Cybercafe.app 拖到「应用程序」安装。使用 release 构建，需要 Xcode 命令行工具、Rust、Node.js 和 Python 3。Windows 插件安装包可以单独生成，需要 Node.js 和 Python 3，运行时通过浏览器打开面板。
+macOS 分发生成 DMG，打开后将 Cybercafe.app 拖到「应用程序」安装。使用 release 构建，需要 Xcode 命令行工具、Rust、Node.js 和 Python 3。Windows 原生桌面端由 Windows runner 编译，并通过 NSIS 生成 EXE 安装包。
 
-版本以 desktop/Cargo.toml 为来源，打包前校验 tauri.conf.json 的版本一致，应用的 Info.plist 在组装时自动同步。产物直接放在默认 dist/ 目录，文件名带香港时间的构建日期，例如 Cybercafe-2026-11-23-macOS-arm64.dmg 和 Cybercafe-2026-11-23-Windows.zip。同一天再次构建会替换当天同平台的安装包。
+版本以 desktop/Cargo.toml 为来源，打包前校验 tauri.conf.json 的版本一致，应用的 Info.plist 在组装时自动同步。产物直接放在默认 dist/ 目录，文件名带香港时间的构建日期，例如 Cybercafe-2026-11-23-macOS-arm64.dmg 和 Cybercafe-2026-11-23-Windows-x64-Setup.exe。同一天再次构建会替换当天同平台的安装包。
 
-支持 --windows-only 单独生成 Windows 包，--output-dir 指定输出根目录，例如 ./scripts/commands/打包.command --mac-only --output-dir /tmp/cybercafe-dist。也可通过 CAFE_DIST_DIR 指定输出根目录。TERSER_CLI 可指定 Terser 入口，未安装时直接复制插件脚本。安装包只携带运行所需的插件、浏览器和项目启动脚本。
+macOS 入口中的 --windows-only 显示 Windows 在线构建提示；--output-dir 指定本机输出目录，例如 ./scripts/commands/打包.command --mac-only --output-dir /tmp/cybercafe-dist。也可通过 CAFE_DIST_DIR 指定输出根目录。TERSER_CLI 可指定 Terser 入口，未安装时直接复制插件脚本。安装包只携带运行所需的插件、浏览器和项目启动脚本。
 
 
 ## GitHub 在线打包
 
-将云端打包工作流提交并推送到默认分支后，在仓库的 Actions 中选择 Build desktop packages，点击 Run workflow 并选择需要构建的分支。完成后在本次运行页面的 Artifacts 下载 macOS Apple Silicon DMG 或 Windows 插件安装包，产物保留 14 天。
+将云端打包工作流提交并推送到默认分支后，在仓库的 Actions 中选择 Build desktop packages，点击 Run workflow 并选择需要构建的分支。完成后在本次运行页面的 Artifacts 下载 macOS Apple Silicon DMG 或 Windows 原生 EXE 安装包，产物保留 14 天。
 
-构建使用 GitHub 托管机器，本机无需安装 Rust。macOS 包使用现有 ad-hoc 签名。Windows 产物是插件和浏览器面板的安装入口。每次构建先运行相关测试，失败时可在 Actions 日志中查看原因。
+构建使用 GitHub 托管机器，本机无需安装 Rust。macOS 包使用现有 ad-hoc 签名。Windows EXE 包含 Tauri 桌面程序、Node.js、Whistle 和插件资源。每次构建先运行相关测试，失败时可在 Actions 日志中查看原因。
 
 ## 代码目录与职责
 
@@ -147,7 +147,7 @@ macOS 分发生成 DMG，打开后将 Cybercafe.app 拖到「应用程序」安�
 
 ### Windows EXE 构建
 
-Windows Tauri NSIS 工作流在 Windows runner 编译原生桌面应用并生成 NSIS 安装包，ZIP 内仅包含 EXE。
+Windows Tauri NSIS 工作流在 Windows runner 编译原生桌面应用并直接上传带构建日期的 NSIS EXE 安装包。
 desktop/tauri.windows.conf.json 定义当前用户安装、WebView2 检测和运行资源。
 desktop/src/services/windows.rs 管理 Windows Whistle 和浏览器入口。
 工具专用 Node 与 Whistle 打包到 tools/runtime，项目继续使用各自的开发环境。
@@ -156,5 +156,5 @@ Windows 实机安装、系统代理联动和浏览器标签页复用仍需验收
 ### Windows 原生安装包与旧版 CMD 包
 
 macOS 的 scripts/commands/打包.command 构建本机 DMG，并提示 Windows 在线构建入口。
-Windows 原生 EXE 请运行 GitHub Actions 的 Build desktop packages 工作流，下载 Cybercafe-Windows-x64-Setup 产物，其中的 ZIP 只包含 NSIS EXE。
+Windows 原生 EXE 请运行 GitHub Actions 的 Build desktop packages 工作流，下载 Cybercafe-Windows-x64-Setup 产物，解压 GitHub 自动提供的下载归档后即可运行 NSIS EXE。
 旧版 desktop/package-cross-platform.py 只生成名称包含 Windows-Legacy-CMD 的兼容包，通用打包入口已停止调用它。

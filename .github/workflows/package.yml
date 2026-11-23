@@ -79,15 +79,16 @@ jobs:
         run: |
           cargo test --locked
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          tauri build --config tauri.windows.conf.json
+          tauri build --config tauri.windows.conf.json --bundles nsis --ci
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $installers = @(Get-ChildItem "$env:CARGO_TARGET_DIR/release/bundle/nsis" -Filter '*.exe')
           if ($installers.Count -ne 1) { throw 'Expected exactly one NSIS EXE installer' }
           New-Item -ItemType Directory -Force ../dist | Out-Null
-          Compress-Archive -LiteralPath $installers[0].FullName -DestinationPath ../dist/Cybercafe-Windows-x64-Setup.zip -Force
+          $buildDate = [DateTimeOffset]::UtcNow.ToOffset([TimeSpan]::FromHours(8)).ToString('yyyy-MM-dd')
+          Copy-Item -LiteralPath $installers[0].FullName -Destination "../dist/Cybercafe-$buildDate-Windows-x64-Setup.exe" -Force
       - uses: actions/upload-artifact@v4
         with:
           name: Cybercafe-Windows-x64-Setup
-          path: dist/Cybercafe-Windows-x64-Setup.zip
+          path: dist/*-Windows-x64-Setup.exe
           if-no-files-found: error
           retention-days: 14

@@ -1,11 +1,27 @@
 {
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
-    "resources": {"../.cafe-tools/windows-bundle/tools/": "tools/"},
+    "targets": [
+      "nsis"
+    ],
+    "resources": {
+      "../.cafe-tools/windows-bundle/tools/": "tools/"
+    },
     "windows": {
-      "webviewInstallMode": {"type": "downloadBootstrapper"},
-      "nsis": {"installMode": "currentUser", "languages": ["SimpChinese"], "displayLanguageSelector": false}
-    }
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "SimpChinese"
+        ],
+        "displayLanguageSelector": false
+      }
+    },
+    "icon": [
+      "icons/icon.ico",
+      "icons/icon.png"
+    ]
   }
 }
