@@ -151,3 +151,14 @@ button, a {
   margin: 8px 0 0;
   color: #667085;
 }
+
+@media (prefers-color-scheme: dark) {
+  :host { color-scheme: dark; color: #f5f5f7; }
+  .pill, .card, .mini { background: #2c2c2e; border-color: rgb(255 255 255 / 16%); }
+  .pill:hover { border-color: rgb(255 255 255 / 30%); }
+  .card-title { color: #d1d1d6; }
+  .row-label, .collapse, .hint { color: #aeaeb2; }
+  .actions { border-color: rgb(255 255 255 / 12%); }
+  .actions a { background: #3a3a3c; }
+  .actions a:hover { background: #48484a; }
+}

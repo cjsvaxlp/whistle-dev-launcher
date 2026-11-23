@@ -75,7 +75,7 @@ macOS 入口中的 --windows-only 显示 Windows 在线构建提示；--output-d
 
 | 目录或文件 | 功能和目的 |
 | --- | --- |
-| `panel/` | 主面板 HTML、全局布局样式和功能初始化入口。 |
+| `panel/` | 主面板 HTML、全局布局样式、浅色/深色主题配色和功能初始化入口。 |
 | `features/projects/client.mjs` | 项目列表、搜索、收藏、启动进度和操作按钮。 |
 | `features/terminal/client.mjs`、`terminal.html`、`terminal.css` | 应用内终端页面、输出展示和服务控制，均位于 `features/terminal/`。 |
 | `features/doctor/client.mjs` | 环境体检结果、工作区设置和修复操作界面。 |
@@ -158,3 +158,5 @@ Windows 实机安装、系统代理联动和浏览器标签页复用仍需验收
 macOS 的 scripts/commands/打包.command 构建本机 DMG，并提示 Windows 在线构建入口。
 Windows 原生 EXE 请运行 GitHub Actions 的 Build desktop packages 工作流，下载 Cybercafe-Windows-x64-Setup 产物，解压 GitHub 自动提供的下载归档后即可运行 NSIS EXE。
 旧版 desktop/package-cross-platform.py 只生成名称包含 Windows-Legacy-CMD 的兼容包，通用打包入口已停止调用它。
+
+界面通过 `prefers-color-scheme` 跟随系统自动切换浅色/深色主题，无需刷新；面板、操作弹框、Toast、项目终端及悬浮状态标识同步适配。

@@ -1,3 +1,4 @@
+:root { color-scheme: dark; }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
@@ -80,3 +81,15 @@ header strong { font-size: 13px; font-weight: 600; }
 
 #confirm-action::backdrop { background: rgb(2 6 23 / 65%); }
 #confirm-action .dialog-close { float: right; }
+
+@media (prefers-color-scheme: light) {
+  :root { color-scheme: light; }
+  body, .output { background: #fafafa; color: #1d1d1f; }
+  header, #confirm-action { background: #f2f2f7; color: #1d1d1f; border-color: #d1d1d6; }
+  .muted { color: #636366; }
+  .button { background: #fff; color: #1d1d1f; border-color: #d1d1d6; }
+  .button:hover { background: #e5e5ea; }
+  .button.danger { background: #b42318; border-color: #b42318; color: #fff; }
+  .button.danger:hover { background: #961b12; }
+  .notice, .diag { background: #fff2ce; color: #805500; border-color: #e8d49b; }
+}

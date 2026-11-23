@@ -8,9 +8,9 @@
   min-height: 280px;
   margin-top: 20px;
   overflow: hidden;
-  border: 1px solid #e5e5ea;
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
 }
 .inline-terminal[hidden] { display: none; }
 .inline-terminal iframe {
