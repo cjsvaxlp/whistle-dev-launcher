@@ -1,0 +1,11 @@
+{
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "resources": {"../.cafe-tools/windows-bundle/tools/": "tools/"},
+    "windows": {
+      "webviewInstallMode": {"type": "downloadBootstrapper"},
+      "nsis": {"installMode": "currentUser", "languages": ["SimpChinese"], "displayLanguageSelector": false}
+    }
+  }
+}

@@ -166,6 +166,7 @@ fn open_connection_window(app: &AppHandle) -> tauri::Result<()> {
 }
 
 pub fn show_window(app: &AppHandle, status: &Status) -> tauri::Result<()> {
+    #[cfg(target_os = "macos")]
     app.show()?;
     if *status == Status::Ready {
         open_panel(app)?;

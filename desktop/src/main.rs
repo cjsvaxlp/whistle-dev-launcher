@@ -1,4 +1,8 @@
 mod menu;
+#[cfg(not(target_os = "windows"))]
+mod services;
+#[cfg(target_os = "windows")]
+#[path = "services/windows.rs"]
 mod services;
 mod window;
 
@@ -30,6 +34,7 @@ fn main() {
             }
             let _ = services::stop();
         }
+        #[cfg(target_os = "macos")]
         RunEvent::Reopen { .. } => menu::run_action(app, "panel"),
         _ => {}
     });
