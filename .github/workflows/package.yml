@@ -2,15 +2,6 @@ name: Build desktop packages
 
 on:
   workflow_dispatch:
-    inputs:
-      macos:
-        description: Build macOS DMG
-        type: boolean
-        default: true
-      windows:
-        description: Build Windows installer
-        type: boolean
-        default: true
 
 permissions:
   contents: read
@@ -18,7 +9,6 @@ permissions:
 jobs:
   macos:
     name: macOS Apple Silicon
-    if: ${{ inputs.macos }}
     runs-on: macos-15
     timeout-minutes: 45
     env:
@@ -52,7 +42,6 @@ jobs:
 
   windows-native:
     name: Windows x64 Tauri NSIS installer
-    if: ${{ inputs.windows }}
     runs-on: windows-latest
     timeout-minutes: 45
     env:
@@ -73,6 +62,8 @@ jobs:
           path: |
             ~/AppData/Local/tauri
             ~/AppData/Local/npm-cache
+            ~/AppData/Roaming/npm
+            .cafe-tools/windows-bundle/tools/runtime
           key: windows-tools-${{ hashFiles('desktop/Cargo.lock', 'desktop/tauri.windows.conf.json', 'desktop/windows/installer-hooks.nsh') }}
           restore-keys: |
             windows-tools-
