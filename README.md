@@ -144,3 +144,11 @@ macOS 分发生成 DMG，打开后将 Cybercafe.app 拖到「应用程序」安�
 应用图标更新时，同时更新 desktop/icons/Cybercafe.icns 与其导出的 icon.png。macOS 可执行 `sips -s format png desktop/icons/Cybercafe.icns --out desktop/icons/icon.png` 同步图案。
 
 启动项目后，终端输出直接显示在项目操作面板下方。切换左侧项目时终端同步切换。
+
+### Windows EXE 构建
+
+Windows Tauri NSIS 工作流在 Windows runner 编译原生桌面应用并生成 NSIS 安装包，ZIP 内仅包含 EXE。
+desktop/tauri.windows.conf.json 定义当前用户安装、WebView2 检测和运行资源。
+desktop/src/services/windows.rs 管理 Windows Whistle 和浏览器入口。
+工具专用 Node 与 Whistle 打包到 tools/runtime，项目继续使用各自的开发环境。
+Windows 实机安装、系统代理联动和浏览器标签页复用仍需验收。
