@@ -385,23 +385,68 @@ pub fn open_browser_url(url: &str) -> Result<(), String> {
 }
 
 
+fn project_request(route: &str, token: Option<&str>) -> Result<(u16, serde_json::Value), String> {
+    let mut command = Command::new("/usr/bin/curl");
+    command.args(["--noproxy", "*", "-sS", "--max-time", "45", "-w", "\n%{http_code}"]);
+    if let Some(token) = token {
+        command.args(["-X", "POST", "-H"]).arg(format!("X-Cafe-Token: {token}"));
+    }
+    let response = command.arg(format!("{PANEL_URL}{route}")).output()
+        .map_err(|error| format!("无法连接本机插件：{error}"))?;
+    if !response.status.success() {
+        return Err("无法连接本机 Whistle，请确认服务仍在运行。".into());
+    }
+    let text = String::from_utf8_lossy(&response.stdout);
+    let (body, code) = text.rsplit_once('\n').ok_or("插件响应无效。")?;
+    let code = code.trim().parse::<u16>().map_err(|_| "插件响应状态无效。")?;
+    let data = serde_json::from_str(body).unwrap_or(serde_json::Value::Null);
+    Ok((code, data))
+}
+
+fn project_error(code: u16, data: &serde_json::Value) -> String {
+    data["message"].as_str().map(str::to_owned)
+        .unwrap_or_else(|| format!("插件返回 HTTP {code}，请更新应用并重启 Whistle。"))
+}
+
 pub fn stop_project_services() -> Result<(), String> {
     if status() == Status::Offline {
         return Ok(());
     }
-    let response = Command::new("/usr/bin/curl")
-        .args(["--noproxy", "*", "-fsS", "--max-time", "4"])
-        .arg(format!("{PANEL_URL}api/token"))
-        .output()
-        .map_err(|error| error.to_string())?;
-    let data: serde_json::Value = serde_json::from_slice(&response.stdout)
-        .map_err(|_| "无法获取停止服务的操作令牌。")?;
-    let token = data["token"].as_str().ok_or("停止服务的操作令牌无效。")?;
-    let response = Command::new("/usr/bin/curl")
-        .args(["--noproxy", "*", "-fsS", "--max-time", "45", "-X", "POST", "-H"])
-        .arg(format!("X-Cafe-Token: {token}"))
-        .arg(format!("{PANEL_URL}api/stop-all"))
-        .output()
-        .map_err(|error| error.to_string())?;
-    error_output(response, "停止项目服务失败")
+    let (code, data) = project_request("api/token", None)?;
+    if code != 200 {
+        return Err(project_error(code, &data));
+    }
+    let token = data["token"].as_str().ok_or("无法获取停止服务的操作令牌。")?;
+    let (code, data) = project_request("api/stop-all", Some(token))?;
+    if code == 200 {
+        return Ok(());
+    }
+    if code != 404 {
+        return Err(project_error(code, &data));
+    }
+
+    // Older plugin bundles expose per-project stop routes only.
+    let (code, data) = project_request("api/projects", None)?;
+    if code != 200 {
+        return Err(project_error(code, &data));
+    }
+    let projects = data["projects"].as_array().ok_or("无法读取待停止的项目列表。")?;
+    if projects.iter().any(|project| project["installing"] == true || project["launching"] == true) {
+        return Err("旧版插件仍有启动或安装任务，请等待任务结束后关闭，或更新应用并重启 Whistle。".into());
+    }
+    let mut errors = Vec::new();
+    for project in projects {
+        if project["active"] != true && project["unmatched"].is_null() {
+            continue;
+        }
+        let name = project["name"].as_str().ok_or("项目名称无效。")?;
+        if name.is_empty() || !name.bytes().all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == b'-') {
+            return Err("项目名称无效，已取消停止。".into());
+        }
+        let (code, data) = project_request(&format!("api/stop/{name}"), Some(token))?;
+        if code != 200 {
+            errors.push(format!("{name}：{}", project_error(code, &data)));
+        }
+    }
+    if errors.is_empty() { Ok(()) } else { Err(errors.join("；")) }
 }
