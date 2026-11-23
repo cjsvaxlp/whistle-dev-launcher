@@ -90,7 +90,29 @@ pub fn resume_proxy() -> Result<Status, String> {
     let mut owned = OWNED_PID.lock().map_err(|e| e.to_string())?;
     if status() == Status::Offline {
         let root = tools()?;
-        shell(&format!("$ErrorActionPreference='Stop'; $env:PATH={}+';'+$env:PATH; & node {} start -H 127.0.0.1 -p 8899 --addon {}; if($LASTEXITCODE -ne 0){{exit $LASTEXITCODE}}", literal(&root.join("runtime").to_string_lossy()), literal(&root.join("runtime/node_modules/whistle/bin/whistle.js").to_string_lossy()), literal(&root.to_string_lossy())))?;
+        let runtime = root.join("runtime");
+        let bundled = runtime.join("node.exe");
+        let cli = runtime.join("node_modules/whistle/bin/whistle.js");
+        let script = format!(
+            concat!(
+                "$ErrorActionPreference='Stop'; ",
+                "$node = Get-Command node.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1; ",
+                "$executable = {bundled}; ",
+                "if ($node) {{ ",
+                "  $version = & $node.Source --version 2>$null; ",
+                "  if ($LASTEXITCODE -eq 0 -and $version -match '^v(\\d+)\\.') {{ ",
+                "    if ([int]$Matches[1] -ge 22) {{ $executable = $node.Source }} ",
+                "  }} ",
+                "}}; ",
+                "$env:PATH = (Split-Path -Parent $executable) + ';' + $env:PATH; ",
+                "& $executable {cli} start -H 127.0.0.1 -p 8899 --addon {addon}; ",
+                "if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}"
+            ),
+            bundled = literal(&bundled.to_string_lossy()),
+            cli = literal(&cli.to_string_lossy()),
+            addon = literal(&root.to_string_lossy()),
+        );
+        shell(&script)?;
         for _ in 0..20 {
             if status() == Status::Ready {
                 break;
