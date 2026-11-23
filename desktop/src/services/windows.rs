@@ -27,8 +27,10 @@ impl Status {
     }
 }
 fn shell(script: &str) -> Result<Output, String> {
+    let script =
+        format!("[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); {script}");
     let output = Command::new("powershell.exe")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
         .creation_flags(0x08000000)
         .output()
         .map_err(|e| e.to_string())?;
@@ -54,7 +56,15 @@ fn request(route: &str, post: bool) -> Result<serde_json::Value, String> {
     } else {
         format!("$ErrorActionPreference='Stop'; Invoke-RestMethod {} -TimeoutSec 4 | ConvertTo-Json -Depth 12 -Compress", literal(&format!("{PANEL_URL}{route}")))
     };
-    serde_json::from_slice(&shell(&script)?.stdout).map_err(|e| e.to_string())
+    let script = format!(
+        "try {{ {script} }} catch {{ $message = $_.Exception.Message; try {{ $body = $_.ErrorDetails.Message | ConvertFrom-Json -ErrorAction Stop; if ($body.message) {{ $message = $body.message }} }} catch {{}}; @{{ cafeRequestError = $message }} | ConvertTo-Json -Compress }}"
+    );
+    let data: serde_json::Value =
+        serde_json::from_slice(&shell(&script)?.stdout).map_err(|e| e.to_string())?;
+    if let Some(message) = data["cafeRequestError"].as_str() {
+        return Err(message.to_owned());
+    }
+    Ok(data)
 }
 pub fn status() -> Status {
     if request("api/token", false).is_ok() {
@@ -93,7 +103,15 @@ pub fn resume_proxy() -> Result<Status, String> {
     if status() != Status::Ready {
         return Err("无法连接本机 Whistle 面板".into());
     }
-    request("api/proxy/on", true)?;
+    if proxy_paused() {
+        let projects = request("api/projects", false)?;
+        if projects["workspace"]
+            .as_str()
+            .is_some_and(|path| !path.is_empty())
+        {
+            request("api/proxy/on", true)?;
+        }
+    }
     Ok(Status::Ready)
 }
 pub fn stop() -> Result<Status, String> {
