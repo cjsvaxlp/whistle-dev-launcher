@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 import base64
 import io
 import tempfile
@@ -11,10 +12,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "packaging"))
 from resources import collect, version
 
 desktop = Path(__file__).resolve().parent
-release_version = version()
-dist = Path(os.environ.get("CAFE_DIST_DIR", desktop.parent / "dist")).resolve() / release_version
+version()
+build_date = datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d")
+dist = Path(os.environ.get("CAFE_DIST_DIR", desktop.parent / "dist")).resolve()
 dist.mkdir(parents=True, exist_ok=True)
-output = dist / f"Cybercafe-{release_version}-Windows.zip"
+output = dist / f"Cybercafe-{build_date}-Windows.zip"
 
 with tempfile.TemporaryDirectory(prefix=".windows-package-", dir=dist) as directory:
     staging = Path(directory)

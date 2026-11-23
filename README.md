@@ -54,7 +54,7 @@ App 使用 ad-hoc 签名，首次打开如果提示「无法验证开发者」�
 
 macOS 分发生成 DMG，打开后将 Cybercafe.app 拖到「应用程序」安装。使用 release 构建，需要 Xcode 命令行工具、Rust、Node.js 和 Python 3。Windows 插件安装包可以单独生成，需要 Node.js 和 Python 3，运行时通过浏览器打开面板。
 
-版本以 desktop/Cargo.toml 为来源，打包前校验 tauri.conf.json 的版本一致，应用的 Info.plist 在组装时自动同步。产物默认放在 dist/<版本号>/，例如 Cybercafe-0.1.0-macOS-arm64.dmg 和 Cybercafe-0.1.0-Windows.zip。
+版本以 desktop/Cargo.toml 为来源，打包前校验 tauri.conf.json 的版本一致，应用的 Info.plist 在组装时自动同步。产物直接放在默认 dist/ 目录，文件名带香港时间的构建日期，例如 Cybercafe-2026-11-23-macOS-arm64.dmg 和 Cybercafe-2026-11-23-Windows.zip。同一天再次构建会替换当天同平台的安装包。
 
 支持 --windows-only 单独生成 Windows 包，--output-dir 指定输出根目录，例如 ./scripts/commands/打包.command --mac-only --output-dir /tmp/cybercafe-dist。也可通过 CAFE_DIST_DIR 指定输出根目录。TERSER_CLI 可指定 Terser 入口，未安装时直接复制插件脚本。安装包只携带运行所需的插件、浏览器和项目启动脚本。
 

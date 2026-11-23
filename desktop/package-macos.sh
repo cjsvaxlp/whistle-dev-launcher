@@ -4,7 +4,8 @@ set -o pipefail
 desktop_dir=${0:A:h}
 repo_dir=${desktop_dir:h}
 version=$(python3 "$desktop_dir/packaging/resources.py" --version)
-output_dir="${CAFE_DIST_DIR:-$repo_dir/dist}/$version"
+output_dir="${CAFE_DIST_DIR:-$repo_dir/dist}"
+build_date=$(TZ=Asia/Hong_Kong date +%Y-%m-%d)
 staging=$(mktemp -d "${TMPDIR:-/tmp}/cybercafe-package.XXXXXX")
 trap 'rm -rf -- "$staging"' EXIT
 app="$staging/image/Cybercafe.app"
@@ -17,6 +18,6 @@ mkdir -p "$output_dir"
 candidate=$(mktemp "$output_dir/.macos-package.XXXXXX")
 trap 'rm -rf -- "$staging"; rm -f -- "$candidate"' EXIT
 /bin/cp -X "$staging/Cybercafe.dmg" "$candidate"
-output="$output_dir/Cybercafe-$version-macOS-$(uname -m).dmg"
+output="$output_dir/Cybercafe-$build_date-macOS-$(uname -m).dmg"
 mv -f "$candidate" "$output"
 print -r -- "$output"
