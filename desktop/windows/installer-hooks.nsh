@@ -15,3 +15,9 @@
     Abort
   ${EndIf}
 !macroend
+
+!macro NSIS_HOOK_POSTINSTALL
+  ; The legacy CMD installer created Cybercafe.lnk pointing at Open-Cybercafe.cmd.
+  ; Remove it so the Start menu only launches the native app (no console window).
+  Delete "$SMPROGRAMS\Cybercafe.lnk"
+!macroend

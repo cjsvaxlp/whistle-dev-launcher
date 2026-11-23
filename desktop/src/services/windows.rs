@@ -57,7 +57,7 @@ fn request(route: &str, post: bool) -> Result<serde_json::Value, String> {
         format!("$ErrorActionPreference='Stop'; Invoke-RestMethod {} -TimeoutSec 4 | ConvertTo-Json -Depth 12 -Compress", literal(&format!("{PANEL_URL}{route}")))
     };
     let script = format!(
-        "try {{ {script} }} catch {{ $message = $_.Exception.Message; try {{ $body = $_.ErrorDetails.Message | ConvertFrom-Json -ErrorAction Stop; if ($body.message) {{ $message = $body.message }} }} catch {{}}; @{{ cafeRequestError = $message }} | ConvertTo-Json -Compress }}"
+        "try {{ {script} }} catch {{ $message = $_.Exception.Message; try {{ $body = $_.ErrorDetails.Message | ConvertFrom-Json -ErrorAction Stop; if ($body.message) {{ $message = $body.message }} }} catch {{}}; @{{ cafeRequestError = $message }} | ConvertTo-Json -Compress }}; exit 0"
     );
     let data: serde_json::Value =
         serde_json::from_slice(&shell(&script)?.stdout).map_err(|e| e.to_string())?;
@@ -109,7 +109,13 @@ pub fn resume_proxy() -> Result<Status, String> {
             .as_str()
             .is_some_and(|path| !path.is_empty())
         {
-            request("api/proxy/on", true)?;
+            if let Err(error) = request("api/proxy/on", true) {
+                // 另一个入口（例如旧版 CMD 启动器）正在切换代理时，409 是暂时的，
+                // 面板应继续打开，而不是停在“Whistle 面板未连接”页。
+                if !error.contains("正在切换") {
+                    return Err(error);
+                }
+            }
         }
     }
     Ok(Status::Ready)
