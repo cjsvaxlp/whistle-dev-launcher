@@ -16,7 +16,7 @@ version()
 build_date = datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d")
 dist = Path(os.environ.get("CAFE_DIST_DIR", desktop.parent / "dist")).resolve()
 dist.mkdir(parents=True, exist_ok=True)
-output = dist / f"Cybercafe-{build_date}-Windows.zip"
+output = dist / f"Cybercafe-{build_date}-Windows-Legacy-CMD.zip"
 
 with tempfile.TemporaryDirectory(prefix=".windows-package-", dir=dist) as directory:
     staging = Path(directory)

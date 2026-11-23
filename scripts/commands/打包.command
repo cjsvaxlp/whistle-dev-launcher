@@ -38,6 +38,10 @@ if [[ "$mode" != windows ]]; then
   "$tool_dir/desktop/package-macos.sh"
 fi
 if [[ "$mode" != mac ]]; then
-  print -r -- '==> 生成 Windows 插件安装包…'
-  python3 "$tool_dir/desktop/package-cross-platform.py"
+  print -r -- 'Windows 原生 EXE 由 GitHub Actions 的 Windows x64 Tauri NSIS installer 任务构建。'
+  print -r -- '请在 GitHub Actions 运行 Build desktop packages，下载 Cybercafe-Windows-x64-Setup 产物。'
+  if [[ "$mode" == windows ]]; then
+    print -u2 '当前 macOS 打包入口无法生成 Windows 原生 EXE。'
+    exit 1
+  fi
 fi

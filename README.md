@@ -152,3 +152,9 @@ desktop/tauri.windows.conf.json 定义当前用户安装、WebView2 检测和运
 desktop/src/services/windows.rs 管理 Windows Whistle 和浏览器入口。
 工具专用 Node 与 Whistle 打包到 tools/runtime，项目继续使用各自的开发环境。
 Windows 实机安装、系统代理联动和浏览器标签页复用仍需验收。
+
+### Windows 原生安装包与旧版 CMD 包
+
+macOS 的 scripts/commands/打包.command 构建本机 DMG，并提示 Windows 在线构建入口。
+Windows 原生 EXE 请运行 GitHub Actions 的 Build desktop packages 工作流，下载 Cybercafe-Windows-x64-Setup 产物，其中的 ZIP 只包含 NSIS EXE。
+旧版 desktop/package-cross-platform.py 只生成名称包含 Windows-Legacy-CMD 的兼容包，通用打包入口已停止调用它。
