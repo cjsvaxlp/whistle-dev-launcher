@@ -24,7 +24,7 @@ fn main() {
         })
         .build(tauri::generate_context!())
         .expect("无法启动 Cybercafe 桌面应用");
-    app.run(|app, event| match event {
+    app.run(|_app, event| match event {
         RunEvent::ExitRequested {
             code: None, api, ..
         } => api.prevent_exit(),
@@ -35,7 +35,7 @@ fn main() {
             let _ = services::stop();
         }
         #[cfg(target_os = "macos")]
-        RunEvent::Reopen { .. } => menu::run_action(app, "panel"),
+        RunEvent::Reopen { .. } => menu::run_action(_app, "panel"),
         _ => {}
     });
 }
