@@ -59,6 +59,12 @@ macOS 分发生成 DMG，打开后将 Cybercafe.app 拖到「应用程序」安�
 支持 --windows-only 单独生成 Windows 包，--output-dir 指定输出根目录，例如 ./scripts/commands/打包.command --mac-only --output-dir /tmp/cybercafe-dist。也可通过 CAFE_DIST_DIR 指定输出根目录。TERSER_CLI 可指定 Terser 入口，未安装时直接复制插件脚本。安装包只携带运行所需的插件、浏览器和项目启动脚本。
 
 
+## GitHub 在线打包
+
+将云端打包工作流提交并推送到默认分支后，在仓库的 Actions 中选择 Build desktop packages，点击 Run workflow 并选择需要构建的分支。完成后在本次运行页面的 Artifacts 下载 macOS Apple Silicon DMG 或 Windows 插件安装包，产物保留 14 天。
+
+构建使用 GitHub 托管机器，本机无需安装 Rust。macOS 包使用现有 ad-hoc 签名。Windows 产物是插件和浏览器面板的安装入口。每次构建先运行相关测试，失败时可在 Actions 日志中查看原因。
+
 ## 代码目录与职责
 
 代码按功能放在独立文件夹中。下表按职责列出具体文件，便于找到界面与服务端实现。同一功能目录中的 `client.mjs` 负责页面交互，`server.cjs`、`store.cjs` 等负责本机操作和状态。
@@ -120,6 +126,7 @@ macOS 分发生成 DMG，打开后将 Cybercafe.app 拖到「应用程序」安�
 
 | 目录或文件 | 功能和目的 |
 | --- | --- |
+| `.github/workflows/` | 手动触发云端测试和打包，并上传可下载产物。 |
 | `scripts/commands/` | 可双击使用的通用项目启动、手动同步、桌面端启动、浏览器打开和打包入口。 |
 | `scripts/browser/` | macOS 默认浏览器标签页查找、复用和新建。 |
 | `desktop/windows/` | Windows 安装和启动脚本。 |

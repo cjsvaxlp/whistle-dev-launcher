@@ -1,0 +1,64 @@
+name: Build desktop packages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: macOS Apple Silicon
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.cafe-tools/desktop-target
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Set up Rust
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            .cafe-tools/desktop-target
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ hashFiles('desktop/Cargo.lock') }}
+      - name: Test plugin
+        run: npm --prefix whistle.cafe-projects test
+      - name: Test desktop
+        run: cargo test --locked --release --manifest-path desktop/Cargo.toml
+      - name: Build DMG
+        run: ./scripts/commands/打包.command --mac-only
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cybercafe-macOS-arm64
+          path: dist/**/*.dmg
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-plugin:
+    name: Windows plugin installer
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Test plugin
+        run: npm --prefix whistle.cafe-projects test
+      - name: Build Windows plugin installer
+        run: python3 desktop/package-cross-platform.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cybercafe-Windows-plugin
+          path: dist/**/*-Windows.zip
+          if-no-files-found: error
+          retention-days: 14
