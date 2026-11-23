@@ -40,25 +40,54 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  windows-plugin:
-    name: Windows plugin installer
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  windows-native:
+    name: Windows x64 Tauri NSIS installer
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.cafe-tools/windows-target
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          architecture: x64
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
+      - name: Set up Rust
+        run: rustup default stable
+      - name: Prepare bundled Node and Whistle
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npm install --global terser @tauri-apps/cli@2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:TERSER_CLI = Join-Path (npm root -g) 'terser/bin/terser'
+          python desktop/packaging/resources.py --platform windows --output .cafe-tools/windows-bundle/tools
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $runtime = '.cafe-tools/windows-bundle/tools/runtime'
+          New-Item -ItemType Directory -Force $runtime | Out-Null
+          Copy-Item (Get-Command node.exe).Source "$runtime/node.exe"
+          npm install --prefix $runtime whistle --omit=dev
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Test plugin
         run: npm --prefix whistle.cafe-projects test
-      - name: Build Windows plugin installer
-        run: python3 desktop/package-cross-platform.py
+      - name: Test and build native EXE
+        working-directory: desktop
+        shell: pwsh
+        run: |
+          cargo test --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          tauri build --config tauri.windows.conf.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $installers = @(Get-ChildItem "$env:CARGO_TARGET_DIR/release/bundle/nsis" -Filter '*.exe')
+          if ($installers.Count -ne 1) { throw 'Expected exactly one NSIS EXE installer' }
+          New-Item -ItemType Directory -Force ../dist | Out-Null
+          Compress-Archive -LiteralPath $installers[0].FullName -DestinationPath ../dist/Cybercafe-Windows-x64-Setup.zip -Force
       - uses: actions/upload-artifact@v4
         with:
-          name: Cybercafe-Windows-plugin
-          path: dist/*-Windows.zip
+          name: Cybercafe-Windows-x64-Setup
+          path: dist/Cybercafe-Windows-x64-Setup.zip
           if-no-files-found: error
           retention-days: 14
