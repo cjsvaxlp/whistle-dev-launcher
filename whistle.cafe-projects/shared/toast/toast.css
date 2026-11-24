@@ -7,14 +7,15 @@
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
+  box-sizing: border-box;
   width: max-content;
   max-width: calc(100vw - 32px);
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 18px;
+  gap: 8px;
+  padding: 10px 14px;
   border: 1px solid rgb(0 0 0 / 8%);
-  border-radius: 16px;
+  border-radius: 14px;
   background: rgb(255 255 255 / 90%);
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
@@ -49,4 +50,17 @@
   .error-toast::before { background: #ff453a; }
 }
 
-.error-toast[data-kind="info"]::before { content: "i"; background: #007aff; }
+.error-toast[data-kind="info"] {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  font-size: 13px;
+  line-height: 20px;
+}
+.error-toast[data-kind="info"]::before {
+  content: "i";
+  flex-basis: 17px;
+  height: 17px;
+  font-size: 12px;
+  background: #007aff;
+}
