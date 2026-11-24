@@ -272,7 +272,7 @@ export function buildRule(projects, locals, compat = {}) {
     MARKER,
     '# 由 cafe-tools 自动同步，请勿手动编辑。',
     `${HOST} enable://capture`,
-    `${HOST}/__cafe/confirm http://127.0.0.1:8899/plugin.cafe-projects/api/browser-report cache://no-store`,
+    `${HOST}/__cafe/confirm cafe-projects://browser-report cache://no-store`,
     `${HOST}/__cafe/badge.js ${ruleUrl('file', BADGE_JS)}`,
     `${HOST}/__cafe/badge.css ${ruleUrl('file', BADGE_CSS)}`,
     `${HOST}/__cafe/state.json ${ruleUrl('file', stateFile)}`,

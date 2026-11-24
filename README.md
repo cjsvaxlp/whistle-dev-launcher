@@ -166,3 +166,5 @@ Windows 原生 EXE 请运行 GitHub Actions 的 Build desktop packages 工作流
 `features/proxy/browser-status.cjs` 接收测试页徽标的本地响应探测回报，按工作区和服务实例区分，供项目入口与体检显示最近的浏览器访问确认状态。
 
 `features/doctor/proxy-checks.cjs` 按浏览器代理或 Whistle 代理模式生成适用的体检项，避免显示不需要的 PAC 和系统代理配置提示。
+
+`features/proxy/report-server.cjs` 通过 Whistle 插件协议处理同域页面确认回报，避免转发回 Whistle UI 端口产生重定向。

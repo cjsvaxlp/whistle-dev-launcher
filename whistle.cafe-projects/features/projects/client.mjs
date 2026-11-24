@@ -236,12 +236,19 @@ function render() {
   projectEntryNote.textContent = entryNoteText;
   const confirmed = info?.browser?.confirmed && !snapshot.stale && snapshot.proxyEnabled !== false;
   const openLabel = cmsEntryNoteText ? '打开 CMS 测试登录' : '打开项目页面';
-  open.textContent = openLabel + (active && snapshot.proxyEnabled !== false ? (confirmed ? ' · 已确认本地访问' : ' · 待确认') : '');
-  browserStatus.hidden = !active || snapshot.proxyEnabled === false;
+  open.textContent = openLabel;
+  const startup = info?.startup;
+  const startupPending = startup && startup.stage !== 'ready';
+  browserStatus.hidden = !active || snapshot.proxyEnabled === false || Boolean(startupPending);
   browserStatus.dataset.state = confirmed ? 'ok' : '';
-  browserStatus.textContent = confirmed
-    ? '已收到测试标签页的本地访问回报；请查看目标页面右下角的本地徽标。'
-    : '尚未收到浏览器的本地访问回报。打开项目页并刷新；浏览器模式还需在代理扩展中启用 Whistle 规则。';
+  browserStatus.textContent = confirmed ? '服务就绪 · 已确认本地访问'
+    : snapshot.stale ? '同步已过期 · 页面未确认' : '规则就绪 · 页面未确认';
+  browserStatus.title = confirmed
+    ? '最近收到测试标签页的本地访问回报。'
+    : snapshot.proxyMode === 'browser'
+      ? '请在浏览器扩展中启用 HTTP 127.0.0.1:8899 的测试域名规则，然后刷新项目页面。详细配置可在体检中查看。'
+      : '请确认 Whistle 代理配置成功，然后刷新项目页面。详细状态可在体检中查看。';
+  if (startup?.message) browserStatus.title += '\n' + startup.message;
   gameChannelField.hidden = info?.name !== 'game';
   gameChannel.required = !gameChannelField.hidden;
   open.hidden = !info;
@@ -257,8 +264,7 @@ function render() {
   restartService.hidden = !info?.canStop || !active;
   for (const button of [install, takeover, stop, restartService]) button.disabled = busy || installing || launching;
   showTerminal(info?.name, Boolean(info && (info.active || info.log || installing || launching)));
-  const startup = info?.startup;
-  startupResult.hidden = !startup || (startup.stage === 'ready' && (!active || snapshot.stale));
+  startupResult.hidden = !startupPending;
   startupResult.dataset.stage = startup?.stage || '';
   const message = startupResult.hidden ? '' : (startup.stage === 'failed' ? '启动失败，请查看下方终端。' : startup.message) || '';
   if (startupStatus.textContent !== message) startupStatus.textContent = message;

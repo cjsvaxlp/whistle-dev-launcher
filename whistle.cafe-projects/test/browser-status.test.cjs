@@ -31,7 +31,8 @@ test('reports must match the test-page origin, project, local marker and fresh s
 test('generated rules expose local markers and the same-origin report route', async () => {
   const { buildRule } = await import('../features/proxy/sync.mjs');
   const rules = buildRule(['demo', 'compat'], { demo: { port: 5173, pid: '456', engine: 'vite' } }, { compat: { port: 5174, pid: '789' } });
-  assert.match(rules, /__cafe\/confirm http:\/\/127\.0\.0\.1:8899\/plugin\.cafe-projects\/api\/browser-report/);
+  assert.match(rules, /__cafe\/confirm cafe-projects:\/\/browser-report/);
+  assert.doesNotMatch(rules, /__cafe\/confirm http:\/\/127\.0\.0\.1:8899/);
   assert.match(rules, /resHeaders:\/\/x-cafe-local=demo-5173-456/);
   assert.match(rules, /resHeaders:\/\/x-cafe-local=compat-5174-789/);
 });

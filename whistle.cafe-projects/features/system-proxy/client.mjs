@@ -2,37 +2,39 @@ import { post } from '../../shared/http/client.mjs';
 import { showError } from '../../shared/toast/toast.mjs';
 
 export async function bindProxyMode() {
-  const control = document.querySelector('#system-proxy-mode');
+  const control = document.querySelector('#proxy-mode-picker');
   const hint = document.querySelector('#proxy-mode-hint');
   let busy = false;
   let lastError = '';
   let savedMode = 'browser';
   let supported = false;
+  function selectMode(mode) {
+    for (const input of control.querySelectorAll('input[name="proxy-mode"]')) input.checked = input.value === mode;
+  }
   async function readMode() {
     const response = await fetch('./api/proxy-mode', { cache: 'no-store', signal: AbortSignal.timeout(5000) });
     if (!response.ok) throw new Error('无法读取代理接入模式。');
     const data = await response.json();
     savedMode = data.mode;
-    control.checked = savedMode === 'system';
+    selectMode(savedMode);
     supported = Boolean(window.cafeDesktop && data.supported);
     control.disabled = !supported;
     if (data.status?.error && data.status.error !== lastError) showError(data.status.error);
     lastError = data.status?.error || '';
-    hint.textContent = data.mode === 'system'
-      ? 'Whistle 代理 · 自动配置，退出恢复'
-      : '浏览器代理 · 扩展需启用 127.0.0.1:8899 · 页面徽标确认环境';
     hint.title = data.mode === 'system'
-      ? '应用自动配置系统 PAC，退出时恢复原设置。'
-      : '在浏览器扩展中将 cloudgametest2.migufun.com:18443 代理到 HTTP 127.0.0.1:8899；其他流量沿用系统代理，无需配置 PAC。';
-    if (data.status?.error) {
-      hint.textContent += ' · 切换失败（详见体检）';
-      hint.title += '\n' + data.status.error;
-    } else if (data.status && data.status.mode !== data.mode) hint.textContent += ' · 配置中';
+      ? 'Whistle 代理：自动配置系统 PAC，退出恢复原设置。'
+      : '浏览器代理：扩展中启用 HTTP 127.0.0.1:8899 的测试域名规则，无需配置 PAC。详细说明见体检。';
+    control.title = hint.title;
+    const pending = data.status && data.status.mode !== data.mode && !data.status.error;
+    hint.hidden = !data.status?.error && !pending;
+    hint.textContent = data.status?.error ? '代理切换失败 · 查看体检' : pending ? '正在切换代理…' : '';
+    if (data.status?.error) hint.title = data.status.error;
   }
-  control.addEventListener('change', async () => {
-    if (busy) { control.checked = savedMode === 'system'; return; }
+  control.addEventListener('change', async event => {
+    if (busy) { selectMode(savedMode); return; }
     busy = true;
-    const mode = control.checked ? 'system' : 'browser';
+    const mode = event.target.value;
+    if (!['browser', 'system'].includes(mode) || mode === savedMode) { busy = false; return; }
     control.disabled = true;
     try {
       const response = await post('./api/proxy-mode/' + mode);
@@ -41,7 +43,7 @@ export async function bindProxyMode() {
       await readMode();
 
     } catch (error) {
-      control.checked = savedMode === 'system';
+      selectMode(savedMode);
       showError(error.message);
     } finally { busy = false; control.disabled = !supported; }
   });

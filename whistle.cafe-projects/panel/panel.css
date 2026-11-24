@@ -12,6 +12,7 @@
   --hover: #e9eef4;
   --selected: #dce9fb;
   --accent: #0066cc;
+  --browser-mode: #af52de;
   --link: #2563eb;
   --success: #15803d;
   --warning: #b45309;
@@ -40,6 +41,7 @@
     --hover: #3a3a3c;
     --selected: #183c63;
     --accent: #007aff;
+    --browser-mode: #bf5af2;
     --link: #64a8ff;
     --success: #6bda8a;
     --warning: #ffd179;
@@ -743,12 +745,44 @@ h1 {
 
 input, select, textarea { color: inherit; }
 
-.proxy-mode-picker { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
-.proxy-mode-picker > span:first-child { font-weight: 600; color: var(--text); }
-.proxy-mode-picker > span:last-child { color: var(--secondary); }
-.proxy-mode-picker:has(input:checked) > span:first-child { font-weight: 400; color: var(--secondary); }
-.proxy-mode-picker:has(input:checked) > span:last-child { font-weight: 600; color: var(--text); }
+.proxy-mode-picker {
+  position: relative;
+  isolation: isolate;
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-inline-size: 0;
+  margin: 0;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--disabled-bg);
+  font-size: 12px;
+}
+.proxy-mode-picker::before {
+  position: absolute;
+  z-index: -1;
+  inset: 3px auto 3px 3px;
+  width: calc((100% - 6px) / 2);
+  border-radius: inherit;
+  background: var(--surface);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 12%);
+  content: "";
+  transition: transform 180ms ease;
+}
+.proxy-mode-picker:has(input[value=system]:checked)::before { transform: translateX(100%); }
+.proxy-mode-picker label { position: relative; padding: 5px 12px; text-align: center; white-space: nowrap; cursor: pointer; }
+.proxy-mode-picker input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.proxy-mode-picker span { color: var(--secondary); }
+.proxy-mode-picker input:checked + span { font-weight: 600; color: var(--browser-mode); }
+.proxy-mode-picker input[value=system]:checked + span { color: var(--accent); }
+.proxy-mode-picker label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 999px; }
+.proxy-mode-picker:disabled { opacity: .55; }
+.proxy-mode-picker:disabled label { cursor: default; }
+@media (prefers-reduced-motion: reduce) { .proxy-mode-picker::before { transition: none; } }
 
+#browser-status { margin: 8px 0 0; min-height: 0; font-size: 12px; }
+#browser-status[hidden] { display: none; }
 #browser-status[data-state=ok] { color: var(--success); }
 
-.proxy-mode-hint { margin: 8px 0 0; color: var(--secondary); font-size: 12px; line-height: 1.5; }
+.proxy-mode-feedback { color: var(--secondary); font-size: 12px; }
+.proxy-mode-feedback[hidden] { display: none; }
