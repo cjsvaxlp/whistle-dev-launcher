@@ -1,11 +1,16 @@
 import { post } from '../../shared/http/client.mjs';
-import { showError } from '../../shared/toast/toast.mjs';
+import { showError, showInfo } from '../../shared/toast/toast.mjs';
 
 export async function bindProxyMode() {
   const control = document.querySelector('#proxy-mode-picker');
-  const hint = document.querySelector('#proxy-mode-hint');
   let busy = false;
   let lastError = '';
+  let lastNotice = '';
+  function notifyPending(message) {
+    const notice = message ? message.replace(/[…。.]+$/u, '') : '';
+    if (notice && notice !== lastNotice) showInfo(message);
+    lastNotice = notice;
+  }
   let savedMode = 'browser';
   let supported = false;
   function selectMode(mode) {
@@ -21,14 +26,12 @@ export async function bindProxyMode() {
     control.disabled = !supported;
     if (!data.status?.pending && data.status?.error && data.status.error !== lastError) showError(data.status.error);
     lastError = data.status?.error || '';
-    hint.title = data.mode === 'system'
+    control.title = data.mode === 'system'
       ? 'Whistle 代理：自动配置系统 PAC，退出恢复原设置。'
       : '浏览器代理：扩展中启用 HTTP 127.0.0.1:8899 的测试域名规则，无需配置 PAC。详细说明见体检。';
-    control.title = hint.title;
     const pending = data.status && (data.status.pending || data.status.mode !== data.mode) && !data.status.error;
-    hint.hidden = !data.status?.error && !pending;
-    hint.textContent = data.status?.error ? '代理切换失败 · 查看体检' : pending ? (data.status.message || '正在切换代理…') : '';
-    if (data.status?.error) hint.title = data.status.error;
+    notifyPending(pending ? (data.status.message || '正在切换代理…') : '');
+    if (data.status?.error) control.title = data.status.error;
   }
   control.addEventListener('change', async event => {
     if (busy) { selectMode(savedMode); return; }
@@ -36,6 +39,7 @@ export async function bindProxyMode() {
     const mode = event.target.value;
     if (!['browser', 'system'].includes(mode) || mode === savedMode) { busy = false; return; }
     control.disabled = true;
+    notifyPending('正在切换代理…');
     try {
       const response = await post('./api/proxy-mode/' + mode);
       const data = await response.json();
@@ -44,6 +48,7 @@ export async function bindProxyMode() {
 
     } catch (error) {
       selectMode(savedMode);
+      lastNotice = '';
       showError(error.message);
     } finally { busy = false; control.disabled = !supported; }
   });

@@ -48,3 +48,5 @@
   }
   .error-toast::before { background: #ff453a; }
 }
+
+.error-toast[data-kind="info"]::before { content: "i"; background: #007aff; }

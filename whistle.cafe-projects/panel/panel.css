@@ -785,6 +785,3 @@ input, select, textarea { color: inherit; }
 #browser-status { margin: 8px 0 0; min-height: 0; font-size: 12px; }
 #browser-status[hidden] { display: none; }
 #browser-status[data-state=ok] { color: var(--success); }
-
-.proxy-mode-feedback { color: var(--secondary); font-size: 12px; }
-.proxy-mode-feedback[hidden] { display: none; }
