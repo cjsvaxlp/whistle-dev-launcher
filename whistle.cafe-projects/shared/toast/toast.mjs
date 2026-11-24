@@ -3,6 +3,12 @@ let toastMessage;
 let toastTimer;
 const reportedErrors = new Map();
 
+function positionToast() {
+  const toolbar = document.querySelector('body > header');
+  const top = toolbar ? Math.max(24, toolbar.getBoundingClientRect().bottom + 12) : 24;
+  toast.style.setProperty('--toast-top', `${Math.ceil(top)}px`);
+}
+
 function showToast(message, kind) {
   if (!toast) {
     toast = document.createElement('div');
@@ -14,11 +20,15 @@ function showToast(message, kind) {
     toastMessage.className = 'toast-message';
     toast.append(toastMessage);
     document.body.append(toast);
+    const toolbar = document.querySelector('body > header');
+    if (toolbar) new ResizeObserver(positionToast).observe(toolbar);
+    window.addEventListener('resize', positionToast);
   }
   clearTimeout(toastTimer);
   toast.dataset.kind = kind;
   toast.setAttribute('role', kind === 'info' ? 'status' : 'alert');
   toastMessage.textContent = message;
+  positionToast();
   toast.hidden = false;
   toast.showPopover?.();
   toastTimer = setTimeout(() => {

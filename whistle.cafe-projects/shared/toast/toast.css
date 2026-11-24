@@ -4,7 +4,7 @@
   right: auto;
   bottom: auto;
   z-index: 1000;
-  top: max(24px, env(safe-area-inset-top));
+  top: max(var(--toast-top, 24px), calc(env(safe-area-inset-top) + 12px));
   left: 50%;
   transform: translateX(-50%);
   box-sizing: border-box;

@@ -6,6 +6,7 @@ export async function bindProxyMode() {
   let busy = false;
   let lastError = '';
   let lastNotice = '';
+  let requestedMode = null;
   function notifyPending(message) {
     const notice = message ? message.replace(/[…。.]+$/u, '') : '';
     if (notice && notice !== lastNotice) showInfo(message);
@@ -31,13 +32,20 @@ export async function bindProxyMode() {
       : '浏览器代理：扩展中启用 HTTP 127.0.0.1:8899 的测试域名规则，无需配置 PAC。详细说明见体检。';
     const pending = data.status && (data.status.pending || data.status.mode !== data.mode) && !data.status.error;
     notifyPending(pending ? (data.status.message || '正在切换代理…') : '');
-    if (data.status?.error) control.title = data.status.error;
+    if (data.status?.error) {
+      control.title = data.status.error;
+      requestedMode = null;
+    } else if (requestedMode && !pending && data.status?.mode === requestedMode) {
+      showInfo(requestedMode === 'system' ? 'Whistle 已接管系统代理' : '已切换到浏览器代理');
+      requestedMode = null;
+    }
   }
   control.addEventListener('change', async event => {
     if (busy) { selectMode(savedMode); return; }
     busy = true;
     const mode = event.target.value;
     if (!['browser', 'system'].includes(mode) || mode === savedMode) { busy = false; return; }
+    requestedMode = mode;
     control.disabled = true;
     notifyPending('正在切换代理…');
     try {
@@ -45,10 +53,10 @@ export async function bindProxyMode() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || '切换代理模式失败。');
       await readMode();
-
     } catch (error) {
       selectMode(savedMode);
       lastNotice = '';
+      requestedMode = null;
       showError(error.message);
     } finally { busy = false; control.disabled = !supported; }
   });

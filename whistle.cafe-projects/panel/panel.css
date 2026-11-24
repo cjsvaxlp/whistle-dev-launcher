@@ -409,28 +409,12 @@ h1 {
   font-weight: 400;
 }
 
-.modal pre {
-  flex: 1;
-  margin: 0;
-  padding: 14px 16px;
-  overflow: auto;
-  background: #0f172a;
-  color: #e2e8f0;
-  font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
 .modal-foot {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 12px 20px;
   border-top: 1px solid var(--border);
-}
-
-.modal-foot .grow {
-  flex: 1;
 }
 
 .checks {

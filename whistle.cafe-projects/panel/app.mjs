@@ -55,7 +55,6 @@ async function startPanel() {
       workspacePath.value = data.workspace;
       workspaceStatus.textContent = '已保存工作区。';
       await load();
-      await load();
       if (!picker.closest('.modal').hidden) await showDoctor();
     } catch (error) {
       workspaceStatus.textContent = '';
@@ -117,12 +116,12 @@ function showBootFailure(error) {
           : '重启失败，请在终端执行 w2 restart。');
       }
       let tries = 0;
-      const timer = setInterval(async () => {
+      async function pollRestart() {
+        if (!overlay.isConnected) return;
         tries += 1;
         try {
           const probe = missingUrl || './api/token';
-          if ((await fetch(probe, { cache: 'no-store' })).ok) {
-            clearInterval(timer);
+          if ((await fetch(probe, { cache: 'no-store', signal: AbortSignal.timeout(3000) })).ok && overlay.isConnected) {
             sessionStorage.removeItem('cafe-boot-restart');
             location.reload();
             return;
@@ -131,12 +130,14 @@ function showBootFailure(error) {
           // Whistle 重启过程中连接会断开。
         }
         if (tries >= 30) {
-          clearInterval(timer);
           button.disabled = false;
           button.textContent = '重启 Whistle';
           detail.textContent = '重启后仍未连上，请在终端执行 w2 restart。';
+          return;
         }
-      }, 1000);
+        setTimeout(pollRestart, 1000);
+      }
+      setTimeout(pollRestart, 1000);
     } catch (restartError) {
       button.disabled = false;
       button.textContent = '重启 Whistle';

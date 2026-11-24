@@ -169,3 +169,5 @@ Windows 原生 EXE 请运行 GitHub Actions 的 Build desktop packages 工作流
 `features/doctor/proxy-checks.cjs` 按浏览器代理或 Whistle 代理模式生成适用的体检项，避免显示不需要的 PAC 和系统代理配置提示。
 
 `features/proxy/report-server.cjs` 通过 Whistle 插件协议处理同域页面确认回报，避免转发回 Whistle UI 端口产生重定向。
+
+macOS 证书体检同时检查当前 Whistle CA 是否实际存在于钥匙串以及 SSL 信任是否有效；安装时写入登录钥匙串，避免仅有信任记录导致 Chrome 报 `ERR_CERT_AUTHORITY_INVALID`。相关逻辑位于 `whistle.cafe-projects/features/doctor/mac-ca.cjs`。

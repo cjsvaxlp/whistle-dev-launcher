@@ -1,12 +1,13 @@
+const { macCaTrusted } = require('./mac-ca.cjs');
 const { proxyChecks } = require('./proxy-checks.cjs');
 const { modeSnapshot } = require('../system-proxy/mode.cjs');
 const { browserStatus } = require('../proxy/browser-status.cjs');
 const { pacBody, pacUrl } = require('../system-proxy/pac.cjs');
 const { execFile, execFileSync } = require('node:child_process');
 const { randomBytes, X509Certificate } = require('node:crypto');
-const { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, symlinkSync, unlinkSync, writeFileSync } = require('node:fs');
+const { existsSync, lstatSync, mkdirSync, realpathSync, renameSync, symlinkSync, unlinkSync, writeFileSync } = require('node:fs');
 const { mkdtemp, writeFile, rm } = require('node:fs/promises');
-const { tmpdir } = require('node:os');
+const { tmpdir, homedir } = require('node:os');
 const { dirname, join } = require('node:path');
 const { promisify } = require('node:util');
 const { pathToFileURL } = require('node:url');
@@ -97,8 +98,7 @@ async function caTrusted(file, cert) {
       ], { timeout: 5000, windowsHide: true });
       return /^True$/im.test(stdout.trim());
     }
-    await run('/usr/bin/security', ['verify-cert', '-l', '-L', '-p', 'ssl', '-c', file], { timeout: 5000 });
-    return true;
+    return await macCaTrusted(file, cert, run);
   } catch {
     return false;
   }
@@ -234,7 +234,7 @@ async function fix(request, response, action) {
         if (isWindows) {
           await run('certutil.exe', ['-user', '-addstore', 'Root', file], { timeout: 60000, windowsHide: true });
         } else {
-          await run('/usr/bin/security', ['add-trusted-cert', '-r', 'trustRoot', '-p', 'ssl', file], { timeout: 60000 });
+          await run('/usr/bin/security', ['add-trusted-cert', '-r', 'trustRoot', '-p', 'ssl', '-k', join(homedir(), 'Library/Keychains/login.keychain-db'), file], { timeout: 60000 });
         }
         if (!(await caTrusted(file, cert))) throw new Error('证书已提交给系统，请在系统证书设置中确认信任。');
       });
