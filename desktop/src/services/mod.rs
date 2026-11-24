@@ -32,25 +32,16 @@ fn tools_directory(contents: &Path) -> Result<PathBuf, String> {
         .ok_or_else(|| "找不到工具目录，请通过仓库中的启动脚本打开应用。".into())
 }
 
+pub fn state_directory() -> Result<PathBuf, String> {
+    if let Some(dir) = env::var_os("CAFE_STATE_DIR") { return Ok(PathBuf::from(dir)); }
+    let tools = tools_directory(&app_contents()?)?;
+    if tools.join(".installed").is_file() {
+        Ok(PathBuf::from(env::var_os("HOME").ok_or("无法读取用户目录。")?).join("Library/Application Support/Cybercafe"))
+    } else { Ok(tools.join(".cafe-tools")) }
+}
+
 pub fn proxy_paused() -> bool {
-    if let Some(dir) = env::var_os("CAFE_STATE_DIR") {
-        return PathBuf::from(dir).join("proxy-disabled").is_file();
-    }
-    let Ok(contents) = app_contents() else {
-        return false;
-    };
-    let Ok(tools) = tools_directory(&contents) else {
-        return false;
-    };
-    let state = if tools.join(".installed").is_file() {
-        let Some(home) = env::var_os("HOME") else {
-            return false;
-        };
-        PathBuf::from(home).join("Library/Application Support/Cybercafe")
-    } else {
-        tools.join(".cafe-tools")
-    };
-    state.join("proxy-disabled").is_file()
+    state_directory().map(|dir| dir.join("proxy-disabled").is_file()).unwrap_or(false)
 }
 
 pub fn resume_proxy() -> Result<Status, String> {

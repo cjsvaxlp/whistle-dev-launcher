@@ -51,18 +51,12 @@ pub fn run_action(app: &AppHandle, action: &str) {
 
     thread::spawn(move || {
         let result = match task.as_str() {
-            "start" => services::resume_proxy().and_then(|status| {
+            "start" => services::resume_proxy(),
+            "stop" => services::stop().and_then(|status| {
                 #[cfg(target_os = "macos")]
-                if status == Status::Ready { crate::system_proxy::enable()?; }
+                crate::system_proxy::restore()?;
                 Ok(status)
             }),
-            "stop" => {
-                #[cfg(target_os = "macos")]
-                let restored = crate::system_proxy::restore();
-                #[cfg(not(target_os = "macos"))]
-                let restored: Result<(), String> = Ok(());
-                restored.and_then(|_| services::stop())
-            },
             "test" => services::open_test().map(|_| Status::Ready),
             _ => Ok(services::status()),
         };

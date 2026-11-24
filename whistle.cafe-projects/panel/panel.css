@@ -742,3 +742,9 @@ h1 {
 }
 
 input, select, textarea { color: inherit; }
+
+.proxy-mode-picker { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.proxy-mode-picker > span:first-child { font-weight: 600; color: var(--text); }
+.proxy-mode-picker > span:last-child { color: var(--secondary); }
+.proxy-mode-picker:has(input:checked) > span:first-child { font-weight: 400; color: var(--secondary); }
+.proxy-mode-picker:has(input:checked) > span:last-child { font-weight: 600; color: var(--text); }

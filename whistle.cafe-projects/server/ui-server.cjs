@@ -1,3 +1,4 @@
+const { modeSnapshot, setMode } = require('../features/system-proxy/mode.cjs');
 const { cleanGeneratedFiles } = require('../features/cleanup/server.cjs');
 const { pacRoute, servePac } = require('../features/system-proxy/pac.cjs');
 const { selectWorkspace } = require('../features/workspace/server.cjs');
@@ -14,6 +15,7 @@ const { listLogRuns } = require('../features/logs/store.cjs');
 const { getRule, restartWhistle } = require('../features/whistle/server.cjs');
 
 const panelAssets = new Map([
+  ["/features/system-proxy/client.mjs", ["features/system-proxy/client.mjs", "text/javascript; charset=utf-8"]],
   ["/features/cleanup/client.mjs", ["features/cleanup/client.mjs", "text/javascript; charset=utf-8"]],
   ["/features/rules/dialog.css", ["features/rules/dialog.css", "text/css; charset=utf-8"]],
   ["/features/terminal/embedded.mjs", ["features/terminal/embedded.mjs", "text/javascript; charset=utf-8"]],
@@ -70,6 +72,7 @@ async function handle(request, response) {
   if (path === pacRoute && ['GET', 'HEAD'].includes(request.method)) return servePac(response, request.method);
   if (request.method === 'GET') {
     if (panelAssets.has(path)) return servePanel(response, path);
+    if (path === '/api/proxy-mode') return json(response, 200, modeSnapshot());
     if (path === '/api/token') return json(response, 200, { token });
     if (path === '/api/projects') {
       try {
@@ -122,6 +125,9 @@ async function handle(request, response) {
     const fixMatch = /^\/api\/fix\/([a-z-]+)$/.exec(path);
     if (fixMatch) return fix(request, response, fixMatch[1]);
   }
+
+  const modeMatch = /^\/api\/proxy-mode\/(system|browser)$/.exec(path);
+  if (modeMatch && request.method === 'POST') return setMode(request, response, modeMatch[1]);
 
   const actionMatch = /^\/api\/(install|install-and-start|start|stop|restart-service|takeover|favorite|touch)\/([a-z0-9-]+)$/.exec(path);
   if (actionMatch) return projectAction(request, response, actionMatch[1], actionMatch[2]);

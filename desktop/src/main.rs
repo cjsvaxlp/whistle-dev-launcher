@@ -16,6 +16,8 @@ fn main() {
     let app = tauri::Builder::default()
         .setup(|app| {
             menu::setup(app)?;
+            #[cfg(target_os = "macos")]
+            system_proxy::monitor(app.handle().clone());
             menu::run_action(
                 app.handle(),
                 if services::proxy_paused() {
@@ -37,9 +39,7 @@ fn main() {
                 eprintln!("停止项目服务失败：{error}");
             }
             #[cfg(target_os = "macos")]
-            if let Err(error) = system_proxy::restore() {
-                eprintln!("恢复系统代理失败：{error}");
-            }
+            if let Err(error) = system_proxy::shutdown() { eprintln!("恢复系统代理失败：{error}"); }
             let _ = services::stop();
         }
         #[cfg(target_os = "macos")]

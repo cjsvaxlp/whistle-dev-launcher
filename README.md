@@ -97,7 +97,7 @@ macOS 入口中的 --windows-only 显示 Windows 在线构建提示；--output-d
 | `features/proxy/` | 检测本地服务、生成 Whistle 规则并写入同步状态。 |
 | `features/startup/` | 跟踪启动阶段、服务退出、接管结果和超时。 |
 | `features/dependencies/` | 依赖安装进程、安装日志与安装后启动，维护安装任务状态。 |
-| `features/system-proxy/` | 关闭本工具管理的系统代理，并清理旧开发浏览器实例。 |
+| `features/system-proxy/` | 代理接入模式开关、模式保存与状态展示，以及测试域名 PAC 内容和下载路由。 |
 | `features/cleanup/` | 清理工具生成的日志、临时文件、同步状态、兼容代理文件和 PAC。 |
 | `features/runtime/` | 解析 Node 版本约束，选择运行时和依赖安装命令。 |
 | `features/terminal/launcher.cjs` | 后台启动开发服务并连接日志采集。 |
@@ -119,7 +119,7 @@ macOS 入口中的 --windows-only 显示 Windows 在线构建提示；--output-d
 | `desktop/src/main.rs` | 注册桌面模块，处理应用启动和退出事件。 |
 | `desktop/src/menu/` | 菜单栏、单色菜单图标、异步操作和状态反馈。 |
 | `desktop/src/window/` | 面板与终端窗口、导航范围和下载处理。 |
-| `desktop/src/system_proxy/` | macOS 启动后配置测试域名 PAC，保存原设置，停止或退出时恢复；保留异常退出后的备份。 |
+| `desktop/src/system_proxy/` | macOS 系统代理模式的 PAC 配置、原设置备份和退出恢复；浏览器代理模式不接管系统代理。 |
 | `desktop/src/services/` | 本机 Whistle 的发现、启动、停止和浏览器入口。 |
 | `desktop/ui/` | 连接异常时显示的本地页面。 |
 | `desktop/icons/` | 应用包使用 Cybercafe.icns，Tauri 默认图标使用其同款 PNG，保持 Dock 与应用图标一致。 |
@@ -153,7 +153,7 @@ Windows Tauri NSIS 工作流在 Windows runner 编译原生桌面应用并直接
 desktop/tauri.windows.conf.json 定义当前用户安装、WebView2 检测和运行资源。
 desktop/src/services/windows.rs 管理 Windows Whistle 和浏览器入口。
 工具专用 Node 与 Whistle 打包到 tools/runtime，项目继续使用各自的开发环境。
-Windows 实机安装、系统代理联动和浏览器标签页复用仍需验收。
+Windows 实机安装、浏览器代理配合和浏览器标签页复用仍需验收。
 
 ### Windows 原生安装包与旧版 CMD 包
 

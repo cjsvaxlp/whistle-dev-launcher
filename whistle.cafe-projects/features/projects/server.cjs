@@ -1,4 +1,3 @@
-const { setManagedMacPacEnabled } = require('../system-proxy/shutdown.cjs');
 const { execFile } = require('node:child_process');
 const { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
@@ -202,13 +201,6 @@ async function changeProxy(request, response, enabled) {
     if (!await runSync()) {
       saveProxyEnabled(previous);
       return json(response, 503, { message: syncError || '切换本地代理失败。' });
-    }
-    try {
-      await setManagedMacPacEnabled(enabled);
-    } catch (error) {
-      saveProxyEnabled(previous);
-      await runSync();
-      throw error;
     }
     return json(response, 200, {
       proxyEnabled: enabled,

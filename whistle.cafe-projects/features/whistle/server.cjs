@@ -1,4 +1,3 @@
-const { prepareSystemProxyShutdown } = require('../system-proxy/shutdown.cjs');
 const { spawn } = require('node:child_process');
 const { closeSync, existsSync, mkdirSync, openSync } = require('node:fs');
 const { homedir } = require('node:os');
@@ -27,7 +26,6 @@ function whistleCli() {
 async function prepareProxyShutdown() {
   const cli = whistleCli();
   if (!cli) throw new Error('找不到 Whistle CLI，无法自动停止代理。');
-  await prepareSystemProxyShutdown();
   const log = join(logsDir, 'whistle-stop.log');
   mkdirSync(logsDir, { recursive: true });
   return () => {

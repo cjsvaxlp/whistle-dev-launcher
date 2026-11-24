@@ -1,14 +1,14 @@
 //! macOS PAC ownership and recovery. Never replace a user's later proxy choice.
-use std::{env, fs, path::PathBuf, process::Command, sync::{Mutex, atomic::{AtomicBool, Ordering}}};
+use std::{fs, path::PathBuf, process::Command, sync::{Mutex, atomic::{AtomicBool, Ordering}}};
 use serde_json::{json, Value};
 
 const PAC: &str = "http://127.0.0.1:8899/plugin.cafe-projects/cybercafe.pac";
 static LOCK: Mutex<()> = Mutex::new(());
+static QUITTING: AtomicBool = AtomicBool::new(false);
 static ACTIVE: AtomicBool = AtomicBool::new(false);
 
 fn backup_path() -> Result<PathBuf, String> {
-    let home = env::var_os("HOME").ok_or("无法定位代理配置备份目录。")?;
-    Ok(PathBuf::from(home).join("Library/Application Support/Cybercafe/system-proxy-backup.json"))
+    Ok(crate::services::state_directory()?.join("system-proxy-backup.json"))
 }
 fn network(args: &[&str]) -> Result<String, String> {
     let out = Command::new("/usr/sbin/networksetup").args(args).env("LC_ALL", "C").output().map_err(|e| e.to_string())?;
@@ -51,6 +51,7 @@ fn restore_file(path: &PathBuf) -> Result<(), String> {
 }
 pub fn enable() -> Result<(), String> {
     let _lock = LOCK.lock().map_err(|e| e.to_string())?;
+    if QUITTING.load(Ordering::Acquire) { return Ok(()); }
     let path = backup_path()?;
     if ACTIVE.load(Ordering::Acquire) { return Ok(()); }
     // Recover a previous interrupted session before taking a fresh snapshot.
@@ -87,4 +88,51 @@ pub fn restore() -> Result<(), String> {
     restore_file(&backup_path()?)?;
     ACTIVE.store(false, Ordering::Release);
     Ok(())
+}
+
+
+pub fn shutdown() -> Result<(), String> {
+    QUITTING.store(true, Ordering::Release);
+    restore()
+}
+
+pub fn monitor(app: tauri::AppHandle) {
+    use tauri::Manager;
+    std::thread::spawn(move || {
+        let mut previous_error = String::new();
+        let mut failed_target = None;
+        while !QUITTING.load(Ordering::Acquire) {
+            let result = (|| {
+                let dir = crate::services::state_directory()?;
+                let mode = fs::read_to_string(dir.join("proxy-mode")).unwrap_or_default();
+                let target = mode.trim() == "system" && !crate::services::proxy_paused()
+                    && crate::services::status() == crate::services::Status::Ready;
+                // Retry after a mode change or app restart, never repeat authorization dialogs in a loop.
+                if failed_target == Some(target) { return Ok(()); }
+                let applied = if target { enable() } else { restore() };
+                if applied.is_err() { failed_target = Some(target); } else { failed_target = None; }
+                let status = match &applied {
+                    Ok(()) => serde_json::json!({"mode":if target {"system"} else {"browser"}, "error":null}),
+                    Err(error) => serde_json::json!({"mode":null,"error":error}),
+                };
+                let _ = fs::write(dir.join("proxy-mode-status.json"), status.to_string());
+                applied
+            })();
+            match result {
+                Err(error) if error != previous_error => {
+                    previous_error = error.clone();
+                    let handle = app.clone();
+                    let _ = app.run_on_main_thread(move || {
+                        if let Some(window) = handle.get_webview_window("panel") {
+                            let message = serde_json::to_string(&error).unwrap_or_default();
+                            let _ = window.eval(format!("import('./shared/toast/toast.mjs').then(m => m.showError({message}))"));
+                        }
+                    });
+                }
+                Ok(()) => previous_error.clear(),
+                _ => {}
+            }
+            std::thread::sleep(std::time::Duration::from_secs(2));
+        }
+    });
 }

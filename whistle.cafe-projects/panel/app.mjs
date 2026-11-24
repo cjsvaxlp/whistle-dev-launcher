@@ -2,6 +2,7 @@ async function startPanel() {
   let loaded;
   try {
     loaded = await Promise.all([
+      import('../features/system-proxy/client.mjs'),
       import('../features/cleanup/client.mjs'),
       import('../shared/toast/toast.mjs'),
       import('../shared/http/client.mjs'),
@@ -15,6 +16,7 @@ async function startPanel() {
     return;
   }
   const [
+    { bindProxyMode },
     { bindCleanup },
     { showError },
     { post },
@@ -26,6 +28,7 @@ async function startPanel() {
 
   const { showDoctor } = bindDoctor({ load });
   bindRules();
+  await bindProxyMode();
   bindCleanup({ load });
   bindWhistleControls({ load, setStatus, shouldOpenDirectly });
 
