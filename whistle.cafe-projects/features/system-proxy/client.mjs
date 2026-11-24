@@ -19,10 +19,15 @@ export async function bindProxyMode() {
     if (data.status?.error && data.status.error !== lastError) showError(data.status.error);
     lastError = data.status?.error || '';
     hint.textContent = data.mode === 'system'
-      ? '系统代理：应用自动配置 PAC，退出时恢复原设置。'
-      : '浏览器代理：请将开发浏览器指向 127.0.0.1:8899，其他流量沿用系统代理。';
-    if (data.status?.error) hint.textContent += ' 切换失败：' + data.status.error;
-    else if (data.status && data.status.mode !== data.mode) hint.textContent += ' 等待桌面端应用配置。';
+      ? 'Whistle 代理 · 自动配置，退出恢复'
+      : '浏览器代理 · 扩展需启用 127.0.0.1:8899 · 页面徽标确认环境';
+    hint.title = data.mode === 'system'
+      ? '应用自动配置系统 PAC，退出时恢复原设置。'
+      : '在浏览器扩展中将 cloudgametest2.migufun.com:18443 代理到 HTTP 127.0.0.1:8899；其他流量沿用系统代理，无需配置 PAC。';
+    if (data.status?.error) {
+      hint.textContent += ' · 切换失败（详见体检）';
+      hint.title += '\n' + data.status.error;
+    } else if (data.status && data.status.mode !== data.mode) hint.textContent += ' · 配置中';
   }
   control.addEventListener('change', async () => {
     if (busy) { control.checked = savedMode === 'system'; return; }
@@ -34,7 +39,7 @@ export async function bindProxyMode() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || '切换代理模式失败。');
       await readMode();
-      hint.textContent += ' 桌面端将在数秒内应用，系统可能要求授权。';
+
     } catch (error) {
       control.checked = savedMode === 'system';
       showError(error.message);

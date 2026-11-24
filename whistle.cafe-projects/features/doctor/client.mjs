@@ -2,6 +2,7 @@ import { showError } from '../../shared/toast/toast.mjs';
 import { confirmAction, post } from '../../shared/http/client.mjs';
 
 const doctorModal = document.querySelector('#doctor-modal');
+const doctorTitle = document.querySelector('#doctor-title');
 const doctorState = document.querySelector('#doctor-state');
 const doctorList = document.querySelector('#doctor-list');
 
@@ -42,12 +43,13 @@ export function bindDoctor({ load }) {
   }
 
   function renderChecks(data) {
+    doctorTitle.textContent = '环境体检 · ' + (data.proxyMode === 'system' ? 'Whistle 代理' : '浏览器代理');
     doctorList.replaceChildren();
     for (const check of data.checks) {
       const item = document.createElement('li');
       const badge = document.createElement('span');
       badge.className = 'badge ' + check.status;
-      badge.textContent = check.id === 'pac' && check.status === 'unknown' ? '可选' : { ok: '正常', warn: '注意', fail: '异常', unknown: '待确认' }[check.status] || check.status;
+      badge.textContent = check.badge || (check.id === 'pac' && check.status === 'unknown' ? '可选' : { ok: '正常', warn: '注意', fail: '异常', unknown: '待确认' }[check.status] || check.status);
       const text = document.createElement('div');
       text.className = 'check-text';
       const name = document.createElement('b');
@@ -72,7 +74,9 @@ export function bindDoctor({ load }) {
       }
       doctorList.append(item);
     }
-    doctorState.textContent = data.ok ? '全部正常' : '有需要处理的项';
+    doctorState.textContent = data.ok
+      ? data.checks.some(check => check.id === 'proxy' && check.status === 'unknown') ? (data.proxyMode === 'system' ? '代理配置待确认' : '浏览器访问待确认') : '全部正常'
+      : '有需要处理的项';
   }
 
   async function showDoctor({ auto = false } = {}) {
@@ -84,7 +88,7 @@ export function bindDoctor({ load }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || '检查失败。');
       renderChecks(data);
-      if (auto && data.ok) {
+      if (auto && data.ok && !data.checks.some(check => check.id === 'proxy' && check.status === 'unknown')) {
         doctorModal.hidden = true;
         localStorage.setItem('cafe-doctor-seen', '1');
       }

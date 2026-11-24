@@ -162,3 +162,7 @@ Windows 原生 EXE 请运行 GitHub Actions 的 Build desktop packages 工作流
 旧版 desktop/package-cross-platform.py 只生成名称包含 Windows-Legacy-CMD 的兼容包，通用打包入口已停止调用它。
 
 界面通过 `prefers-color-scheme` 跟随系统自动切换浅色/深色主题，无需刷新；面板、操作弹框、Toast、项目终端及悬浮状态标识同步适配。
+
+`features/proxy/browser-status.cjs` 接收测试页徽标的本地响应探测回报，按工作区和服务实例区分，供项目入口与体检显示最近的浏览器访问确认状态。
+
+`features/doctor/proxy-checks.cjs` 按浏览器代理或 Whistle 代理模式生成适用的体检项，避免显示不需要的 PAC 和系统代理配置提示。

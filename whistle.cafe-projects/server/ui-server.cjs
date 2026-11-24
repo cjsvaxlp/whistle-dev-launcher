@@ -1,3 +1,4 @@
+const { recordBrowserReport } = require('../features/proxy/browser-status.cjs');
 const { modeSnapshot, setMode } = require('../features/system-proxy/mode.cjs');
 const { cleanGeneratedFiles } = require('../features/cleanup/server.cjs');
 const { pacRoute, servePac } = require('../features/system-proxy/pac.cjs');
@@ -7,7 +8,7 @@ const { readFileSync, statSync } = require('node:fs');
 const { join } = require('node:path');
 const { origin, pluginDir, readWorkspace } = require('../shared/config/config.cjs');
 const { authorized, json, token } = require('../shared/http/http.cjs');
-const { listProjects } = require('../features/projects/store.cjs');
+const { listProjects, readState } = require('../features/projects/store.cjs');
 const { projectAction, stopAllServices, runSync, snapshot, changeProxy } = require('../features/projects/server.cjs');
 const { doctor, fix } = require('../features/doctor/server.cjs');
 const { getLog, clearProjectLogs } = require('../features/logs/routes.cjs');
@@ -72,6 +73,10 @@ async function handle(request, response) {
   if (path === pacRoute && ['GET', 'HEAD'].includes(request.method)) return servePac(response, request.method);
   if (request.method === 'GET') {
     if (panelAssets.has(path)) return servePanel(response, path);
+    if (path === '/api/browser-report') {
+      const accepted = recordBrowserReport(readState(), url.searchParams, request.headers.referer);
+      return json(response, accepted ? 200 : 409, { accepted });
+    }
     if (path === '/api/proxy-mode') return json(response, 200, modeSnapshot());
     if (path === '/api/token') return json(response, 200, { token });
     if (path === '/api/projects') {

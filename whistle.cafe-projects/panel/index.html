@@ -20,9 +20,9 @@
   </div>
   <label class="proxy-switch proxy-mode-picker">
     <span>浏览器代理</span>
-    <input id="system-proxy-mode" type="checkbox" role="switch" aria-label="系统代理模式；关闭为浏览器代理模式" aria-describedby="proxy-mode-hint" disabled>
+    <input id="system-proxy-mode" type="checkbox" role="switch" aria-label="Whistle 代理模式；关闭为浏览器代理模式" aria-describedby="proxy-mode-hint" disabled>
     <span class="proxy-switch-track" aria-hidden="true"></span>
-    <span>系统代理</span>
+    <span>Whistle 代理</span>
   </label>
   <button class="ghost" id="doctor" type="button">体检</button>
   <button class="ghost" id="restart" type="button" title="重启 Whistle 以加载插件的最新代码">重启 Whistle</button>
@@ -47,6 +47,7 @@
         <button class="secondary primary" id="takeover" type="button" hidden>接管并重启</button>
         <button class="secondary" id="rules" type="button">查看规则</button>
       </div>
+      <p class="status" id="browser-status" role="status"></p>
       <div class="startup-result" id="startup-result" hidden>
         <span id="startup-status" role="status"></span>
       </div>
@@ -56,8 +57,7 @@
         <input class="search" id="game-channel" type="text" maxlength="80" pattern="[A-Za-z0-9_\-]+" placeholder="输入客户端使用的 channelCode">
       </label>
       <p class="note" id="project-entry-note" hidden></p>
-      <p class="note" id="proxy-mode-hint" role="status"></p>
-      <p class="note">页面右下角的徽标会显示当前是「本地接管」还是「测试部署」。缺少依赖时，启动会提示安装。</p>
+      <p class="proxy-mode-hint" id="proxy-mode-hint" role="status"></p>
       <div class="inline-terminal" id="inline-terminal" hidden>
         <iframe id="terminal-frame" title="当前项目终端"></iframe>
       </div>
