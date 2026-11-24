@@ -1,4 +1,5 @@
 let toast;
+let toastMessage;
 let toastTimer;
 const reportedErrors = new Map();
 
@@ -9,12 +10,15 @@ function showToast(message, kind) {
     toast.setAttribute('role', 'alert');
     toast.setAttribute('popover', 'manual');
     toast.hidden = true;
+    toastMessage = document.createElement('span');
+    toastMessage.className = 'toast-message';
+    toast.append(toastMessage);
     document.body.append(toast);
   }
   clearTimeout(toastTimer);
   toast.dataset.kind = kind;
   toast.setAttribute('role', kind === 'info' ? 'status' : 'alert');
-  toast.textContent = message;
+  toastMessage.textContent = message;
   toast.hidden = false;
   toast.showPopover?.();
   toastTimer = setTimeout(() => {

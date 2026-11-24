@@ -4,25 +4,27 @@
   right: auto;
   bottom: auto;
   z-index: 1000;
-  top: 20px;
+  top: max(24px, env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
   box-sizing: border-box;
   width: max-content;
-  max-width: calc(100vw - 32px);
-  display: flex;
+  max-width: min(560px, calc(100vw - 48px));
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+  gap: 10px;
+  padding: 12px 18px;
+  min-height: 46px;
   border: 1px solid rgb(0 0 0 / 8%);
-  border-radius: 14px;
+  border-radius: 999px;
   background: rgb(255 255 255 / 90%);
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
   color: #1d1d1f;
   box-shadow: 0 8px 30px rgb(0 0 0 / 12%), 0 1px 3px rgb(0 0 0 / 5%);
   font: 14px/1.5 -apple-system, BlinkMacSystemFont, sans-serif;
-  overflow-wrap: anywhere;
+  overflow: hidden;
   pointer-events: none;
 }
 .error-toast[hidden] { display: none; }
@@ -30,8 +32,8 @@
   content: "!";
   display: grid;
   place-items: center;
-  flex: 0 0 19px;
-  height: 19px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: #d93d36;
   color: #fff;
@@ -51,16 +53,23 @@
 }
 
 .error-toast[data-kind="info"] {
-  white-space: nowrap;
-  overflow-wrap: normal;
-  word-break: normal;
-  font-size: 13px;
-  line-height: 20px;
+  font-size: 14px;
+  line-height: 22px;
 }
 .error-toast[data-kind="info"]::before {
   content: "i";
-  flex-basis: 17px;
-  height: 17px;
-  font-size: 12px;
+  font-size: 13px;
   background: #007aff;
+}
+
+.error-toast .toast-message {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+.error-toast[data-kind="info"] .toast-message {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

@@ -3,13 +3,13 @@
   --canvas: #f5f5f7;
   --surface: #fff;
   --text: #1d1d1f;
-  --border: #e4e9ef;
-  --control-border: #d0d7de;
-  --muted: #475467;
-  --secondary: #667085;
-  --disabled: #98a2b3;
-  --subtle: #f4f7fa;
-  --hover: #e9eef4;
+  --border: #e5e5ea;
+  --control-border: #d1d1d6;
+  --muted: #48484a;
+  --secondary: #6e6e73;
+  --disabled: #aeaeb2;
+  --subtle: #f2f2f7;
+  --hover: #ececf0;
   --selected: #dce9fb;
   --accent: #0066cc;
   --browser-mode: #af52de;
@@ -76,7 +76,7 @@ header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 12px 20px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
@@ -102,8 +102,8 @@ header {
 }
 
 .entry {
-  padding: 5px 10px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
   background: var(--accent);
   color: var(--on-accent, #fff);
   text-decoration: none;
@@ -112,9 +112,9 @@ header {
 }
 
 .ghost {
-  padding: 5px 10px;
+  padding: 6px 12px;
   border: 1px solid var(--control-border);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--surface);
   color: var(--muted);
   font: inherit;
@@ -135,7 +135,7 @@ header {
 .project-layout > nav {
   display: flex;
   flex-direction: column;
-  padding: 10px;
+  padding: 12px;
   border-right: 1px solid var(--border);
   background: var(--subtle);
   min-height: 0;
@@ -143,9 +143,9 @@ header {
 
 .search {
   width: 100%;
-  padding: 6px 9px;
+  padding: 8px 12px;
   border: 1px solid var(--control-border);
-  border-radius: 6px;
+  border-radius: 8px;
   font: inherit;
   font-size: 13px;
   background: var(--surface);
@@ -173,7 +173,7 @@ header {
   padding: 7px 8px;
   margin: 2px 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   background: none;
   color: inherit;
   font: inherit;
@@ -266,7 +266,7 @@ h1 {
 .start {
   padding: 7px 12px;
   border: 1px solid var(--accent);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--accent);
   color: var(--on-accent, #fff);
   font: inherit;
@@ -283,7 +283,7 @@ h1 {
 .secondary {
   padding: 7px 12px;
   border: 1px solid var(--control-border);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--surface);
   color: inherit;
   text-decoration: none;
@@ -361,7 +361,7 @@ h1 {
 .note {
   margin-top: 20px;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--subtle);
   color: var(--secondary);
   font-size: 13px;
@@ -387,7 +387,7 @@ h1 {
   flex-direction: column;
   width: min(860px, 100%);
   max-height: 84vh;
-  border-radius: 10px;
+  border-radius: 18px;
   background: var(--surface);
   box-shadow: 0 24px 60px rgb(15 23 42 / 30%);
   overflow: hidden;
@@ -397,7 +397,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--border);
   font-weight: 600;
 }
@@ -425,7 +425,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 12px 20px;
   border-top: 1px solid var(--border);
 }
 
@@ -785,3 +785,16 @@ input, select, textarea { color: inherit; }
 #browser-status { margin: 8px 0 0; min-height: 0; font-size: 12px; }
 #browser-status[hidden] { display: none; }
 #browser-status[data-state=ok] { color: var(--success); }
+
+/* Shared control rhythm: compact macOS controls with clear content insets. */
+:where(.ghost, .entry, .start, .secondary):not([hidden]) {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 20px;
+}
+.toolbar { gap: 10px; padding-block: 12px; }
+.action-dialog form { padding: 24px; }
+.modal-foot { gap: 10px; }
