@@ -217,6 +217,10 @@ async function fix(request, response, action) {
   }
   try {
     if (action === 'sync') {
+      if (!readWorkspace()) {
+        json(response, 409, { message: '请先选择项目工作区。' });
+        return;
+      }
       const ok = await runSync();
       json(response, ok ? 200 : 503, { message: ok ? '已同步。' : '同步失败，稍后会自动重试。' });
       return;

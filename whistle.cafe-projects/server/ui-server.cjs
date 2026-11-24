@@ -112,6 +112,7 @@ async function handle(request, response) {
     }
     if (path === '/api/sync') {
       if (!authorized(request)) return json(response, 403, { message: '请从本机 Whistle 面板操作。' });
+      if (!readWorkspace()) return json(response, 409, { message: '请先选择项目工作区。' });
       const ok = await runSync();
       return json(response, ok ? 200 : 503, { message: ok ? '已同步。' : '同步失败，稍后会自动重试。' });
     }
