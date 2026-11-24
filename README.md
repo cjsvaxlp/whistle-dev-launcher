@@ -116,10 +116,11 @@ macOS 入口中的 --windows-only 显示 Windows 在线构建提示；--output-d
 
 | 目录或文件 | 功能和目的 |
 | --- | --- |
+| `desktop/src/lifecycle/` | 统一面板关闭、菜单退出和系统退出的清理顺序，阻止并发启停，清理失败保留窗口。 |
 | `desktop/src/main.rs` | 注册桌面模块，处理应用启动和退出事件。 |
 | `desktop/src/menu/` | 菜单栏、单色菜单图标、异步操作和状态反馈。 |
 | `desktop/src/window/` | 面板与终端窗口、导航范围和下载处理。 |
-| `desktop/src/system_proxy/` | macOS 系统代理模式的 PAC 配置、原设置备份和退出恢复；浏览器代理模式不接管系统代理。 |
+| `desktop/src/system_proxy/` | macOS PAC 配置、原设置备份和恢复、授权状态及取消重试控制；空 PAC 通过系统配置接口清除，保留其他 VPN 设置。 |
 | `desktop/src/services/` | 本机 Whistle 的发现、启动、停止和浏览器入口。 |
 | `desktop/ui/` | 连接异常时显示的本地页面。 |
 | `desktop/icons/` | 应用包使用 Cybercafe.icns，Tauri 默认图标使用其同款 PNG，保持 Dock 与应用图标一致。 |

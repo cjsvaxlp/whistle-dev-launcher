@@ -18,6 +18,10 @@ function setMode(request, response, mode) {
   const temporary = modeFile + '.tmp';
   writeFileSync(temporary, mode + '\n', { mode: 0o600 });
   renameSync(temporary, modeFile);
+  const statusFile = join(stateDir, 'proxy-mode-status.json');
+  const pending = statusFile + '.tmp';
+  writeFileSync(pending, JSON.stringify({ mode: null, error: null, pending: true, message: '正在切换代理' }));
+  renameSync(pending, statusFile);
   json(response, 200, modeSnapshot());
 }
 module.exports = { modeSnapshot, setMode };

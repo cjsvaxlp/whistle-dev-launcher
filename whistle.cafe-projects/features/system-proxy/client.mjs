@@ -19,15 +19,15 @@ export async function bindProxyMode() {
     selectMode(savedMode);
     supported = Boolean(window.cafeDesktop && data.supported);
     control.disabled = !supported;
-    if (data.status?.error && data.status.error !== lastError) showError(data.status.error);
+    if (!data.status?.pending && data.status?.error && data.status.error !== lastError) showError(data.status.error);
     lastError = data.status?.error || '';
     hint.title = data.mode === 'system'
       ? 'Whistle 代理：自动配置系统 PAC，退出恢复原设置。'
       : '浏览器代理：扩展中启用 HTTP 127.0.0.1:8899 的测试域名规则，无需配置 PAC。详细说明见体检。';
     control.title = hint.title;
-    const pending = data.status && data.status.mode !== data.mode && !data.status.error;
+    const pending = data.status && (data.status.pending || data.status.mode !== data.mode) && !data.status.error;
     hint.hidden = !data.status?.error && !pending;
-    hint.textContent = data.status?.error ? '代理切换失败 · 查看体检' : pending ? '正在切换代理…' : '';
+    hint.textContent = data.status?.error ? '代理切换失败 · 查看体检' : pending ? (data.status.message || '正在切换代理…') : '';
     if (data.status?.error) hint.title = data.status.error;
   }
   control.addEventListener('change', async event => {

@@ -23,4 +23,6 @@ test('proxy mode defaults to browser, authenticates changes and persists indepen
   setMode(request, response, 'browser');
   assert.equal(response.code, 200);
   assert.equal(modeSnapshot().mode, 'browser');
+  assert.equal(modeSnapshot().status.error, null);
+  assert.equal(modeSnapshot().status.pending, true);
 });

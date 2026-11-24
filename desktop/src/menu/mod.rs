@@ -33,6 +33,7 @@ fn update_connection_status(app: &AppHandle, text: &str, busy: bool) {
 }
 
 pub fn run_action(app: &AppHandle, action: &str) {
+    if crate::lifecycle::is_exiting() { return; }
     let state = app.state::<MenuState>();
     if state.busy.swap(true, Ordering::AcqRel) {
         return;
@@ -50,20 +51,36 @@ pub fn run_action(app: &AppHandle, action: &str) {
     let app = app.clone();
 
     thread::spawn(move || {
-        let result = match task.as_str() {
-            "start" => services::resume_proxy(),
-            "stop" => services::stop().and_then(|status| {
-                #[cfg(target_os = "macos")]
-                crate::system_proxy::restore()?;
-                Ok(status)
-            }),
-            "test" => services::open_test().map(|_| Status::Ready),
-            _ => Ok(services::status()),
+        let result = {
+            let _operation = crate::lifecycle::operation_lock();
+            if crate::lifecycle::is_exiting() {
+                Err("正在退出应用。".into())
+            } else {
+                match task.as_str() {
+                    "start" => {
+                        #[cfg(target_os = "macos")]
+                        crate::system_proxy::resume();
+                        services::resume_proxy()
+                    }
+                    "stop" => {
+                        #[cfg(target_os = "macos")]
+                        crate::system_proxy::pause();
+                        services::stop_project_services().and_then(|_| {
+                            #[cfg(target_os = "macos")]
+                            crate::system_proxy::restore()?;
+                            services::stop()
+                        })
+                    }
+                    "test" => services::open_test().map(|_| Status::Ready),
+                    _ => Ok(services::status()),
+                }
+            }
         };
         let handle = app.clone();
         let _ = app.run_on_main_thread(move || {
             let state = handle.state::<MenuState>();
             state.busy.store(false, Ordering::Release);
+            if crate::lifecycle::is_exiting() { return; }
             let text = match result {
                 Ok(status) if panel => {
                     if task == "start" && status == Status::Ready {
@@ -129,7 +146,7 @@ pub fn setup(app: &App) -> tauri::Result<()> {
         .tooltip("Cybercafe 本地调试")
         .menu(&menu)
         .on_menu_event(|app, event| match event.id().as_ref() {
-            "quit" => app.exit(0),
+            "quit" => crate::lifecycle::request_exit(app),
             action => run_action(app, action),
         })
         .build(app)?;

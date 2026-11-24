@@ -120,6 +120,8 @@ pub fn resume_proxy() -> Result<Status, String> {
     }
     Ok(Status::Ready)
 }
+pub fn stop_owned() -> Result<(), String> { stop().map(|_| ()) }
+
 pub fn stop() -> Result<Status, String> {
     let mut owned = OWNED_PID.lock().map_err(|e| e.to_string())?;
     if let Some(pid) = *owned {

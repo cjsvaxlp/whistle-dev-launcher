@@ -318,9 +318,14 @@ pub fn start() -> Result<Status, String> {
     Err("Whistle 启动后未监听 8899。".into())
 }
 
-pub fn stop() -> Result<Status, String> {
+pub fn stop() -> Result<Status, String> { stop_managed(false) }
+
+pub fn stop_owned() -> Result<(), String> { stop_managed(true).map(|_| ()) }
+
+fn stop_managed(only_owned: bool) -> Result<Status, String> {
     let mut owned = OWNED_WHISTLE.lock().expect("Whistle lifecycle lock");
     let Some(pid) = *owned else {
+        if only_owned { return Ok(status()); }
         return if status() == Status::Offline {
             Ok(Status::Offline)
         } else {
@@ -329,6 +334,7 @@ pub fn stop() -> Result<Status, String> {
     };
     if listener_pid() != Some(pid) {
         *owned = None;
+        if only_owned { return Ok(status()); }
         return if status() == Status::Offline {
             Ok(Status::Offline)
         } else {

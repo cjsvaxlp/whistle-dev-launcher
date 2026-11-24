@@ -132,7 +132,7 @@ async function doctor() {
 
   const modeConfig = modeSnapshot();
   const mode = modeConfig.mode;
-  if (modeConfig.status?.error) checks.push({ id: 'proxy-mode', label: '代理模式切换', status: 'warn', detail: modeConfig.status.error });
+  if (!modeConfig.status?.pending && modeConfig.status?.error) checks.push({ id: 'proxy-mode', label: '代理模式切换', status: 'warn', detail: modeConfig.status.error });
   if (mode === 'browser') {
     const state = readState();
     const confirmed = Object.keys(state?.projects || {}).filter(project => browserStatus(state, project).confirmed);

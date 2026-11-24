@@ -1,10 +1,12 @@
 //! macOS PAC ownership and recovery. Never replace a user's later proxy choice.
-use std::{fs, path::PathBuf, process::Command, sync::{Mutex, atomic::{AtomicBool, Ordering}}};
+use std::{fs, path::PathBuf, process::Command, sync::{Mutex, atomic::{AtomicBool, AtomicU64, Ordering}}};
 use serde_json::{json, Value};
 
 const PAC: &str = "http://127.0.0.1:8899/plugin.cafe-projects/cybercafe.pac";
 static LOCK: Mutex<()> = Mutex::new(());
 static QUITTING: AtomicBool = AtomicBool::new(false);
+static PAUSED: AtomicBool = AtomicBool::new(false);
+static RETRY: AtomicU64 = AtomicU64::new(0);
 static ACTIVE: AtomicBool = AtomicBool::new(false);
 
 fn backup_path() -> Result<PathBuf, String> {
@@ -28,30 +30,42 @@ fn apply(commands: Vec<String>) -> Result<(), String> {
     // JSON string escaping is also valid for the AppleScript string used here.
     let script = format!("do shell script {} with administrator privileges", serde_json::to_string(&shell).unwrap());
     let out = Command::new("/usr/bin/osascript").args(["-e", &script]).output().map_err(|e| e.to_string())?;
-    if out.status.success() { Ok(()) } else { Err(format!("系统代理配置失败：{}", String::from_utf8_lossy(&out.stderr).trim())) }
+    if out.status.success() { return Ok(()); }
+    let detail = String::from_utf8_lossy(&out.stderr);
+    eprintln!("系统代理命令失败：{detail}");
+    Err(authorization_error(&detail))
 }
+fn authorization_error(detail: &str) -> String {
+    if detail.contains("(-128)") || detail.contains("User canceled") {
+        "已取消网络设置授权；可切换代理模式后重试。".into()
+    } else {
+        "无法更新系统代理，请检查网络设置权限后重试。".into()
+    }
+}
+
 fn restore_file(path: &PathBuf) -> Result<(), String> {
     if !path.exists() { return Ok(()); }
     let rows: Value = serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
-    let mut commands = Vec::new();
     let services = network(&["-listallnetworkservices"])?;
+    let mut needs_restore = false;
     for row in rows.as_array().ok_or("系统代理备份无效。")? {
         let service = row["service"].as_str().ok_or("代理备份缺少网络名称。")?;
         if !services.lines().any(|s| s.trim_start_matches('*') == service) { continue; }
-        let current = network(&["-getautoproxyurl", service])?;
-        if field(&current, "URL:") != PAC { continue; }
-        let url = row["url"].as_str().unwrap_or("");
-        commands.push(command(&["-setautoproxyurl", service, url]));
-        for (key, flag) in [("pac", "-setautoproxystate"), ("web", "-setwebproxystate"), ("secureweb", "-setsecurewebproxystate"), ("discovery", "-setproxyautodiscovery")] {
-            commands.push(command(&[flag, service, if row[key] == true { "on" } else { "off" }]));
-        }
+        if field(&network(&["-getautoproxyurl", service])?, "URL:") == PAC { needs_restore = true; }
     }
-    apply(commands)?;
+    if needs_restore {
+        // networksetup rejects an empty URL. Remove that field through the
+        // supported preferences API instead, preserving all unrelated settings.
+        let script = include_str!("restore.js");
+        apply(vec![format!("/usr/bin/osascript -l JavaScript -e {} -- {} {}",
+            quote(script), quote(&rows.to_string()), quote(PAC))])?;
+    }
     fs::remove_file(path).map_err(|e| e.to_string())
 }
+
 pub fn enable() -> Result<(), String> {
     let _lock = LOCK.lock().map_err(|e| e.to_string())?;
-    if QUITTING.load(Ordering::Acquire) { return Ok(()); }
+    if QUITTING.load(Ordering::Acquire) || PAUSED.load(Ordering::Acquire) { return Ok(()); }
     let path = backup_path()?;
     if ACTIVE.load(Ordering::Acquire) { return Ok(()); }
     // Recover a previous interrupted session before taking a fresh snapshot.
@@ -91,31 +105,63 @@ pub fn restore() -> Result<(), String> {
 }
 
 
-pub fn shutdown() -> Result<(), String> {
-    QUITTING.store(true, Ordering::Release);
-    restore()
+pub fn pause() { PAUSED.store(true, Ordering::Release); }
+pub fn resume() {
+    RETRY.fetch_add(1, Ordering::AcqRel);
+    PAUSED.store(false, Ordering::Release);
+}
+pub fn finish_shutdown() { QUITTING.store(true, Ordering::Release); }
+
+fn write_status(dir: &std::path::Path, value: Value) {
+    if fs::create_dir_all(dir).is_err() { return; }
+    let temporary = dir.join(format!("proxy-mode-status.{}.tmp", std::process::id()));
+    if fs::write(&temporary, value.to_string()).is_ok() {
+        let _ = fs::rename(temporary, dir.join("proxy-mode-status.json"));
+    }
 }
 
 pub fn monitor(app: tauri::AppHandle) {
     use tauri::Manager;
+    // Clear the previous session's error before opening the panel. A new
+    // authorization prompt must not display an old cancellation toast.
+    if let Ok(dir) = crate::services::state_directory() {
+        write_status(&dir, serde_json::json!({"mode":null,"error":null,"pending":true,"message":"正在检查代理"}));
+    }
     std::thread::spawn(move || {
         let mut previous_error = String::new();
-        let mut failed_target = None;
+        let mut failed_intent = None;
         while !QUITTING.load(Ordering::Acquire) {
+            if PAUSED.load(Ordering::Acquire) {
+                std::thread::sleep(std::time::Duration::from_millis(200));
+                continue;
+            }
             let result = (|| {
                 let dir = crate::services::state_directory()?;
-                let mode = fs::read_to_string(dir.join("proxy-mode")).unwrap_or_default();
-                let target = mode.trim() == "system" && !crate::services::proxy_paused()
-                    && crate::services::status() == crate::services::Status::Ready;
-                // Retry after a mode change or app restart, never repeat authorization dialogs in a loop.
-                if failed_target == Some(target) { return Ok(()); }
+                let mode_file = dir.join("proxy-mode");
+                let mode = fs::read_to_string(&mode_file).unwrap_or_default();
+                let requested = mode.trim() == "system" && !crate::services::proxy_paused();
+                let intent = (requested, fs::metadata(&mode_file).and_then(|m| m.modified()).ok(), RETRY.load(Ordering::Acquire));
+                // An authorization cancellation belongs to the user selection,
+                // never to a transient Whistle readiness check.
+                if failed_intent == Some(intent) { return Ok(()); }
+                let target = if requested {
+                    match crate::services::status() {
+                        crate::services::Status::Ready => true,
+                        crate::services::Status::PanelUnavailable => return Ok(()),
+                        crate::services::Status::Offline => false,
+                    }
+                } else { false };
+                let changes = if target { !ACTIVE.load(Ordering::Acquire) } else { backup_path()?.exists() };
+                if changes {
+                    write_status(&dir, serde_json::json!({"mode":null,"error":null,"pending":true,"message":"等待系统授权"}));
+                }
                 let applied = if target { enable() } else { restore() };
-                if applied.is_err() { failed_target = Some(target); } else { failed_target = None; }
+                if applied.is_err() { failed_intent = Some(intent); } else { failed_intent = None; }
                 let status = match &applied {
-                    Ok(()) => serde_json::json!({"mode":if target {"system"} else {"browser"}, "error":null}),
-                    Err(error) => serde_json::json!({"mode":null,"error":error}),
+                    Ok(()) => serde_json::json!({"mode":if target {"system"} else {"browser"}, "error":null,"pending":false}),
+                    Err(error) => serde_json::json!({"mode":null,"error":error,"pending":false}),
                 };
-                let _ = fs::write(dir.join("proxy-mode-status.json"), status.to_string());
+                write_status(&dir, status);
                 applied
             })();
             match result {
@@ -135,4 +181,15 @@ pub fn monitor(app: tauri::AppHandle) {
             std::thread::sleep(std::time::Duration::from_secs(2));
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn cancellation_has_a_readable_message() {
+        let message = authorization_error("0:1684: execution error: User canceled. (-128)");
+        assert!(message.contains("已取消网络设置授权"));
+        assert!(!message.contains("execution error"));
+    }
 }
