@@ -63,10 +63,9 @@ jobs:
             ~/AppData/Local/tauri
             ~/AppData/Local/npm-cache
             ~/AppData/Roaming/npm
-            .cafe-tools/windows-bundle/tools/runtime
-          key: windows-tools-${{ hashFiles('desktop/Cargo.lock', 'desktop/tauri.windows.conf.json', 'desktop/windows/installer-hooks.nsh') }}
+          key: windows-tools-v2-${{ hashFiles('desktop/Cargo.lock', 'desktop/tauri.windows.conf.json', 'desktop/windows/installer-hooks.nsh') }}
           restore-keys: |
-            windows-tools-
+            windows-tools-v2-
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -87,9 +86,21 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $runtime = '.cafe-tools/windows-bundle/tools/runtime'
           New-Item -ItemType Directory -Force $runtime | Out-Null
-          Copy-Item (Get-Command node.exe).Source "$runtime/node.exe"
+          $nodeExe = (Get-Command node.exe).Source
+          $nodeDir = Split-Path $nodeExe
+          Copy-Item $nodeExe "$runtime/node.exe" -Force
           npm install --prefix $runtime whistle --omit=dev
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # npm is a full package with bundled dependencies (semver etc.); copying only
+          # node.exe leaves the project installer unable to run npm.
+          $npmSource = Join-Path $nodeDir 'node_modules/npm'
+          if (!(Test-Path (Join-Path $npmSource 'package.json'))) { throw "找不到 Node 自带的 npm：$npmSource" }
+          $npmTarget = Join-Path $runtime 'node_modules/npm'
+          Remove-Item $npmTarget -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item $npmSource $npmTarget -Recurse -Force
+          Copy-Item (Join-Path $nodeDir 'npm.cmd') $runtime -Force
+          if (Test-Path (Join-Path $nodeDir 'npx.cmd')) { Copy-Item (Join-Path $nodeDir 'npx.cmd') $runtime -Force }
+          if (!(Test-Path (Join-Path $npmTarget 'node_modules/semver/package.json'))) { throw 'Node 自带的 npm 缺少 semver，无法用于项目安装。' }
       - name: Test plugin
         run: npm --prefix whistle.cafe-projects test
       - name: Test and build native EXE
