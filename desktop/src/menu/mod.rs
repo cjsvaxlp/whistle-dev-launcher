@@ -51,8 +51,18 @@ pub fn run_action(app: &AppHandle, action: &str) {
 
     thread::spawn(move || {
         let result = match task.as_str() {
-            "start" => services::resume_proxy(),
-            "stop" => services::stop(),
+            "start" => services::resume_proxy().and_then(|status| {
+                #[cfg(target_os = "macos")]
+                if status == Status::Ready { crate::system_proxy::enable()?; }
+                Ok(status)
+            }),
+            "stop" => {
+                #[cfg(target_os = "macos")]
+                let restored = crate::system_proxy::restore();
+                #[cfg(not(target_os = "macos"))]
+                let restored: Result<(), String> = Ok(());
+                restored.and_then(|_| services::stop())
+            },
             "test" => services::open_test().map(|_| Status::Ready),
             _ => Ok(services::status()),
         };
@@ -81,6 +91,10 @@ pub fn run_action(app: &AppHandle, action: &str) {
                     status.description().to_owned()
                 }
                 Err(error) => {
+                    if let Some(window) = handle.get_webview_window("panel") {
+                        let message = serde_json::to_string(&error).expect("JSON error");
+                        let _ = window.eval(format!("import('./shared/toast/toast.mjs').then(m => m.showError({message}))"));
+                    }
                     if panel {
                         let _ = show_window(&handle, &Status::Offline);
                     }

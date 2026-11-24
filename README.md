@@ -119,6 +119,7 @@ macOS 入口中的 --windows-only 显示 Windows 在线构建提示；--output-d
 | `desktop/src/main.rs` | 注册桌面模块，处理应用启动和退出事件。 |
 | `desktop/src/menu/` | 菜单栏、单色菜单图标、异步操作和状态反馈。 |
 | `desktop/src/window/` | 面板与终端窗口、导航范围和下载处理。 |
+| `desktop/src/system_proxy/` | macOS 启动后配置测试域名 PAC，保存原设置，停止或退出时恢复；保留异常退出后的备份。 |
 | `desktop/src/services/` | 本机 Whistle 的发现、启动、停止和浏览器入口。 |
 | `desktop/ui/` | 连接异常时显示的本地页面。 |
 | `desktop/icons/` | 应用包使用 Cybercafe.icns，Tauri 默认图标使用其同款 PNG，保持 Dock 与应用图标一致。 |

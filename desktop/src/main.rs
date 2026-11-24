@@ -1,6 +1,8 @@
 #![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")]
 
 mod menu;
+#[cfg(target_os = "macos")]
+mod system_proxy;
 #[cfg(not(target_os = "windows"))]
 mod services;
 #[cfg(target_os = "windows")]
@@ -33,6 +35,10 @@ fn main() {
         RunEvent::Exit => {
             if let Err(error) = services::stop_project_services() {
                 eprintln!("停止项目服务失败：{error}");
+            }
+            #[cfg(target_os = "macos")]
+            if let Err(error) = system_proxy::restore() {
+                eprintln!("恢复系统代理失败：{error}");
             }
             let _ = services::stop();
         }
