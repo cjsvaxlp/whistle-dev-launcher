@@ -272,6 +272,7 @@ export function buildRule(projects, locals, compat = {}) {
     MARKER,
     '# 由 cafe-tools 自动同步，请勿手动编辑。',
     `${HOST} enable://capture`,
+    `${HOST}/__cafe/confirm cafe-projects://browser-report cache://no-store`,
     `${HOST}/__cafe/badge.js ${ruleUrl('file', BADGE_JS)}`,
     `${HOST}/__cafe/badge.css ${ruleUrl('file', BADGE_CSS)}`,
     `${HOST}/__cafe/state.json ${ruleUrl('file', stateFile)}`,
@@ -281,20 +282,20 @@ export function buildRule(projects, locals, compat = {}) {
   }
   // Whistle can match the generic HTTP rule on WebSocket upgrades too. Put HMR first.
   for (const project of Object.keys(locals)) {
-    const { port, engine } = locals[project];
+    const { port, engine, pid } = locals[project];
     lines.push(`# local: cybercafe-${project} → 127.0.0.1:${port} (${engine})`);
     if (engine === 'webpack') {
       lines.push(`wss://${HOST}${prefixOf(project)}__hmr ws://127.0.0.1:${port}/ws`);
     } else if (engine === 'vite') {
       lines.push(`wss://${HOST}${prefixOf(project)} ws://127.0.0.1:${port}${prefixOf(project)}`);
     }
-    lines.push(`${HOST}${prefixOf(project)} http://127.0.0.1:${port}${prefixOf(project)} reqHeaders://host=127.0.0.1:${port} cache://no-store`);
+    lines.push(`${HOST}${prefixOf(project)} http://127.0.0.1:${port}${prefixOf(project)} reqHeaders://host=127.0.0.1:${port} cache://no-store resHeaders://x-cafe-local=${project}-${port}-${pid || 0}`);
   }
   for (const project of Object.keys(compat)) {
-    const { port } = compat[project];
+    const { port, pid } = compat[project];
     lines.push(`# compat: cybercafe-${project} → 127.0.0.1:${port} (base /)`);
     lines.push(`wss://${HOST}${prefixOf(project)} ws://127.0.0.1:${port}/`);
-    lines.push(`${HOST}${prefixOf(project)} http://127.0.0.1:${port}/ reqHeaders://host=127.0.0.1:${port} cache://no-store`);
+    lines.push(`${HOST}${prefixOf(project)} http://127.0.0.1:${port}/ reqHeaders://host=127.0.0.1:${port} cache://no-store resHeaders://x-cafe-local=${project}-${port}-${pid || 0}`);
     lines.push(`${HOST}${prefixOf(project)} ${ruleUrl('resReplace', compatFile(project))}`);
   }
   return lines.join('\n');

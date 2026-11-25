@@ -1,14 +1,18 @@
+const { macCaTrusted } = require('./mac-ca.cjs');
+const { proxyChecks } = require('./proxy-checks.cjs');
+const { modeSnapshot } = require('../system-proxy/mode.cjs');
+const { browserStatus } = require('../proxy/browser-status.cjs');
 const { pacBody, pacUrl } = require('../system-proxy/pac.cjs');
 const { execFile, execFileSync } = require('node:child_process');
 const { randomBytes, X509Certificate } = require('node:crypto');
-const { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, symlinkSync, unlinkSync, writeFileSync } = require('node:fs');
+const { existsSync, lstatSync, mkdirSync, realpathSync, renameSync, symlinkSync, unlinkSync, writeFileSync } = require('node:fs');
 const { mkdtemp, writeFile, rm } = require('node:fs/promises');
-const { tmpdir } = require('node:os');
+const { tmpdir, homedir } = require('node:os');
 const { dirname, join } = require('node:path');
 const { promisify } = require('node:util');
 const { pathToFileURL } = require('node:url');
 const { pluginDir, isWindows, POWERSHELL, readWorkspace, stateDir, origin, ruleName, pacFile } = require('../../shared/config/config.cjs');
-const { listProjects } = require('../projects/store.cjs');
+const { listProjects, readState } = require('../projects/store.cjs');
 const { depInfo, windowsCommand } = require('../terminal/launcher.cjs');
 const { runSync } = require('../projects/server.cjs');
 const { json, authorized } = require('../../shared/http/http.cjs');
@@ -94,8 +98,7 @@ async function caTrusted(file, cert) {
       ], { timeout: 5000, windowsHide: true });
       return /^True$/im.test(stdout.trim());
     }
-    await run('/usr/bin/security', ['verify-cert', '-l', '-L', '-p', 'ssl', '-c', file], { timeout: 5000 });
-    return true;
+    return await macCaTrusted(file, cert, run);
   } catch {
     return false;
   }
@@ -127,49 +130,42 @@ async function doctor() {
     checks.push({ ...ca, status: 'warn', detail: error.message, fix: 'open-ca' });
   }
 
-  let pacGenerated = false;
-  try {
-    pacGenerated = readFileSync(pacFile, 'utf8') === pacBody;
-  } catch {
-    // A missing or outdated file can be generated from this check.
-  }
-  checks.push({
-    id: 'pac', label: 'PAC 配置文件',
-    status: pacGenerated ? 'ok' : 'unknown',
-    detail: pacGenerated ? '已生成，配置地址：' + pacUrl : '尚未生成，可按需生成当前 PAC 配置文件',
-    action: pacGenerated ? '将此地址填入系统或浏览器的自动代理配置，保存后重新体检。' : '',
-    fix: pacGenerated ? '' : 'write-pac',
-  });
-
-  let proxy = { status: 'unknown', detail: '当前系统未做检测', fix: 'write-pac' };
-  if (process.platform === 'darwin') {
-    try {
-      const { stdout } = await run('scutil', ['--proxy'], { timeout: 2000 });
-      const setting = name => stdout.match(new RegExp('^\\s*' + name + '\\s*:\\s*(.+)$', 'm'))?.[1].trim();
-      const localProxy = setting('HTTPSEnable') === '1'
-        && ['127.0.0.1', 'localhost'].includes(setting('HTTPSProxy')) && setting('HTTPSPort') === '8899';
-      const usingPAC = setting('ProxyAutoConfigEnable') === '1'
-        && (setting('ProxyAutoConfigURLString') === pacUrl
-          || (setting('ProxyAutoConfigURLString') === pathToFileURL(pacFile).href && existsSync(pacFile)));
-      proxy = localProxy || usingPAC
-        ? { status: 'ok', detail: usingPAC ? '已启用本工具生成的 PAC' : 'HTTPS 代理为本机 Whistle' }
-        : {
-            status: 'warn',
-            detail: '系统代理未指向本机 Whistle 或本工具生成的 PAC',
-            action: '把测试域名代理到 127.0.0.1:8899',
-            fix: 'write-pac',
-          };
-    } catch {
-      proxy = { status: 'unknown', detail: '无法读取系统代理设置', fix: 'write-pac' };
+  const modeConfig = modeSnapshot();
+  const mode = modeConfig.mode;
+  if (!modeConfig.status?.pending && modeConfig.status?.error) checks.push({ id: 'proxy-mode', label: '代理模式切换', status: 'warn', detail: modeConfig.status.error });
+  if (mode === 'browser') {
+    const state = readState();
+    const confirmed = Object.keys(state?.projects || {}).filter(project => browserStatus(state, project).confirmed);
+    checks.push(...proxyChecks(mode, { confirmed }));
+  } else {
+    let proxy = { status: 'unknown', detail: '当前系统未做检测', fix: 'write-pac' };
+    if (process.platform === 'darwin') {
+      try {
+        const { stdout } = await run('scutil', ['--proxy'], { timeout: 2000 });
+        const setting = name => stdout.match(new RegExp('^\\s*' + name + '\\s*:\\s*(.+)$', 'm'))?.[1].trim();
+        const localProxy = setting('HTTPSEnable') === '1'
+          && ['127.0.0.1', 'localhost'].includes(setting('HTTPSProxy')) && setting('HTTPSPort') === '8899';
+        const usingPAC = setting('ProxyAutoConfigEnable') === '1'
+          && (setting('ProxyAutoConfigURLString') === pacUrl
+            || (setting('ProxyAutoConfigURLString') === pathToFileURL(pacFile).href && existsSync(pacFile)));
+        proxy = localProxy || usingPAC
+          ? { status: 'ok', detail: usingPAC ? '已启用本工具生成的 PAC' : 'HTTPS 代理为本机 Whistle' }
+          : {
+              status: 'warn',
+              detail: 'Whistle 代理尚未生效',
+              action: '把测试域名代理到 127.0.0.1:8899',
+              fix: 'write-pac',
+            };
+      } catch {
+        proxy = { status: 'unknown', detail: '无法读取系统代理设置', fix: 'write-pac' };
+      }
     }
+    delete proxy.fix;
+    if (proxy.status !== 'ok') {
+      proxy.action = '选择 Whistle 代理并允许 macOS 网络设置授权。';
+    }
+    checks.push(...proxyChecks(mode, { systemProxy: proxy }));
   }
-  delete proxy.fix;
-  if (proxy.status !== 'ok') {
-    proxy.action = pacGenerated
-      ? 'PAC 已生成，请配置自动代理地址后重新体检。'
-      : '可在 PAC 配置文件一项生成配置，再设置系统或浏览器的自动代理。';
-  }
-  checks.push({ id: 'proxy', label: '系统代理', ...proxy });
 
   try {
     const response = await fetch(
@@ -207,7 +203,7 @@ async function doctor() {
     action: notReady.length ? '用面板里的「安装依赖」处理' : '',
   });
 
-  return { checks, ok: checks.every(check => check.status === 'ok' || check.status === 'unknown') };
+  return { proxyMode: mode, checks, ok: checks.every(check => check.status === 'ok' || check.status === 'unknown') };
 }
 
 async function fix(request, response, action) {
@@ -238,7 +234,7 @@ async function fix(request, response, action) {
         if (isWindows) {
           await run('certutil.exe', ['-user', '-addstore', 'Root', file], { timeout: 60000, windowsHide: true });
         } else {
-          await run('/usr/bin/security', ['add-trusted-cert', '-r', 'trustRoot', '-p', 'ssl', file], { timeout: 60000 });
+          await run('/usr/bin/security', ['add-trusted-cert', '-r', 'trustRoot', '-p', 'ssl', '-k', join(homedir(), 'Library/Keychains/login.keychain-db'), file], { timeout: 60000 });
         }
         if (!(await caTrusted(file, cert))) throw new Error('证书已提交给系统，请在系统证书设置中确认信任。');
       });

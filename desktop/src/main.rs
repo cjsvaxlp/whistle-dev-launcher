@@ -1,6 +1,9 @@
 #![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")]
 
 mod menu;
+mod lifecycle;
+#[cfg(target_os = "macos")]
+mod system_proxy;
 #[cfg(not(target_os = "windows"))]
 mod services;
 #[cfg(target_os = "windows")]
@@ -14,6 +17,8 @@ fn main() {
     let app = tauri::Builder::default()
         .setup(|app| {
             menu::setup(app)?;
+            #[cfg(target_os = "macos")]
+            system_proxy::monitor(app.handle().clone());
             menu::run_action(
                 app.handle(),
                 if services::proxy_paused() {
@@ -27,14 +32,11 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("无法启动 Cybercafe 桌面应用");
     app.run(|_app, event| match event {
-        RunEvent::ExitRequested {
-            code: None, api, ..
-        } => api.prevent_exit(),
-        RunEvent::Exit => {
-            if let Err(error) = services::stop_project_services() {
-                eprintln!("停止项目服务失败：{error}");
+        RunEvent::ExitRequested { api, .. } => {
+            if !lifecycle::exit_ready() {
+                api.prevent_exit();
+                lifecycle::request_exit(_app);
             }
-            let _ = services::stop();
         }
         #[cfg(target_os = "macos")]
         RunEvent::Reopen { .. } => menu::run_action(_app, "panel"),

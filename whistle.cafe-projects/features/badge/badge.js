@@ -60,6 +60,8 @@
   let state = null;
   let failed = false;
   let timer = null;
+  let refreshing = false;
+  let localConfirmed = false;
 
   const isCollapsed = () => {
     try {
@@ -105,7 +107,8 @@
         ? { kind: 'stale', label: `状态过期 · :${local.port}`, local, stale: true }
         : { kind: 'offline', label: '同步未运行' };
     }
-    if (local) return { kind: 'local', label: `本地 · ${project} · :${local.port}`, local };
+    if (local && localConfirmed) return { kind: 'local', label: `本地 · ${project} · :${local.port}`, local };
+    if (local) return { kind: 'stale', label: '规则就绪 · 页面待确认', local, pending: true };
     return { kind: 'test', label: '测试部署' };
   }
 
@@ -119,7 +122,7 @@
       ? `当前页面来自本机开发服务（${project}，端口 ${info.local.port}）`
       : info.kind === 'test'
         ? '当前页面来自测试部署；本地服务就绪后会自动接管'
-        : '代理同步状态已过期';
+        : info.pending ? '规则已就绪，但尚未确认本地页面响应' : '代理同步状态已过期';
 
     field('project').textContent = 'cybercafe-' + project;
     field('status').textContent = info.kind === 'local'
@@ -127,7 +130,7 @@
       : info.kind === 'test'
         ? '测试部署'
         : info.kind === 'stale'
-          ? '接管状态已过期'
+          ? info.pending ? '本地页面待确认' : '接管状态已过期'
           : '同步未运行';
     field('checked').textContent = state && state.updatedAt ? ago(state.updatedAt) : '未知';
 
@@ -142,22 +145,36 @@
       hint.hidden = true;
     } else if (info.kind === 'test') {
       hint.hidden = false;
-      hint.textContent = '本地服务就绪后，刷新或等待页面自动切到本机。';
+      hint.textContent = '本地服务就绪且浏览器代理启用后，刷新页面切到本机。';
     } else {
       hint.hidden = false;
-      hint.textContent = '打开本地项目面板查看同步状态。';
+      hint.textContent = info.pending ? '请确认浏览器代理已启用，并刷新当前页面；仅服务启动不代表当前页面已切到本地。' : '打开本地项目面板查看同步状态。';
     }
   }
 
   async function refresh() {
+    if (refreshing || document.hidden) return;
+    refreshing = true;
     try {
-      const response = await fetch('/__cafe/state.json?t=' + Date.now(), { cache: 'no-store' });
+      const response = await fetch('/__cafe/state.json?t=' + Date.now(), { cache: 'no-store', signal: AbortSignal.timeout(5000) });
       if (!response.ok) throw new Error('HTTP ' + response.status);
       state = await response.json();
+      localConfirmed = false;
+      const local = state.projects?.[project];
+      if (local && state.proxyEnabled !== false) {
+        const probe = await fetch(`/cybercafe-${project}/`, { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(5000) });
+        const proof = probe.headers.get('x-cafe-local');
+        if (probe.ok && proof === `${project}-${local.port}-${local.pid || 0}`) {
+          const query = new URLSearchParams({ project, proof, since: local.since, workspace: state.workspaceId });
+          const report = await fetch('/__cafe/confirm?' + query, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+          localConfirmed = report.ok;
+        }
+      }
       failed = false;
     } catch {
       failed = true;
-    }
+      localConfirmed = false;
+    } finally { refreshing = false; }
     render();
   }
 

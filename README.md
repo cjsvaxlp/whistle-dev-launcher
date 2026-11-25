@@ -64,6 +64,15 @@ macOS 入口中的 --windows-only 显示 Windows 在线构建提示；--output-d
 
 将云端打包工作流提交并推送到默认分支后，在仓库的 Actions 中选择 Build desktop packages，点击 Run workflow 并选择需要构建的分支。完成后在本次运行页面的 Artifacts 下载 macOS Apple Silicon DMG 或 Windows 原生 EXE 安装包，产物保留 14 天。
 
+推送 GitHub tag 后会自动运行同一打包流程，构建该 tag 指向的代码。macOS DMG 和 Windows EXE 均构建成功后，自动上传并发布到该 tag 的 GitHub Release；安装包沿用带日期的文件名，可直接下载，无需解压 Actions 归档。首次发布先创建草稿，两个安装包上传完成后才公开；重跑会覆盖同名附件。普通分支推送不会触发打包，手动 Run workflow 时，`release_tag` 留空只生成 Actions Artifacts；填写已有 tag（如 `v1.0.0`）则检出该 tag 的代码，构建后发布到对应 Release，可用于补发先前创建的 tag。
+
+```bash
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+请先把工作流修改提交到要打 tag 的版本中。发布使用 GitHub 自带的 `GITHUB_TOKEN`，仅发布任务申请 `contents: write`，无需额外配置个人令牌。构建失败时不会执行发布任务，可从 Actions 日志排查后重跑。
+
 构建使用 GitHub 托管机器，本机无需安装 Rust。macOS 包使用现有 ad-hoc 签名。Windows EXE 包含 Tauri 桌面程序、Node.js、Whistle 和插件资源。每次构建先运行相关测试，失败时可在 Actions 日志中查看原因。
 
 ## 代码目录与职责
@@ -97,7 +106,7 @@ macOS 入口中的 --windows-only 显示 Windows 在线构建提示；--output-d
 | `features/proxy/` | 检测本地服务、生成 Whistle 规则并写入同步状态。 |
 | `features/startup/` | 跟踪启动阶段、服务退出、接管结果和超时。 |
 | `features/dependencies/` | 依赖安装进程、安装日志与安装后启动，维护安装任务状态。 |
-| `features/system-proxy/` | 关闭本工具管理的系统代理，并清理旧开发浏览器实例。 |
+| `features/system-proxy/` | 代理接入模式开关、模式保存与状态展示，以及测试域名 PAC 内容和下载路由。 |
 | `features/cleanup/` | 清理工具生成的日志、临时文件、同步状态、兼容代理文件和 PAC。 |
 | `features/runtime/` | 解析 Node 版本约束，选择运行时和依赖安装命令。 |
 | `features/terminal/launcher.cjs` | 后台启动开发服务并连接日志采集。 |
@@ -116,9 +125,11 @@ macOS 入口中的 --windows-only 显示 Windows 在线构建提示；--output-d
 
 | 目录或文件 | 功能和目的 |
 | --- | --- |
+| `desktop/src/lifecycle/` | 统一面板关闭、菜单退出和系统退出的清理顺序，阻止并发启停，清理失败保留窗口。 |
 | `desktop/src/main.rs` | 注册桌面模块，处理应用启动和退出事件。 |
 | `desktop/src/menu/` | 菜单栏、单色菜单图标、异步操作和状态反馈。 |
 | `desktop/src/window/` | 面板与终端窗口、导航范围和下载处理。 |
+| `desktop/src/system_proxy/` | macOS PAC 配置、原设置备份和恢复、授权状态及取消重试控制；空 PAC 通过系统配置接口清除，保留其他 VPN 设置。 |
 | `desktop/src/services/` | 本机 Whistle 的发现、启动、停止和浏览器入口。 |
 | `desktop/ui/` | 连接异常时显示的本地页面。 |
 | `desktop/icons/` | 应用包使用 Cybercafe.icns，Tauri 默认图标使用其同款 PNG，保持 Dock 与应用图标一致。 |
@@ -152,7 +163,7 @@ Windows Tauri NSIS 工作流在 Windows runner 编译原生桌面应用并直接
 desktop/tauri.windows.conf.json 定义当前用户安装、WebView2 检测和运行资源。
 desktop/src/services/windows.rs 管理 Windows Whistle 和浏览器入口。
 工具专用 Node 与 Whistle 打包到 tools/runtime，项目继续使用各自的开发环境。
-Windows 实机安装、系统代理联动和浏览器标签页复用仍需验收。
+Windows 实机安装、浏览器代理配合和浏览器标签页复用仍需验收。
 
 ### Windows 原生安装包与旧版 CMD 包
 
@@ -161,3 +172,11 @@ Windows 原生 EXE 请运行 GitHub Actions 的 Build desktop packages 工作流
 旧版 desktop/package-cross-platform.py 只生成名称包含 Windows-Legacy-CMD 的兼容包，通用打包入口已停止调用它。
 
 界面通过 `prefers-color-scheme` 跟随系统自动切换浅色/深色主题，无需刷新；面板、操作弹框、Toast、项目终端及悬浮状态标识同步适配。
+
+`features/proxy/browser-status.cjs` 接收测试页徽标的本地响应探测回报，按工作区和服务实例区分，供项目入口与体检显示最近的浏览器访问确认状态。
+
+`features/doctor/proxy-checks.cjs` 按浏览器代理或 Whistle 代理模式生成适用的体检项，避免显示不需要的 PAC 和系统代理配置提示。
+
+`features/proxy/report-server.cjs` 通过 Whistle 插件协议处理同域页面确认回报，避免转发回 Whistle UI 端口产生重定向。
+
+macOS 证书体检同时检查当前 Whistle CA 是否实际存在于钥匙串以及 SSL 信任是否有效；安装时写入登录钥匙串，避免仅有信任记录导致 Chrome 报 `ERR_CERT_AUTHORITY_INVALID`。相关逻辑位于 `whistle.cafe-projects/features/doctor/mac-ca.cjs`。

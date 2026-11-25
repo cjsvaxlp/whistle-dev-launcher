@@ -70,3 +70,19 @@ test('an unmatched service is reported without claiming it was taken over', () =
   assert.match(startupSnapshot('unmatched').message, /无法接管/);
   clearStartup('unmatched');
 });
+
+test('ready messages describe the selected mode without claiming browser traffic is verified', () => {
+  const { readyMessage } = require('../features/startup/startup.cjs');
+  assert.match(readyMessage('browser'), /浏览器代理模式.*浏览器代理扩展/);
+  assert.match(readyMessage('system'), /Whistle 代理模式.*系统代理配置成功/);
+  for (const mode of ['browser', 'system']) {
+    assert.match(readyMessage(mode), /尚未验证浏览器请求/);
+    assert.doesNotMatch(readyMessage(mode), /已接管本地服务/);
+  }
+});
+
+test('confirmed page reports are reflected in startup text', () => {
+  const { readyMessage } = require('../features/startup/startup.cjs');
+  assert.match(readyMessage('browser', true), /浏览器代理模式.*已确认测试标签页/);
+  assert.doesNotMatch(readyMessage('browser', true), /尚未验证/);
+});

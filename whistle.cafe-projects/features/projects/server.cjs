@@ -1,4 +1,5 @@
-const { setManagedMacPacEnabled } = require('../system-proxy/shutdown.cjs');
+const { browserStatus } = require('../proxy/browser-status.cjs');
+const { modeSnapshot } = require('../system-proxy/mode.cjs');
 const { execFile } = require('node:child_process');
 const { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
@@ -6,7 +7,7 @@ const { promisify } = require('node:util');
 const { pathToFileURL } = require('node:url');
 const { stateDir, proxyDisabledFile, isLocalProxyEnabled } = require('../workspace/store.cjs');
 const { openLog } = require('../logs/run-log.cjs');
-const { pluginDir, readWorkspace, ruleName, entryUrl, projectPageUrl, isWindows, POWERSHELL } = require('../../shared/config/config.cjs');
+const { pluginDir, readWorkspace, ruleName, entryUrl, projectPageUrl, isWindows } = require('../../shared/config/config.cjs');
 const { listProjects, readState, readPrefs, writePrefs, stateEntry } = require('./store.cjs');
 const { archiveNames, logPath, prepareLog, isRunning, logWriterPid } = require('../logs/store.cjs');
 const { depInfo, cliFor, openTerminal, stopLaunchedServices } = require('../terminal/launcher.cjs');
@@ -33,7 +34,8 @@ function snapshot() {
     const local = state && state.projects && state.projects[name];
     const unmatched = state && state.unmatched && state.unmatched[name];
     const job = jobs.get(name);
-    const startup = startupSnapshot(name);
+    const browser = browserStatus(state, name);
+    const startup = startupSnapshot(name, browser.confirmed);
     const entry = local || unmatched;
     const terminalSource = isRunning(logWriterPid(name))
       ? 'panel'
@@ -42,6 +44,7 @@ function snapshot() {
       name,
       url: projectPageUrl(name),
       active: Boolean(local),
+      browser,
       port: local ? local.port : null,
       engine: local ? local.engine : null,
       since: local ? local.since : null,
@@ -62,6 +65,7 @@ function snapshot() {
   return {
     workspace: readWorkspace(),
     syncError,
+    proxyMode: modeSnapshot().mode,
     proxyEnabled: state?.proxyEnabled ?? isLocalProxyEnabled(),
     updatedAt: updatedAt || null,
     stale: !(age <= STALE_AFTER),
@@ -202,13 +206,6 @@ async function changeProxy(request, response, enabled) {
     if (!await runSync()) {
       saveProxyEnabled(previous);
       return json(response, 503, { message: syncError || '切换本地代理失败。' });
-    }
-    try {
-      await setManagedMacPacEnabled(enabled);
-    } catch (error) {
-      saveProxyEnabled(previous);
-      await runSync();
-      throw error;
     }
     return json(response, 200, {
       proxyEnabled: enabled,

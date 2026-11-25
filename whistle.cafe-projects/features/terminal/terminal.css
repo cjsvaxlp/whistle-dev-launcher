@@ -5,7 +5,7 @@ body {
   display: flex;
   flex-direction: column;
   margin: 0;
-  background: #0b1220;
+  background: #1c1c1e;
   color: #d7e0ea;
   font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
@@ -13,10 +13,11 @@ header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  border-bottom: 1px solid #1e293b;
-  background: #111a2b;
+  padding: 12px 16px;
+  border-bottom: 1px solid #3a3a3c;
+  background: #2c2c2e;
 }
+header { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
 header strong { font-size: 13px; font-weight: 600; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: #64748b; flex: none; }
 .dot.on { background: #22c55e; }
@@ -24,16 +25,17 @@ header strong { font-size: 13px; font-weight: 600; }
 .muted { color: #94a3b8; font-size: 12px; }
 .grow { flex: 1; }
 .button {
-  padding: 4px 10px;
-  border: 1px solid #334155;
-  border-radius: 6px;
-  background: #1e293b;
+  min-height: 30px;
+  padding: 5px 12px;
+  border: 1px solid #545458;
+  border-radius: 8px;
+  background: #3a3a3c;
   color: #e2e8f0;
-  font: inherit;
+  font: 13px/20px -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   font-size: 12px;
   cursor: pointer;
 }
-.button:hover { background: #273449; }
+.button:hover { background: #48484a; }
 .button:disabled { opacity: .5; cursor: default; }
 .button.danger { border-color: #b42318; background: #b42318; color: #fff; }
 .button.danger:hover { background: #961b12; }
@@ -42,7 +44,7 @@ header strong { font-size: 13px; font-weight: 600; }
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 12px 16px;
   border-bottom: 1px solid #44330f;
   background: #3b2f12;
   color: #fcd34d;
@@ -63,7 +65,7 @@ header strong { font-size: 13px; font-weight: 600; }
 .output {
   flex: 1;
   margin: 0;
-  padding: 12px;
+  padding: 16px;
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-word;
@@ -72,10 +74,10 @@ header strong { font-size: 13px; font-weight: 600; }
 
 #confirm-action {
   width: min(380px, calc(100% - 32px));
-  padding: 16px;
-  border: 1px solid #334155;
-  border-radius: 10px;
-  background: #111a2b;
+  padding: 24px;
+  border: 1px solid #545458;
+  border-radius: 16px;
+  background: #2c2c2e;
   color: #d7e0ea;
 }
 

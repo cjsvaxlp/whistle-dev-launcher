@@ -1,3 +1,4 @@
+const { modeSnapshot } = require('../system-proxy/mode.cjs');
 const { randomUUID } = require('node:crypto');
 const { readLog, diagnose } = require('../logs/store.cjs');
 
@@ -50,7 +51,7 @@ function observeStartup(state, scanStartedAt) {
     if (!state) continue;
     if (state.projects[project]) {
       attempt.stage = 'ready';
-      attempt.message = 'Whistle 已接管本地服务。';
+      attempt.message = '本地服务已就绪，Whistle 转发规则已同步。';
       attempt.timedOut = false;
     } else if (state.unmatched?.[project]) {
       failStartup(attempt, '本地服务已监听，但 Whistle 无法接管。请检查启动路径或使用「接管并重启」。');
@@ -59,11 +60,18 @@ function observeStartup(state, scanStartedAt) {
   }
 }
 
-function startupSnapshot(project) {
+function readyMessage(mode, browserConfirmed = false) {
+  if (browserConfirmed) return (mode === 'browser' ? '浏览器代理模式' : 'Whistle 代理模式') + '：本地服务和规则已就绪，最近已确认测试标签页的本地访问。';
+  return mode === 'browser'
+    ? '浏览器代理模式：本地服务和 Whistle 规则已就绪；请启用浏览器代理扩展并刷新测试页，尚未验证浏览器请求。'
+    : 'Whistle 代理模式：本地服务和 Whistle 规则已就绪；请确认系统代理配置成功后刷新测试页，尚未验证浏览器请求。';
+}
+
+function startupSnapshot(project, browserConfirmed = false) {
   const attempt = attempts.get(project);
   if (!attempt) return null;
   checkStartup(attempt, Date.now());
-  const message = [attempt.message ?? PROGRESS[attempt.stage],
+  const message = [attempt.stage === 'ready' ? readyMessage(modeSnapshot().mode, browserConfirmed) : (attempt.message ?? PROGRESS[attempt.stage]),
     attempt.stage === 'installing' ? attempt.notice : ''].filter(Boolean).join(' ');
   return {
     stage: attempt.stage,
@@ -88,6 +96,6 @@ function clearStartup(project) {
 }
 
 module.exports = {
-  beginStartup, waitForService, failStartup, observeStartup, startupSnapshot,
+  readyMessage, beginStartup, waitForService, failStartup, observeStartup, startupSnapshot,
   hasPendingStartup, hasWaitingStartup, clearStartup,
 };

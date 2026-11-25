@@ -33,6 +33,7 @@ const installPrompt = document.querySelector('#install-prompt');
 const status = document.querySelector('#status');
 const startupResult = document.querySelector('#startup-result');
 const startupStatus = document.querySelector('#startup-status');
+const browserStatus = document.querySelector('#browser-status');
 const sync = document.querySelector('#sync');
 const syncNow = document.querySelector('#sync-now');
 const search = document.querySelector('#search');
@@ -124,7 +125,7 @@ function renderList() {
     }
     const tag = document.createElement('span');
     tag.className = project.active ? 'tag' : 'tag idle';
-    tag.textContent = project.active ? (snapshot.proxyEnabled === false ? '运行中' : `:${project.port}`) : '未接管';
+    tag.textContent = project.active ? (snapshot.proxyEnabled === false ? '运行中' : `:${project.port}`) : '未运行';
     button.append(tag);
     button.addEventListener('click', () => {
       if (selected !== project.name) setStatus('', '');
@@ -199,8 +200,8 @@ function render() {
     meta.textContent = snapshot.proxyEnabled === false
       ? `本地服务运行中 · 端口 ${info.port} · 测试地址当前走测试部署`
       : info.compat
-      ? `本地接管中（兼容模式）· 端口 ${info.port} · 资源路径由代理改写，HMR 已一并代理`
-      : `本地接管中 · 端口 ${info.port} · ${info.engine} · ${clock(info.since)} 开始（服务已在运行，无需重复启动）`;
+      ? `转发规则已就绪（兼容模式）· 端口 ${info.port} · 资源路径由代理改写，HMR 转发规则已配置`
+      : `转发规则已就绪 · 端口 ${info.port} · ${info.engine} · ${clock(info.since)} 开始（服务已在运行，无需重复启动）`;
   } else if (info && info.unmatched) {
     meta.textContent = `检测到 127.0.0.1:${info.unmatched.port} 上的服务，但它没有以 /cybercafe-${info.name}/ 为 base 启动；可以点「接管并重启」结束它并按可接管方式重启。`;
   } else if (info && info.deps.status === 'missing') {
@@ -208,7 +209,7 @@ function render() {
   } else if (info && info.deps.status === 'stale') {
     meta.textContent = 'lockfile 比 node_modules 新，依赖可能已过期，建议重新安装。';
   } else if (info) {
-    meta.textContent = '未接管 · 启动服务后会自动切到本地，测试地址保持不变。';
+    meta.textContent = '未运行 · 启动后同步本地转发规则；测试浏览器需通过 Whistle 访问。';
   } else {
     meta.textContent = '在左侧选择项目后，可以启动本地开发服务。';
   }
@@ -233,7 +234,21 @@ function render() {
   const entryNoteText = cmsEntryNoteText || portalEntryNoteText;
   projectEntryNote.hidden = !entryNoteText;
   projectEntryNote.textContent = entryNoteText;
-  open.textContent = cmsEntryNoteText ? '打开 CMS 测试登录' : '打开项目页面';
+  const confirmed = info?.browser?.confirmed && !snapshot.stale && snapshot.proxyEnabled !== false;
+  const openLabel = cmsEntryNoteText ? '打开 CMS 测试登录' : '打开项目页面';
+  open.textContent = openLabel;
+  const startup = info?.startup;
+  const startupPending = startup && startup.stage !== 'ready';
+  browserStatus.hidden = !active || snapshot.proxyEnabled === false || Boolean(startupPending);
+  browserStatus.dataset.state = confirmed ? 'ok' : '';
+  browserStatus.textContent = confirmed ? '服务就绪 · 已确认本地访问'
+    : snapshot.stale ? '同步已过期 · 页面未确认' : '规则就绪 · 页面未确认';
+  browserStatus.title = confirmed
+    ? '最近收到测试标签页的本地访问回报。'
+    : snapshot.proxyMode === 'browser'
+      ? '请在浏览器扩展中启用 HTTP 127.0.0.1:8899 的测试域名规则，然后刷新项目页面。详细配置可在体检中查看。'
+      : '请确认 Whistle 代理配置成功，然后刷新项目页面。详细状态可在体检中查看。';
+  if (startup?.message) browserStatus.title += '\n' + startup.message;
   gameChannelField.hidden = info?.name !== 'game';
   gameChannel.required = !gameChannelField.hidden;
   open.hidden = !info;
@@ -249,8 +264,7 @@ function render() {
   restartService.hidden = !info?.canStop || !active;
   for (const button of [install, takeover, stop, restartService]) button.disabled = busy || installing || launching;
   showTerminal(info?.name, Boolean(info && (info.active || info.log || installing || launching)));
-  const startup = info?.startup;
-  startupResult.hidden = !startup || (startup.stage === 'ready' && (!active || snapshot.stale));
+  startupResult.hidden = !startupPending;
   startupResult.dataset.stage = startup?.stage || '';
   const message = startupResult.hidden ? '' : (startup.stage === 'failed' ? '启动失败，请查看下方终端。' : startup.message) || '';
   if (startupStatus.textContent !== message) startupStatus.textContent = message;
