@@ -64,6 +64,15 @@ macOS 入口中的 --windows-only 显示 Windows 在线构建提示；--output-d
 
 将云端打包工作流提交并推送到默认分支后，在仓库的 Actions 中选择 Build desktop packages，点击 Run workflow 并选择需要构建的分支。完成后在本次运行页面的 Artifacts 下载 macOS Apple Silicon DMG 或 Windows 原生 EXE 安装包，产物保留 14 天。
 
+推送 GitHub tag 后会自动运行同一打包流程，构建该 tag 指向的代码。macOS DMG 和 Windows EXE 均构建成功后，自动上传并发布到该 tag 的 GitHub Release；安装包沿用带日期的文件名，可直接下载，无需解压 Actions 归档。首次发布先创建草稿，两个安装包上传完成后才公开；重跑会覆盖同名附件。普通分支推送不会触发打包，手动 Run workflow 时，`release_tag` 留空只生成 Actions Artifacts；填写已有 tag（如 `v1.0.0`）则检出该 tag 的代码，构建后发布到对应 Release，可用于补发先前创建的 tag。
+
+```bash
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+请先把工作流修改提交到要打 tag 的版本中。发布使用 GitHub 自带的 `GITHUB_TOKEN`，仅发布任务申请 `contents: write`，无需额外配置个人令牌。构建失败时不会执行发布任务，可从 Actions 日志排查后重跑。
+
 构建使用 GitHub 托管机器，本机无需安装 Rust。macOS 包使用现有 ad-hoc 签名。Windows EXE 包含 Tauri 桌面程序、Node.js、Whistle 和插件资源。每次构建先运行相关测试，失败时可在 Actions 日志中查看原因。
 
 ## 代码目录与职责
