@@ -537,7 +537,7 @@ h1 {
 .project-layout .list::-webkit-scrollbar-thumb:hover { background: var(--scroll-hover); }
 .project-card {
   min-height: 0;
-  padding: 16px;
+  padding: 12px;
 }
 .project-layout > nav, .project-card {
   min-width: 0;
@@ -550,7 +550,13 @@ h1 {
   padding: 0 16px 8px;
 }
 .status:empty { display: none; }
-.project-card h1 { font-size: clamp(23px, 4vw, 30px); letter-spacing: -.035em; overflow-wrap: anywhere; }
+.project-card h1 {
+  margin-top: 0;
+  font-size: 24px;
+  line-height: 1.25;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
 :where(button, a, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (max-width: 720px), (max-height: 420px) {
   body { height: auto; min-height: 100vh; }
@@ -884,9 +890,6 @@ input, select, textarea { color: inherit; }
   list-style: none;
   color: var(--secondary);
   font-size: 11px;
-}
-.project-card h1 {
-  font-size: clamp(22px, 3vw, 26px);
 }
 .readiness {
   margin-bottom: 12px;
