@@ -55,8 +55,6 @@ def collect(destination, platform):
             output = destination / relative
             output.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(REPOSITORY / relative, output)
-    else:
-        shutil.copy2(REPOSITORY / "desktop/windows/Open-Cybercafe.cmd", destination)
 
 
 if __name__ == "__main__":

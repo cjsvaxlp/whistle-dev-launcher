@@ -105,7 +105,11 @@ async function stopProject(project) {
     throw new Error('进程归属校验失败（可能已经退出），已取消停止。');
   }
   try {
-    process.kill(entry.pid, 'SIGTERM');
+    if (isWindows) {
+      await run('taskkill.exe', ['/PID', String(entry.pid), '/T', '/F'], { windowsHide: true, timeout: 10000 });
+    } else {
+      process.kill(entry.pid, 'SIGTERM');
+    }
   } catch (error) {
     if (error.code !== 'ESRCH') throw new Error('停止失败：' + error.message);
   }

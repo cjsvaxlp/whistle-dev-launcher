@@ -8,24 +8,9 @@ use std::{
     time::Duration,
 };
 
-pub const PANEL_URL: &str = "http://127.0.0.1:8899/plugin.cafe-projects/";
+use super::{status, Status, PANEL_URL};
 static OWNED_PID: Mutex<Option<u32>> = Mutex::new(None);
 
-#[derive(PartialEq)]
-pub enum Status {
-    Offline,
-    PanelUnavailable,
-    Ready,
-}
-impl Status {
-    pub fn description(&self) -> &'static str {
-        match self {
-            Self::Offline => "Whistle 未启动",
-            Self::PanelUnavailable => "8899 已监听，面板不可用",
-            Self::Ready => "Whistle 已连接",
-        }
-    }
-}
 fn shell(script: &str) -> Result<Output, String> {
     let script =
         format!("[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); {script}");
@@ -50,7 +35,7 @@ fn tools() -> Result<PathBuf, String> {
         .ok_or("找不到应用目录")?
         .join("tools"))
 }
-fn request(route: &str, post: bool) -> Result<serde_json::Value, String> {
+pub(super) fn request(route: &str, post: bool) -> Result<serde_json::Value, String> {
     let script = if post {
         format!("$ErrorActionPreference='Stop'; $b='{PANEL_URL}'; $t=(Invoke-RestMethod ($b+'api/token') -TimeoutSec 4).token; Invoke-RestMethod ($b+{}) -Method Post -Headers @{{'X-Cafe-Token'=$t}} -TimeoutSec 45 | ConvertTo-Json -Depth 12 -Compress", literal(route))
     } else {
@@ -66,57 +51,37 @@ fn request(route: &str, post: bool) -> Result<serde_json::Value, String> {
     }
     Ok(data)
 }
-pub fn status() -> Status {
-    if request("api/token", false).is_ok() {
-        Status::Ready
-    } else if std::net::TcpStream::connect_timeout(
-        &"127.0.0.1:8899".parse().unwrap(),
-        Duration::from_millis(300),
-    )
-    .is_ok()
-    {
-        Status::PanelUnavailable
-    } else {
-        Status::Offline
-    }
+pub fn state_directory() -> Result<PathBuf, String> {
+    if let Some(dir) = env::var_os("CAFE_STATE_DIR") { return Ok(PathBuf::from(dir)); }
+    env::var_os("LOCALAPPDATA").map(PathBuf::from)
+        .map(|path| path.join("Cybercafe/data"))
+        .ok_or_else(|| "无法读取本机应用数据目录。".into())
 }
-pub fn proxy_paused() -> bool {
-    env::var_os("LOCALAPPDATA")
-        .map(PathBuf::from)
-        .map(|p| p.join("Cybercafe/data/proxy-disabled").is_file())
-        .unwrap_or(false)
-}
-pub fn resume_proxy() -> Result<Status, String> {
+pub fn start() -> Result<Status, String> {
     let mut owned = OWNED_PID.lock().map_err(|e| e.to_string())?;
     if status() == Status::Offline {
         let root = tools()?;
-        shell(&format!("$ErrorActionPreference='Stop'; $env:PATH={}+';'+$env:PATH; & node {} start -H 127.0.0.1 -p 8899 --addon {}; if($LASTEXITCODE -ne 0){{exit $LASTEXITCODE}}", literal(&root.join("runtime").to_string_lossy()), literal(&root.join("runtime/node_modules/whistle/bin/whistle.js").to_string_lossy()), literal(&root.to_string_lossy())))?;
+        let output = shell(&format!(
+            "& {{ {} }} -ToolsRoot {}",
+            include_str!("windows-environment.ps1"),
+            literal(&root.to_string_lossy()),
+        ))?;
+        let started = String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .any(|line| line.contains("Whistle@") && line.trim_end().ends_with(" started"));
         for _ in 0..20 {
             if status() == Status::Ready {
                 break;
             }
             thread::sleep(Duration::from_millis(250));
         }
-        let output = shell("(Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort 8899 -State Listen -ErrorAction Stop | Select-Object -First 1).OwningProcess")?;
-        *owned = String::from_utf8_lossy(&output.stdout).trim().parse().ok();
+        if started && status() == Status::Ready {
+            let output = shell("(Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort 8899 -State Listen -ErrorAction Stop | Select-Object -First 1).OwningProcess")?;
+            *owned = String::from_utf8_lossy(&output.stdout).trim().parse().ok();
+        }
     }
     if status() != Status::Ready {
         return Err("无法连接本机 Whistle 面板".into());
-    }
-    if proxy_paused() {
-        let projects = request("api/projects", false)?;
-        if projects["workspace"]
-            .as_str()
-            .is_some_and(|path| !path.is_empty())
-        {
-            if let Err(error) = request("api/proxy/on", true) {
-                // 另一个入口（例如旧版 CMD 启动器）正在切换代理时，409 是暂时的，
-                // 面板应继续打开，而不是停在“Whistle 面板未连接”页。
-                if !error.contains("正在切换") {
-                    return Err(error);
-                }
-            }
-        }
     }
     Ok(Status::Ready)
 }
@@ -132,9 +97,6 @@ pub fn stop() -> Result<Status, String> {
 }
 pub fn open_browser_url(url: &str) -> Result<(), String> {
     shell(&format!("Start-Process {}", literal(url))).map(|_| ())
-}
-pub fn open_test() -> Result<(), String> {
-    open_browser_url("https://cloudgametest2.migufun.com:18443/cybercafe-power/#/amsportal")
 }
 pub fn stop_project_services() -> Result<(), String> {
     if status() != Status::Offline {

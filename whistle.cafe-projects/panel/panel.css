@@ -695,20 +695,6 @@ h1 {
   cursor: default;
 }
 
-.proxy-notice:not(:empty) {
-  position: absolute;
-  z-index: 2;
-  top: calc(100% + 9px);
-  right: 0;
-  width: min(240px, 70vw);
-  padding: 8px 10px;
-  border: 1px solid var(--control-border);
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: 0 3px 10px rgb(15 23 42 / 12%);
-  font-size: 12px;
-}
-
 .workspace-path-form {
   margin-top: 10px;
   color: var(--muted);

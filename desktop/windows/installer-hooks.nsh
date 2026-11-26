@@ -10,7 +10,7 @@
   nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\release-runtime.ps1" "$INSTDIR\tools\runtime\node.exe"'
   Pop $0
   ${If} $0 != 0
-    MessageBox MB_OK|MB_ICONSTOP "无法写入 Cybercafe 的 Node 运行时。请退出 Cybercafe，并确认当前用户对安装目录有写入权限。" /SD IDOK
+    MessageBox MB_OK|MB_ICONSTOP "无法清理旧版内置运行时。请退出 Cybercafe 后重试。" /SD IDOK
     SetErrorLevel 1
     Abort
   ${EndIf}
@@ -20,4 +20,6 @@
   ; The legacy CMD installer created Cybercafe.lnk pointing at Open-Cybercafe.cmd.
   ; Remove it so the Start menu only launches the native app (no console window).
   Delete "$SMPROGRAMS\Cybercafe.lnk"
+  ; Upgrade cleanup is limited to the former app-owned runtime directory.
+  RMDir /r "$INSTDIR\tools\runtime"
 !macroend

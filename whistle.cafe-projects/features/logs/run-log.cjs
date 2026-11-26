@@ -82,7 +82,7 @@ if (require.main === module) {
     }
   };
   if (command) {
-    const child = spawn(command, args, { stdio: ['inherit', 'pipe', 'pipe'] });
+    const child = spawn(command, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     child.stdout.pipe(process.stdout, { end: false });
     child.stderr.pipe(process.stderr, { end: false });
     child.stdout.on('data', append);
