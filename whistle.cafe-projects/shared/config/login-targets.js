@@ -3,9 +3,9 @@
 // 未配置的项目继续使用原有入口路由。
 (function (root) {
   const targets = {
-    power: '/cybercafe-power/#/freeLogin',
-    service: '/cybercafe-service/#/noPower',
-    open: '/cybercafe-open/#/noPower',
+    power: '/cybercafe-power/#/resource/system/server',
+    service: '/cybercafe-service/#/project/view/list',
+    open: '/cybercafe-open/#/resource/instance',
     client: '/cybercafe-client/#/Home',
     'web-client': '/cybercafe-web-client/#/Home',
     h5: '/cybercafe-h5/#/download',

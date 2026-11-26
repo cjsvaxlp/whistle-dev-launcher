@@ -4,6 +4,7 @@
   const navigation = window.__cafeReturn;
   if (!navigation?.read() || location.pathname !== '/cybercafe-power/') return;
   const PROFILE = '/cybercafe-ruiyun-api/cmsapi/v2/street/account/profile';
+  const LOGIN = /\/(?:login|logon|signin|sign-in|sso|auth|passport|token)(?:[\/?]|$)/i;
   const labels = {
     power: '算力管理模块v2.0', hub: '云网吧服务模块', open: '算力开放模块',
     service: '运营分析模块', store: '门店运营模块', inter: '娱乐版权益模块', monitor: '运维监控模块',
@@ -11,12 +12,18 @@
   const originalOpen = XMLHttpRequest.prototype.open;
   const originalFetch = window.fetch;
   let profileReady = false;
+  let loginReady = false;
   let generation = 0;
+  let profileTimer;
+  let profilePolls = 0;
   let timer;
   let disposed = false;
   let automaticClick = false;
   let observer;
 
+  function loggedIn() {
+    return profileReady || loginReady;
+  }
   function isProfile(value) {
     try {
       const url = new URL(typeof value === 'string' ? value : value?.url, location.href);
@@ -28,9 +35,11 @@
     disposed = true;
     observer?.disconnect();
     clearTimeout(timer);
+    clearInterval(profileTimer);
     clearTimeout(expiryTimer);
     document.removeEventListener('click', onMenuClick, true);
     window.removeEventListener('hashchange', schedule);
+    window.removeEventListener('error', reloadAfterChunkFailure, true);
     if (XMLHttpRequest.prototype.open === openWrapper) XMLHttpRequest.prototype.open = originalOpen;
     if (window.fetch === fetchWrapper) window.fetch = originalFetch;
   }
@@ -45,7 +54,7 @@
     if (disposed) return;
     const target = navigation.read();
     if (!target) { cleanup(); return; }
-    if (!profileReady || !onPortalEntry()) return;
+    if (!loggedIn() || !onPortalEntry()) return;
     // Account review, forced password changes and other active dialogs retain their original flow.
     if ([...document.querySelectorAll('[role="dialog"], .el-dialog__wrapper, .v-modal')].some(visible)) return;
     const label = labels[target.project];
@@ -58,7 +67,7 @@
     try { matches[0].click(); } finally { automaticClick = false; cleanup(); }
   }
   function schedule() {
-    if (disposed || !profileReady || !onPortalEntry()) return;
+    if (disposed || !loggedIn() || !onPortalEntry()) return;
     clearTimeout(timer);
     timer = setTimeout(resume, 0);
   }
@@ -67,6 +76,20 @@
     profileReady = status >= 200 && status < 300 && body?.returnCode === '000000'
       && body.resultData != null && Number(body.resultData.forceChangePassword) !== 1;
     if (profileReady) schedule();
+  }
+  function acceptLogin(status, body) {
+    if (disposed || status < 200 || status >= 300) return;
+    if (body && typeof body.returnCode === 'string' && body.returnCode !== '000000') return;
+    loginReady = true;
+    schedule();
+  }
+  function pollProfile() {
+    if (disposed || loggedIn() || !onPortalEntry()) return;
+    if (++profilePolls > 40) { clearInterval(profileTimer); return; }
+    if (typeof originalFetch !== 'function') return;
+    originalFetch.call(window, PROFILE, { credentials: 'include', cache: 'no-store' })
+      .then(response => response.clone().json().then(body => acceptProfile(++generation, response.status, body)))
+      .catch(() => {});
   }
   function openWrapper(method, url, ...rest) {
     const result = originalOpen.call(this, method, url, ...rest);
@@ -79,6 +102,13 @@
           acceptProfile(id, this.status, body);
         } catch { /* Unknown response format never triggers automatic navigation. */ }
       }, { once: true });
+    } else if (typeof url === 'string' && LOGIN.test(url)) {
+      this.addEventListener('loadend', () => {
+        try {
+          const body = this.responseType === 'json' ? this.response : JSON.parse(this.responseText || 'null');
+          acceptLogin(this.status, body);
+        } catch { acceptLogin(this.status, null); }
+      }, { once: true });
     }
     return result;
   }
@@ -88,8 +118,21 @@
       const id = ++generation;
       profileReady = false;
       promise.then(response => response.clone().json().then(body => acceptProfile(id, response.status, body))).catch(() => {});
+    } else if (typeof args[0] === 'string' && LOGIN.test(args[0])) {
+      promise.then(response => response.clone().json().then(body => acceptLogin(response.status, body)).catch(() => acceptLogin(response.status, null))).catch(() => {});
     }
     return promise;
+  }
+  function reloadAfterChunkFailure(event) {
+    const target = event.target;
+    const source = target && target.src;
+    const message = String(event.message || '');
+    if (!((source && /\.js(?:\?|$)/.test(source)) || /chunk|src_views/i.test(message))) return;
+    try {
+      if (sessionStorage.getItem('__cafe_chunk_retry')) return;
+      sessionStorage.setItem('__cafe_chunk_retry', '1');
+    } catch { return; }
+    location.reload();
   }
   function onMenuClick(event) {
     if (automaticClick) return;
@@ -105,7 +148,9 @@
   if (typeof originalFetch === 'function') window.fetch = fetchWrapper;
   document.addEventListener('click', onMenuClick, true);
   window.addEventListener('hashchange', schedule);
+  window.addEventListener('error', reloadAfterChunkFailure, true);
   window.addEventListener('pagehide', cleanup, { once: true });
   observer = new MutationObserver(schedule);
   observer.observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden', 'disabled'] });
+  profileTimer = setInterval(pollProfile, 1200);
 })();

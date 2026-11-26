@@ -7,6 +7,7 @@
   const PREFIX = '__cafe_return__:';
   const PARAM = '__cafe_return';
   const STORAGE_KEY = '__cafe_return_state';
+  const PROJECT_COOKIE = 'cafe_project';
   const TTL = 15 * 60 * 1000;
   const bootstrap = /\/(?:login(?:_4A)?|testLogin|freeLogin|amsportal|noPower|404|review|accountCenter|register|forgotPassword|changePhone|certification)(?:\/|$)/i;
   let state;
@@ -51,6 +52,27 @@
     const value = window.__cafeLoginTargets?.[project];
     return typeof value === 'string' ? targetOf(value) : null;
   }
+  function currentProject() {
+    return /^\/cybercafe-([a-z0-9-]+)\//.exec(location.pathname)?.[1] || '';
+  }
+  function linkProject() {
+    try { return new URL(location.href).searchParams.get('__cafe_project') || ''; } catch { return ''; }
+  }
+  function setProjectCookie(project) {
+    if (!project || project === 'power') return;
+    try {
+      const secure = location.protocol === 'https:' ? '; Secure' : '';
+      document.cookie = PROJECT_COOKIE + '=' + encodeURIComponent('cybercafe-' + project)
+        + '; Path=/; Max-Age=900; SameSite=Lax' + secure;
+    } catch { /* Cookie may be unavailable. */ }
+  }
+  function projectCookie() {
+    try {
+      const match = new RegExp('(?:^|;\\s*)' + PROJECT_COOKIE + '=([^;]*)').exec(document.cookie || '');
+      const value = match ? decodeURIComponent(match[1]) : '';
+      return value.replace(/^cybercafe-/, '');
+    } catch { return ''; }
+  }
   const originalPush = history.pushState;
   const originalReplace = history.replaceState;
   try {
@@ -79,8 +101,10 @@
     // parameter survives. Resolve the project from the referrer and use its
     // configured post-login page instead of relying on the link.
     if (!state) {
+      const cookieProject = projectCookie();
       const referred = targetOf(document.referrer || '');
-      const configured = referred && configuredTarget(referred.project);
+      const project = linkProject() || cookieProject || referred?.project;
+      const configured = project && configuredTarget(project);
       if (configured) {
         state = { ...configured, expiresAt: Date.now() + TTL, loginSeen: false, attempted: false };
         save();
@@ -96,6 +120,7 @@
       }
     }
   }
+  setProjectCookie(state?.project || linkProject() || currentProject());
   if (!state) return;
   // Login clears business session data. Preserve only our expiring return URL,
   // never account credentials; mirror it because window.name can be reset on navigation.
@@ -125,6 +150,14 @@
     const current = /^\/cybercafe-([a-z0-9-]+)\//.exec(location.pathname)?.[1];
     if (current && current !== target.project && current !== 'power' && !(current === 'cms' && target.project === 'newcms')) { cancel(); return; }
     const route = location.hash.slice(1).split('?')[0] || '/';
+    // Hub has its own freeLogin route; the shared login entry is the power
+    // portal. Redirect only that route so an already logged-in hub stays direct.
+    if (current === 'hub' && route === '/freeLogin' && state && !state.hubPortalRedirect) {
+      state.hubPortalRedirect = true;
+      save();
+      location.replace(new URL('/cybercafe-power/#/amsportal', ORIGIN).href);
+      return;
+    }
     // CMS / New CMS have their own login, but the unified SSO may land on the
     // power portal. Return only these two targets to their business pages;
     // portal projects continue to use portal.js, and all other projects keep

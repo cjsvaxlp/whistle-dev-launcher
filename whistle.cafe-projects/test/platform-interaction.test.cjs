@@ -51,11 +51,12 @@ for (const platform of ['darwin', 'win32']) {
 }
 
 // Exercise the injected adapter without touching a business checkout or issuing login requests.
-function portalAdapterFixture({ forceChangePassword = 0, returnCode = '000000', enabled = true, dialog = false, hash = '#/freeLogin' } = {}) {
+function portalAdapterFixture({ forceChangePassword = 0, returnCode = '000000', enabled = true, dialog = false, hash = '#/freeLogin', project = 'store', targetUrl = '', buttonLabel = '门店运营模块' } = {}) {
   const timers = new Map();
   let nextTimer = 0;
   let clicked = 0;
   let attempted = false;
+  const redirects = [];
   let cancelled = false;
   class XHR {
     open(...args) { this.args = args; return 'original'; }
@@ -63,13 +64,13 @@ function portalAdapterFixture({ forceChangePassword = 0, returnCode = '000000', 
   }
   const originalOpen = XHR.prototype.open;
   const button = {
-    textContent: '门店运营模块', disabled: !enabled, hidden: false,
+    textContent: buttonLabel, disabled: !enabled, hidden: false,
     getClientRects: () => [1], getAttribute: () => null,
     click() { clicked++; },
   };
   const window = {
     __cafeReturn: {
-      read: () => cancelled ? null : ({ project: 'store' }),
+      read: () => cancelled ? null : ({ project, url: targetUrl || ('https://cloudgametest2.migufun.com:18443/cybercafe-' + project + '/#/merchant/store/list') }),
       cancel() { cancelled = true; },
       beginExchange() { if (attempted) return false; attempted = true; return true; },
     },
@@ -83,10 +84,12 @@ function portalAdapterFixture({ forceChangePassword = 0, returnCode = '000000', 
   };
   const context = {
     window, document, XMLHttpRequest: XHR, URL,
-    location: { origin: 'https://cloudgametest2.migufun.com:18443', pathname: '/cybercafe-power/', href: 'https://cloudgametest2.migufun.com:18443/cybercafe-power/' + hash, hash },
+    location: { origin: 'https://cloudgametest2.migufun.com:18443', pathname: '/cybercafe-power/', href: 'https://cloudgametest2.migufun.com:18443/cybercafe-power/' + hash, hash, replace: value => redirects.push(value) },
     MutationObserver: class { observe() {} disconnect() {} },
     setTimeout(callback, delay) { timers.set(++nextTimer, { callback, delay }); return nextTimer; },
     clearTimeout(id) { timers.delete(id); },
+    setInterval(callback, delay) { timers.set(++nextTimer, { callback, delay }); return nextTimer; },
+    clearInterval(id) { timers.delete(id); },
   };
   vm.runInNewContext(fs.readFileSync(join(__dirname, '../features/navigation/portal.js'), 'utf8'), context);
   const xhr = new XHR();
@@ -96,7 +99,7 @@ function portalAdapterFixture({ forceChangePassword = 0, returnCode = '000000', 
   xhr.response = { returnCode, resultData: { forceChangePassword } };
   xhr.loadend();
   for (const [id, timer] of [...timers]) if (timer.delay === 0) { timers.delete(id); timer.callback(); }
-  return { clicked, attempted, restored: XHR.prototype.open === originalOpen };
+  return { clicked, attempted, restored: XHR.prototype.open === originalOpen, redirects };
 }
 
 test('门户运行时适配仅在已有校验成功后触发原模块入口，并恢复观察包装', () => {
@@ -135,7 +138,7 @@ test('门户校验失败、强制改密、弹窗及禁用入口不触发自动�
   }
 });
 
-function returnPage(href, values = new Map(), name = '', referrer = '', targets = {}) {
+function returnPage(href, values = new Map(), name = '', referrer = '', targets = {}, cookie = '') {
   const events = new Map();
   const redirects = [];
   class Storage {
@@ -155,7 +158,17 @@ function returnPage(href, values = new Map(), name = '', referrer = '', targets 
   const window = { name, Storage, sessionStorage, __cafeLoginTargets: targets, setTimeout: () => 1, clearTimeout() {},
     addEventListener(type, callback) { events.set(type, callback); }, removeEventListener(type) { events.delete(type); } };
   window.top = window.self = window;
-  const document = { addEventListener() {}, referrer };
+  let cookieValue = cookie;
+  const document = {
+    addEventListener() {}, referrer,
+    get cookie() { return cookieValue; },
+    set cookie(value) {
+      const pair = String(value).split(';')[0];
+      const index = pair.indexOf('=');
+      const name = index < 0 ? pair : pair.slice(0, index);
+      if (name === 'cafe_project') cookieValue = pair;
+    },
+  };
   const originalClear = Storage.prototype.clear;
   vm.runInNewContext(fs.readFileSync(join(__dirname, '../features/navigation/return.js'), 'utf8'), { window, location, history, document, URL, Date });
   return { window, location, redirects, events, sessionStorage, originalClear };
@@ -269,5 +282,61 @@ test('hub 登录页丢失链接参数时按项目配置恢复', () => {
   const target = '/cybercafe-hub/#/enterprise/manage';
   const page = returnPage(origin + '/cybercafe-power/#/amsportal', new Map(), '',
     origin + '/cybercafe-hub/#/enterprise/manage', { hub: target });
+  assert.equal(page.window.__cafeReturn.read().url, origin + target);
+});
+
+
+test('项目页把项目写进 cookie，登录页从 cookie 读取映射', () => {
+  const origin = 'https://cloudgametest2.migufun.com:18443';
+  const target = '/cybercafe-store/#/merchant/store/list';
+  const page = returnPage(origin + '/cybercafe-power/#/amsportal', new Map(), '', '',
+    { store: target }, 'cafe_project=cybercafe-store');
+  assert.equal(page.window.__cafeReturn.read().url, origin + target);
+});
+
+
+test('open 入口登录后返回 open 实例管理页', () => {
+  const url = new URL(projectPageUrl('open'));
+  assert.equal(url.pathname, '/cybercafe-power/');
+  assert.equal(url.hash, '#/amsportal');
+  assert.equal(url.searchParams.get('__cafe_return'), '/cybercafe-open/#/resource/instance');
+});
+
+test('power 入口登录后返回 power 资源页', () => {
+  const url = new URL(projectPageUrl('power'));
+  assert.equal(url.pathname, '/cybercafe-power/');
+  assert.equal(url.hash, '#/amsportal');
+  assert.equal(url.searchParams.get('__cafe_return'), '/cybercafe-power/#/resource/system/server');
+});
+
+test('hub 未登录进入 hub/freeLogin 时转到 power/amsportal', () => {
+  const origin = 'https://cloudgametest2.migufun.com:18443';
+  const target = '/cybercafe-hub/#/enterprise/manage';
+  const page = returnPage(origin + '/cybercafe-hub/?__cafe_return=' + encodeURIComponent(target) + '#/freeLogin');
+  assert.deepEqual(page.redirects, [origin + '/cybercafe-power/#/amsportal']);
+});
+
+
+test('power 登录后通过算力管理模块完成会话交换', () => {
+  const target = 'https://cloudgametest2.migufun.com:18443/cybercafe-power/#/resource/system/server';
+  const result = portalAdapterFixture({ project: 'power', targetUrl: target, hash: '#/amsportal', buttonLabel: '算力管理模块v2.0' });
+  assert.equal(result.clicked, 1);
+  assert.equal(result.redirects.length, 0);
+});
+
+
+test('service 从 power 门户启动时带项目标记，避免复用 power 标签页', () => {
+  const url = new URL(projectPageUrl('service'));
+  assert.equal(url.pathname, '/cybercafe-power/');
+  assert.equal(url.searchParams.get('__cafe_project'), 'service');
+  assert.equal(url.searchParams.get('__cafe_return'), '/cybercafe-service/#/project/view/list');
+});
+
+test('power 登录页优先按 __cafe_project 标记恢复项目配置', () => {
+  const origin = 'https://cloudgametest2.migufun.com:18443';
+  const target = '/cybercafe-service/#/project/view/list';
+  const page = returnPage(origin + '/cybercafe-power/?__cafe_project=service#/amsportal', new Map(), '', '', {
+    service: target,
+  });
   assert.equal(page.window.__cafeReturn.read().url, origin + target);
 });

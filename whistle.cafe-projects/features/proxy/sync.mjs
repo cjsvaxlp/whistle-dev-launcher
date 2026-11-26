@@ -23,7 +23,7 @@ const RULE_NAME = 'Cafe 自动代理';
 const MARKER = '# cafe-tools managed: cafe-auto-proxy';
 const POWERSHELL = join(process.env.SystemRoot || 'C:\\Windows',
   'System32/WindowsPowerShell/v1.0/powershell.exe');
-const LOGIN_TARGETS_JS = join(here, '../shared/config/login-targets.js');
+const LOGIN_TARGETS_JS = join(here, '../../shared/config/login-targets.js');
 const RETURN_HTML = join(here, '../navigation/return.html');
 const RETURN_JS = join(here, '../navigation/return.js');
 const PORTAL_HTML = join(here, '../navigation/portal.html');
@@ -291,6 +291,13 @@ export function buildRule(projects, locals, compat = {}) {
   for (const project of projects) {
     lines.push(`${HOST}${prefixOf(project)} ${ruleUrl('htmlAppend', BADGE_HTML)}`);
   }
+  // Store the current project before the business app redirects to the shared
+  // power login. The cookie survives that redirect; power/cms/newcms are
+  // handled separately so this does not overwrite their login target.
+  for (const project of projects) {
+    if (project === 'power' || project === 'cms' || project === 'newcms') continue;
+    lines.push(`${HOST}${prefixOf(project)} resCookies://cafe_project=cybercafe-${project};path=/;max-age=900;secure;samesite=lax`);
+  }
   // Whistle can match the generic HTTP rule on WebSocket upgrades too. Put HMR first.
   for (const project of Object.keys(locals)) {
     const { port, engine, pid } = locals[project];
@@ -301,6 +308,13 @@ export function buildRule(projects, locals, compat = {}) {
       lines.push(`wss://${HOST}${prefixOf(project)} ws://127.0.0.1:${port}${prefixOf(project)}`);
     }
     lines.push(`${HOST}${prefixOf(project)} http://127.0.0.1:${port}${prefixOf(project)} reqHeaders://host=127.0.0.1:${port} cache://no-store resHeaders://x-cafe-local=${project}-${port}-${pid || 0}`);
+  }
+  // CMS 的 /cmsapi 由本地 devServer 代理到 console API。只代理页面本身而
+  // 不代理 /cmsapi 时，请求会落到远端 nginx，验证码等接口返回 405。
+  if (locals.cms) {
+    const { port, pid } = locals.cms;
+    lines.push(`# cms api: /cmsapi → 127.0.0.1:${port} (local devServer proxy)`);
+    lines.push(`${HOST}/cmsapi/ http://127.0.0.1:${port}/cmsapi/ reqHeaders://host=127.0.0.1:${port} cache://no-store resHeaders://x-cafe-local=cms-api-${port}-${pid || 0}`);
   }
   for (const project of Object.keys(compat)) {
     const { port, pid } = compat[project];

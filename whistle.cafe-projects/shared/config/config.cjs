@@ -50,6 +50,12 @@ function projectPageUrl(project, { channelCode } = {}) {
     : project === 'newcms' ? new URL('/cybercafe-cms/#/testLogin', entryUrl) : new URL(target);
   const returnTarget = loginTarget(project) || target;
   launch.searchParams.set('__cafe_return', returnTarget.pathname + returnTarget.search + returnTarget.hash);
+  // The launch URL can be the shared power portal. Keep the intended project
+  // so the browser opener does not reuse an unrelated power tab.
+  launch.searchParams.set('__cafe_project', project);
+  // Make every open a fresh URL so a reused tab navigates instead of showing a
+  // stale page whose old remote chunk may already be gone.
+  launch.searchParams.set('__cafe_open', Date.now().toString(36));
   return launch.href;
 }
 

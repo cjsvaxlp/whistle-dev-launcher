@@ -20,7 +20,9 @@ function run(args) {
   const windows = browser.windows();
   // Login and SPA navigation change the hash after the entry page opens.
   const entry = $.NSURL.URLWithString(url);
-  const project = entry.path.js.match(/^\/cybercafe-[a-z0-9-]+(?:\/|$)/)?.[0].replace(/\/$/, '');
+  const marked = /[?&]__cafe_project=([a-z0-9-]+)/.exec(url);
+  const project = marked ? '/cybercafe-' + marked[1]
+    : entry.path.js.match(/^\/cybercafe-[a-z0-9-]+(?:\/|$)/)?.[0].replace(/\/$/, '');
   let match = null;
   for (let w = 0; w < windows.length; w++) {
     const tabs = windows[w].tabs();
@@ -43,6 +45,9 @@ function run(args) {
     if (match && match.exact) break;
   }
   if (match) {
+    // Reusing a tab must still navigate it to the freshly generated URL;
+    // otherwise it keeps an old page whose chunks can be stale or 404.
+    if (match.tab.url() !== url) match.tab.url = url;
     if (safari) match.window.currentTab = match.tab;
     else match.window.activeTabIndex = match.index;
     match.window.index = 1;
