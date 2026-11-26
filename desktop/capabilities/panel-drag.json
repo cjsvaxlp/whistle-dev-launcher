@@ -1,0 +1,21 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "panel-drag",
+  "description": "Allow the local panel toolbar to drag, minimize, maximize and close its own window.",
+  "windows": [
+    "panel"
+  ],
+  "remote": {
+    "urls": [
+      "http://127.0.0.1:8899/plugin.cafe-projects/"
+    ]
+  },
+  "permissions": [
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-is-maximized",
+    "core:window:allow-close",
+    "core:window:allow-internal-toggle-maximize"
+  ]
+}

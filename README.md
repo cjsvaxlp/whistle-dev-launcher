@@ -105,6 +105,7 @@ git push origin v0.1.1
 | `features/doctor/client.mjs` | 环境体检结果和修复操作界面。 |
 | `features/rules/` | 规则预览、复制及内嵌 Whistle 编辑器弹框。 |
 | `features/whistle/client.mjs` | 面板中的 Whistle 重启、同步和浏览器打开操作。 |
+| `features/window-controls/` | Windows 桌面端工具栏的最小化、最大化/还原和关闭操作；浏览器和 macOS 使用各自原有控件。 |
 | `features/badge/` | 注入测试页面的环境徽标及其样式。 |
 | `shared/toast/` | 共用 Apple 风格错误提示，2 秒自动消失，并对轮询错误去重。 |
 | `shared/http/client.mjs` | 客户端请求、令牌刷新和操作确认。 |
@@ -216,3 +217,5 @@ macOS 和 Windows 桌面服务统一从 `desktop/src/services/mod.rs` 进入，�
 面板首次读取项目与代理模式状态并行进行。终端和代理模式的页面轮询在页面隐藏时暂停，恢复可见时重新读取，并避免重叠请求；后台项目检测和规则同步仍持续运行。日志未变化时不重绘终端内容和诊断信息；普通日志轮询不启动 `ps/pgrep`，清理日志前仍执行原有进程归属校验。日志归属信息按文件标识缓存，文件变化或清理重建后自动失效。
 
 工作目录栏显示名称、分支和末两级目录，例如 `…/cloudgame-cybercafe/cybercafe-front`；悬停可查看完整路径，实际识别和切换仍使用完整真实路径。切换目录按钮始终可见；不显示首次使用向导，也不提供目录别名设置。
+
+macOS 主窗口的原生关闭、最小化和全屏按钮与第一栏工具栏合并，左侧保留安全间距；工具栏空白和品牌区域可拖动窗口。Windows 同样将最小化、最大化/还原和关闭按钮放在第一栏右侧，工具栏空白处可拖动，关闭沿用服务清理与退出流程。`desktop/capabilities/panel-drag.json` 仅授予本机项目面板必要的窗口操作权限，其他远程页面没有窗口控制权限。

@@ -72,13 +72,22 @@ fn open_panel(app: &AppHandle) -> tauri::Result<()> {
 
     let url = PANEL_URL.parse().expect("panel URL");
     let handle = app.clone();
-    let window = WebviewWindowBuilder::new(app, "panel", WebviewUrl::External(url))
+    let builder = WebviewWindowBuilder::new(app, "panel", WebviewUrl::External(url));
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .title_bar_style(tauri::TitleBarStyle::Overlay)
+        .hidden_title(true)
+        .traffic_light_position(tauri::LogicalPosition::new(14.0, 20.0));
+    #[cfg(target_os = "windows")]
+    let builder = builder.decorations(false);
+    let window = builder
         .title("Cybercafe 本地调试")
         .inner_size(1100.0, 740.0)
         .min_inner_size(560.0, 400.0)
-        .initialization_script(
-            "if (location.origin === 'http://127.0.0.1:8899') { window.cafeDesktop = true; window.cafeDesktopTerminal = true; }",
-        )
+        .initialization_script(format!(
+            "if (location.origin === 'http://127.0.0.1:8899') {{ window.cafeDesktop = true; window.cafeDesktopTerminal = true; if (window.top === window.self) document.addEventListener('DOMContentLoaded', () => {{ document.documentElement.dataset.desktopPlatform = '{}'; }}); }}",
+            if cfg!(target_os = "macos") { "macos" } else { "windows" },
+        ))
         .on_navigation(|url| {
             if is_test_page(url) {
                 open_test_page(url);

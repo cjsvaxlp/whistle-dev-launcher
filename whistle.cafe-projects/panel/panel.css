@@ -76,7 +76,7 @@ header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 20px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
@@ -154,7 +154,7 @@ header {
 .fav-filter {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin: 8px 2px;
   color: var(--secondary);
   font-size: 12px;
@@ -168,7 +168,7 @@ header {
 .list button {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   width: 100%;
   padding: 7px 8px;
   margin: 2px 0;
@@ -241,7 +241,7 @@ header {
 }
 
 section {
-  padding: 22px 26px;
+  padding: 16px 16px;
   overflow: auto;
 }
 
@@ -251,7 +251,7 @@ h1 {
 }
 
 .meta {
-  margin: 0 0 16px;
+  margin: 0 0 12px;
   color: var(--secondary);
   min-height: 22px;
 }
@@ -324,7 +324,7 @@ h1 {
 }
 
 .status {
-  margin-top: 14px;
+  margin-top: 12px;
   min-height: 22px;
   color: var(--muted);
 }
@@ -359,8 +359,8 @@ h1 {
 }
 
 .note {
-  margin-top: 20px;
-  padding: 10px 12px;
+  margin-top: 16px;
+  padding: 8px 12px;
   border-radius: 8px;
   background: var(--subtle);
   color: var(--secondary);
@@ -374,7 +374,7 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 16px;
   background: rgb(15 23 42 / 45%);
 }
 
@@ -396,8 +396,8 @@ h1 {
 .modal-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 16px 20px;
+  gap: 8px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
   font-weight: 600;
 }
@@ -413,22 +413,22 @@ h1 {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 20px;
+  padding: 12px 16px;
   border-top: 1px solid var(--border);
 }
 
 .checks {
   list-style: none;
   margin: 0;
-  padding: 6px 16px 14px;
+  padding: 6px 12px 12px;
   overflow: auto;
 }
 
 .checks li {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 10px 0;
+  gap: 8px;
+  padding: 8px 0;
   border-bottom: 1px solid var(--disabled-bg);
 }
 
@@ -488,24 +488,24 @@ h1 {
 
 .fix {
   flex: none;
-  padding: 4px 10px;
+  padding: 4px 8px;
   font-size: 12px;
 }
 
-.toolbar { flex: none; flex-wrap: wrap; padding-inline: clamp(12px, 2vw, 24px); }
+.toolbar { flex: none; flex-wrap: wrap; padding-inline: clamp(12px, 2vw, 16px); }
 .toolbar .brand { margin-right: auto; font-size: 17px; }
 .panel {
   flex: 1;
   min-height: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
-  padding: 14px clamp(12px, 2vw, 24px) 18px;
+  padding: 12px clamp(12px, 2vw, 16px) 16px;
 }
 .project-layout {
   display: grid;
   grid-template-columns: clamp(280px, 24vw, 390px) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
-  gap: 14px;
+  gap: 12px;
   min-height: 0;
 }
 .project-layout > nav { overflow: hidden; }
@@ -514,7 +514,7 @@ h1 {
   min-height: 0;
   overflow-y: auto;
   margin-inline-end: -6px;
-  padding-inline-end: 10px;
+  padding-inline-end: 8px;
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
 }
@@ -544,7 +544,7 @@ h1 {
   box-shadow: 0 2px 8px rgb(0 0 0 / 3%);
 }
 .doctor-workspace {
-  padding: 0 16px 10px;
+  padding: 0 16px 8px;
 }
 .status:empty { display: none; }
 .project-card h1 { font-size: clamp(23px, 4vw, 30px); letter-spacing: -.035em; overflow-wrap: anywhere; }
@@ -576,7 +576,7 @@ h1 {
 
 .action-dialog form {
   margin: 0;
-  padding: 22px;
+  padding: 16px;
 }
 
 .action-dialog h2 {
@@ -586,7 +586,7 @@ h1 {
 }
 
 .action-dialog p {
-  margin: 8px 0 20px;
+  margin: 8px 0 16px;
   color: var(--muted);
   font-size: 14px;
   line-height: 1.6;
@@ -597,14 +597,14 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
 }
 
 .action-dialog-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
 }
 
 .dialog-close {
@@ -633,7 +633,7 @@ h1 {
 
 .game-channel:not([hidden]) {
   display: grid;
-  gap: 5px;
+  gap: 8px;
   max-width: 320px;
   margin-top: 12px;
   color: var(--muted);
@@ -647,7 +647,7 @@ h1 {
 .proxy-switch {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   padding: 4px 6px;
   color: var(--muted);
   font-size: 13px;
@@ -741,21 +741,24 @@ input, select, textarea { color: inherit; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   line-height: 20px;
 }
-.toolbar { gap: 10px; padding-block: 12px; }
-.action-dialog form { padding: 24px; }
-.modal-foot { gap: 10px; }
+.toolbar { gap: 8px; padding-block: 12px; }
+.action-dialog form { padding: 16px; }
+.modal-foot { gap: 8px; }
 
 /* Compact workspace identity and progressive disclosure; reuse the panel theme tokens. */
 .workspace-bar {
   flex: none;
-  padding: 12px clamp(12px, 2vw, 24px);
+  box-sizing: border-box;
+  height: 40px;
+  padding: 5px clamp(12px, 2vw, 16px);
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
 .workspace-picker {
+  height: 100%;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -765,32 +768,37 @@ input, select, textarea { color: inherit; }
   display: grid;
   place-items: center;
   flex: none;
-  width: 38px;
-  height: 38px;
+  width: 28px;
+  height: 28px;
   border: 1px solid var(--border);
   border-radius: 10px;
   color: var(--accent);
   background: var(--subtle);
 }
 .workspace-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   flex: 1;
   min-width: 0;
 }
 .workspace-heading {
+  flex: 0 1 auto;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 .workspace-caption {
   flex: none;
   font-size: 11px;
   color: var(--secondary);
+  white-space: nowrap;
 }
 .workspace-heading select {
   width: auto;
   min-width: 100px;
-  max-width: min(340px, 45vw);
+  max-width: min(240px, 30vw);
   height: 26px;
   padding: 0 4px;
   border: 0;
@@ -816,7 +824,9 @@ input, select, textarea { color: inherit; }
   display: none;
 }
 .workspace-location {
-  margin: 2px 0 0;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
   overflow: hidden;
   color: var(--secondary);
   font-size: 11px;
@@ -831,8 +841,10 @@ input, select, textarea { color: inherit; }
   flex: none;
 }
 .workspace-actions > .secondary {
-  min-height: 30px;
-  padding: 4px 10px;
+  box-sizing: border-box;
+  height: 28px;
+  min-height: 28px;
+  padding: 0 8px;
   font-size: 12px;
 }
 .readiness[hidden], .issue[hidden] {
@@ -841,7 +853,7 @@ input, select, textarea { color: inherit; }
 .readiness ol {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 16px;
+  gap: 8px 16px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -852,8 +864,8 @@ input, select, textarea { color: inherit; }
   font-size: clamp(22px, 3vw, 26px);
 }
 .readiness {
-  margin-bottom: 16px;
-  padding: 0 0 14px;
+  margin-bottom: 12px;
+  padding: 0 0 12px;
   border-bottom: 1px solid var(--border);
 }
 .readiness li[data-complete=true] {
@@ -866,8 +878,8 @@ input, select, textarea { color: inherit; }
   overflow-wrap: anywhere;
 }
 .issue {
-  margin-bottom: 16px;
-  padding: 14px 16px;
+  margin-bottom: 12px;
+  padding: 12px 16px;
   border: 1px solid var(--control-border);
   border-radius: 12px;
   background: var(--warning-bg);
@@ -892,19 +904,51 @@ input, select, textarea { color: inherit; }
   }
 }
 @media (max-width: 600px) {
-  .workspace-picker {
-    flex-wrap: wrap;
-  }
-  .workspace-identity {
-    flex-basis: calc(100% - 56px);
-  }
-  .workspace-actions {
-    margin-left: 50px;
-  }
-  .workspace-heading select {
-    max-width: 48vw;
-  }
+  .workspace-picker, .workspace-identity { gap: 8px; }
+  .workspace-location { display: none; }
+  .workspace-heading { flex: 1; }
+  #current-workspace-branch { max-width: 100px; }
+  .workspace-heading select { min-width: 0; max-width: 32vw; }
+  .workspace-actions > .secondary { padding-inline: 8px; }
 }
 
 #confirm-message { white-space: pre-line; }
 .action-dialog { max-height: calc(100dvh - 48px); overflow-y: auto; }
+
+/* Native macOS window controls share the first toolbar row. Browser pages keep
+   the regular inset; wrapped controls leave the traffic-light area clear. */
+:root[data-desktop-platform=macos] .toolbar {
+  min-height: 56px;
+  padding-left: 94px;
+}
+:root[data-desktop-platform=macos] .toolbar .brand { user-select: none; }
+
+/* Keep native Windows controls on the first row when toolbar actions wrap. */
+:root[data-desktop-platform=windows] .toolbar {
+  position: relative;
+  min-height: 56px;
+  padding-right: 150px;
+}
+:root[data-desktop-platform=windows] .toolbar .brand { user-select: none; }
+.window-controls:not([hidden]) {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+}
+.window-controls button {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+}
+.window-controls button:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+.window-controls button[data-window-action=close]:hover { background: #c42b1c; color: #fff; }
+.window-controls button:focus-visible { outline: 2px solid #007aff; outline-offset: -3px; }
+.window-controls svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1; }

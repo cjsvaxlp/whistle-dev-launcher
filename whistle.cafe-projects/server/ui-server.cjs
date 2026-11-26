@@ -16,6 +16,7 @@ const { listLogRuns } = require('../features/logs/store.cjs');
 const { getRule, restartWhistle } = require('../features/whistle/server.cjs');
 
 const panelAssets = new Map([
+  ["/features/window-controls/client.mjs", ["features/window-controls/client.mjs", "text/javascript; charset=utf-8"]],
   ["/features/system-proxy/client.mjs", ["features/system-proxy/client.mjs", "text/javascript; charset=utf-8"]],
   ["/features/cleanup/client.mjs", ["features/cleanup/client.mjs", "text/javascript; charset=utf-8"]],
   ["/features/rules/dialog.css", ["features/rules/dialog.css", "text/css; charset=utf-8"]],
@@ -59,7 +60,7 @@ function servePanel(response, path) {
     const data = readPanel(file);
     response.setHeader('Content-Type', type);
     if (path === '/' || path === '/terminal.html') {
-      response.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'");
+      response.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' ipc: http://ipc.localhost; frame-src 'self'; frame-ancestors 'self'");
     }
     response.end((path === '/' || path === '/terminal.html') ? data.replace('CAFE_CSRF', token) : data);
   } catch {
