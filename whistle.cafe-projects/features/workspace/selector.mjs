@@ -1,10 +1,9 @@
-import { reportError } from '../../shared/toast/toast.mjs';
+import { reportError, showInfo, showError } from '../../shared/toast/toast.mjs';
 
 export function bindWorkspaceSelector({ updateWorkspace }) {
   const select = document.querySelector('#workspace-select');
   const path = document.querySelector('#current-workspace-path');
   const branch = document.querySelector('#current-workspace-branch');
-  const note = document.querySelector('#workspace-change-note');
   const add = document.querySelector('#save-workspace');
   let snapshot;
   let overview;
@@ -13,10 +12,6 @@ export function bindWorkspaceSelector({ updateWorkspace }) {
   let loadedAt = 0;
   let overviewError = '';
 
-  function notify(message, error = false) {
-    note.textContent = message || '';
-    note.dataset.state = error ? 'error' : '';
-  }
   function render() {
     const working = busy || add.dataset.pending === 'true' || Boolean(snapshot?.projects?.some(project => project.launching || project.installing));
     select.disabled = working || (!snapshot?.workspace && !overview?.workspaces?.length);
@@ -101,7 +96,8 @@ export function bindWorkspaceSelector({ updateWorkspace }) {
     if (!busy && (!loadedAt || Date.now() - loadedAt > 10000)) refresh();
   });
   document.addEventListener('cafe-workspace-saved', event => {
-    notify([event.detail.message, event.detail.historyWarning].filter(Boolean).join(' '));
+    if (event.detail.historyWarning) showError(event.detail.historyWarning);
+    else if (event.detail.message) showInfo(event.detail.message);
   });
   select.addEventListener('change', () => {
     const directory = select.value;

@@ -90,7 +90,9 @@ test('工作区选择器缩短路径并保留完整提示，切换沿用明确�
   let current = a;
   const calls = [];
   const directories = [a, b];
+  const messages = [];
   const { context, nodes, document } = harness('../features/workspace/selector.mjs', {
+    showInfo: message => messages.push(message),
     fetch: async () => ({ ok: true, json: async () => ({ current, branch: current === a ? 'feature/a' : 'hotfix/b', workspaces: directories.map(directory => ({ directory, label: 'cybercafe-front', available: true })) }) }),
   });
   context.update = async directory => {
@@ -111,7 +113,8 @@ test('工作区选择器缩短路径并保留完整提示，切换沿用明确�
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(nodes.get('#current-workspace-path').textContent, '…/b/cybercafe-front');
   assert.equal(nodes.get('#current-workspace-path').title, b);
-  assert.equal(nodes.get('#workspace-change-note').textContent, '原服务继续运行');
+  assert.equal(nodes.has('#workspace-change-note'), false);
+  assert.deepEqual(messages, ['原服务继续运行']);
   assert.equal(nodes.get('#current-workspace-branch').textContent, '分支：hotfix/b');
   assert.deepEqual(calls, [['switch', b]]);
   document.dispatchEvent({ type: 'cafe-projects-updated', detail: { workspace: b, projects: [{ installing: true }] } });
