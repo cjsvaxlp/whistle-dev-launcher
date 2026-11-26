@@ -23,6 +23,7 @@ const RULE_NAME = 'Cafe 自动代理';
 const MARKER = '# cafe-tools managed: cafe-auto-proxy';
 const POWERSHELL = join(process.env.SystemRoot || 'C:\\Windows',
   'System32/WindowsPowerShell/v1.0/powershell.exe');
+const LOGIN_TARGETS_JS = join(here, '../shared/config/login-targets.js');
 const RETURN_HTML = join(here, '../navigation/return.html');
 const RETURN_JS = join(here, '../navigation/return.js');
 const PORTAL_HTML = join(here, '../navigation/portal.html');
@@ -277,6 +278,7 @@ export function buildRule(projects, locals, compat = {}) {
     '# 由 cafe-tools 自动同步，请勿手动编辑。',
     `${HOST} enable://capture`,
     `${HOST}/__cafe/confirm cafe-projects://browser-report cache://no-store`,
+    `${HOST}/__cafe/login-targets.js ${ruleUrl('file', LOGIN_TARGETS_JS)}`,
     `${HOST}/__cafe/return.js ${ruleUrl('file', RETURN_JS)}`,
     `${HOST}/__cafe/portal.js ${ruleUrl('file', PORTAL_JS)}`,
     `${HOST}/__cafe/badge.js ${ruleUrl('file', BADGE_JS)}`,

@@ -135,7 +135,7 @@ test('门户校验失败、强制改密、弹窗及禁用入口不触发自动�
   }
 });
 
-function returnPage(href, values = new Map(), name = '') {
+function returnPage(href, values = new Map(), name = '', referrer = '', targets = {}) {
   const events = new Map();
   const redirects = [];
   class Storage {
@@ -152,10 +152,10 @@ function returnPage(href, values = new Map(), name = '') {
     pushState(state, title, url) { location.href = new URL(url, location).href; },
     replaceState(state, title, url) { location.href = new URL(url, location).href; },
   };
-  const window = { name, Storage, sessionStorage, setTimeout: () => 1, clearTimeout() {},
+  const window = { name, Storage, sessionStorage, __cafeLoginTargets: targets, setTimeout: () => 1, clearTimeout() {},
     addEventListener(type, callback) { events.set(type, callback); }, removeEventListener(type) { events.delete(type); } };
   window.top = window.self = window;
-  const document = { addEventListener() {} };
+  const document = { addEventListener() {}, referrer };
   const originalClear = Storage.prototype.clear;
   vm.runInNewContext(fs.readFileSync(join(__dirname, '../features/navigation/return.js'), 'utf8'), { window, location, history, document, URL, Date });
   return { window, location, redirects, events, sessionStorage, originalClear };
@@ -253,4 +253,21 @@ test('CMS 登录后被统一门户重定向到 power/amsportal 时进入 newcms 
   page.location.href = origin + '/cybercafe-power/#/amsportal';
   page.events.get('hashchange')();
   assert.deepEqual(page.redirects, [origin + target]);
+});
+
+
+test('store 登录页丢失链接参数时按项目配置恢复', () => {
+  const origin = 'https://cloudgametest2.migufun.com:18443';
+  const target = '/cybercafe-store/#/merchant/store/list';
+  const page = returnPage(origin + '/cybercafe-power/#/amsportal', new Map(), '',
+    origin + '/cybercafe-store/', { store: target });
+  assert.equal(page.window.__cafeReturn.read().url, origin + target);
+});
+
+test('hub 登录页丢失链接参数时按项目配置恢复', () => {
+  const origin = 'https://cloudgametest2.migufun.com:18443';
+  const target = '/cybercafe-hub/#/enterprise/manage';
+  const page = returnPage(origin + '/cybercafe-power/#/amsportal', new Map(), '',
+    origin + '/cybercafe-hub/#/enterprise/manage', { hub: target });
+  assert.equal(page.window.__cafeReturn.read().url, origin + target);
 });

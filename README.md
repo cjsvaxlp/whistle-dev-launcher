@@ -45,6 +45,20 @@ App 使用 ad-hoc 签名，首次打开如果提示「无法验证开发者」�
 
 macOS 首次打开桌面端时，App 会自动通过登录 shell 查找 `w2`，并把工具目录里的 `whistle.cafe-projects` 链接到全局 `node_modules`，不需要再手动执行链接命令。若提示找不到 `w2`，先确认终端里 `w2 -h` 可用。
 
+## 登录后落地页
+
+每个项目登录后返回的页面集中在：
+
+`whistle.cafe-projects/shared/config/login-targets.js`
+
+按 `项目名: 站内路径或完整 URL` 配置即可，例如：
+
+```js
+store: '/cybercafe-store/#/merchant/store/list',
+```
+
+这个文件同时供插件服务端和浏览器注入脚本读取；页面跳转登录时即使链接参数丢失，也会按项目配置恢复。改完重启 Whistle 或等待一次规则同步生效。
+
 ## 打包
 
 ```sh

@@ -1,5 +1,6 @@
 const { readWorkspace, stateDir } = require('../../features/workspace/store.cjs');
 const { join } = require('node:path');
+const loginTargets = require('./login-targets.js');
 const pluginDir = join(__dirname, '../..');
 
 const isWindows = process.platform === 'win32';
@@ -29,6 +30,16 @@ const projectEntryRoutes = new Map([
   ['monitor', '/noPower'],
 ]);
 
+function loginTarget(project) {
+  const value = loginTargets[project];
+  if (typeof value !== 'string' || !value.trim()) return null;
+  try {
+    const url = new URL(value, entryUrl);
+    if (url.origin !== new URL(entryUrl).origin) return null;
+    return url;
+  } catch { return null; }
+}
+
 function projectPageUrl(project, { channelCode } = {}) {
   const target = new URL('/cybercafe-' + project + '/', entryUrl);
   const route = projectEntryRoutes.get(project);
@@ -37,17 +48,8 @@ function projectPageUrl(project, { channelCode } = {}) {
   // Preserve the existing login/session-exchange entry, carrying the intended module separately.
   const launch = ['power', 'service', 'open'].includes(project) ? new URL(entryUrl)
     : project === 'newcms' ? new URL('/cybercafe-cms/#/testLogin', entryUrl) : new URL(target);
-  // CMS and New CMS use the CMS login, not the power portal. Return to their
-  // business pages after login, even if the unified SSO lands on power/amsportal.
-  const postLogin = project === 'newcms'
-    ? '/cybercafe-newcms/#/bercafe/product/productlist'
-    : project === 'cms' ? '/cybercafe-cms/#/businessManagement/product/productList' : '';
-  if (postLogin) {
-    const returnTarget = new URL(postLogin, entryUrl);
-    launch.searchParams.set('__cafe_return', returnTarget.pathname + returnTarget.search + returnTarget.hash);
-  } else {
-    launch.searchParams.set('__cafe_return', target.pathname + target.search + target.hash);
-  }
+  const returnTarget = loginTarget(project) || target;
+  launch.searchParams.set('__cafe_return', returnTarget.pathname + returnTarget.search + returnTarget.hash);
   return launch.href;
 }
 
@@ -56,4 +58,4 @@ const ruleName = 'Cafe 自动代理';
 const testHost = 'cloudgametest2.migufun.com';
 const pacFile = join(stateDir, 'cafe.pac');
 
-module.exports = { pluginDir, isWindows, POWERSHELL, readWorkspace, tools, stateDir, stateFile, logsDir, prefsFile, origin, entryUrl, projectPageUrl, ruleName, testHost, pacFile };
+module.exports = { pluginDir, isWindows, POWERSHELL, readWorkspace, tools, stateDir, stateFile, logsDir, prefsFile, origin, entryUrl, projectPageUrl, loginTargets, loginTarget, ruleName, testHost, pacFile };

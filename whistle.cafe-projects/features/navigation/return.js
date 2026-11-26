@@ -47,6 +47,10 @@
     if (!state || Date.now() > state.expiresAt) return null;
     return targetOf(state.url);
   }
+  function configuredTarget(project) {
+    const value = window.__cafeLoginTargets?.[project];
+    return typeof value === 'string' ? targetOf(value) : null;
+  }
   const originalPush = history.pushState;
   const originalReplace = history.replaceState;
   try {
@@ -70,6 +74,28 @@
       originalReplace.call(history, history.state, '', url.href);
     }
   } catch { /* Invalid or expired return metadata never changes the application's navigation. */ }
+  if (location.pathname === '/cybercafe-power/') {
+    // The business page can be redirected to the power login before a link
+    // parameter survives. Resolve the project from the referrer and use its
+    // configured post-login page instead of relying on the link.
+    if (!state) {
+      const referred = targetOf(document.referrer || '');
+      const configured = referred && configuredTarget(referred.project);
+      if (configured) {
+        state = { ...configured, expiresAt: Date.now() + TTL, loginSeen: false, attempted: false };
+        save();
+      }
+    } else {
+      const route = new URL(state.url).hash.slice(1).split('?')[0] || '/';
+      if (route === '/' || bootstrap.test(route)) {
+        const configured = configuredTarget(state.project);
+        if (configured) {
+          state = { ...configured, expiresAt: Date.now() + TTL, loginSeen: false, attempted: false };
+          save();
+        }
+      }
+    }
+  }
   if (!state) return;
   // Login clears business session data. Preserve only our expiring return URL,
   // never account credentials; mirror it because window.name can be reset on navigation.
