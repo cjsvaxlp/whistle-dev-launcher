@@ -746,7 +746,7 @@ input, select, textarea { color: inherit; }
 }
 .toolbar {
   box-sizing: border-box;
-  min-height: 48px;
+  min-height: 50px;
   align-items: center;
   align-content: center;
   gap: 8px;
@@ -755,11 +755,11 @@ input, select, textarea { color: inherit; }
 .toolbar > .ghost, .toolbar > .entry, .toolbar .proxy-switch,
 .toolbar > .proxy-mode-picker {
   box-sizing: border-box;
-  height: 28px;
-  min-height: 28px;
+  height: 32px;
+  min-height: 32px;
   padding-block: 0;
 }
-.toolbar > .ghost, .toolbar > .entry { padding-inline: 8px; }
+.toolbar > .ghost, .toolbar > .entry { padding-inline: 12px; }
 .toolbar .proxy-control { display: flex; align-items: center; }
 .toolbar .proxy-mode-picker label {
   display: flex;
@@ -940,7 +940,7 @@ input, select, textarea { color: inherit; }
 /* Native macOS window controls share the first toolbar row. Browser pages keep
    the regular inset; wrapped controls leave the traffic-light area clear. */
 :root[data-desktop-platform=macos] .toolbar {
-  min-height: 48px;
+  min-height: 50px;
   padding-left: 94px;
 }
 :root[data-desktop-platform=macos] .toolbar .brand { user-select: none; }
@@ -948,7 +948,7 @@ input, select, textarea { color: inherit; }
 /* Keep native Windows controls on the first row when toolbar actions wrap. */
 :root[data-desktop-platform=windows] .toolbar {
   position: relative;
-  min-height: 48px;
+  min-height: 50px;
   padding-right: 150px;
 }
 :root[data-desktop-platform=windows] .toolbar .brand { user-select: none; }
@@ -962,7 +962,7 @@ input, select, textarea { color: inherit; }
   display: grid;
   place-items: center;
   width: 46px;
-  height: 48px;
+  height: 50px;
   padding: 0;
   border: 0;
   border-radius: 0;
