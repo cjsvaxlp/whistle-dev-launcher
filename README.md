@@ -180,3 +180,7 @@ Windows 原生 EXE 请运行 GitHub Actions 的 Build desktop packages 工作流
 `features/proxy/report-server.cjs` 通过 Whistle 插件协议处理同域页面确认回报，避免转发回 Whistle UI 端口产生重定向。
 
 macOS 证书体检同时检查当前 Whistle CA 是否实际存在于钥匙串以及 SSL 信任是否有效；安装时写入登录钥匙串，避免仅有信任记录导致 Chrome 报 `ERR_CERT_AUTHORITY_INVALID`。相关逻辑位于 `whistle.cafe-projects/features/doctor/mac-ca.cjs`。
+
+Windows 项目服务与 macOS 一样由插件后台启动，标准输出和错误输出写入面板内终端，不再打开独立 PowerShell 窗口；应用退出时清理插件启动的日志进程及其子进程树。启动逻辑位于 `whistle.cafe-projects/features/terminal/launcher.cjs`，日志采集位于 `features/logs/run-log.cjs`。
+
+两端桌面交互：打开测试入口或项目页均使用默认浏览器，不强制 Chrome、不创建独立浏览器配置、不在启动参数中设置全局代理。首次工作区由用户选择或输入，之后读取已保存目录；不扫描并自动选用其他项目。macOS 支持通过浏览器脚本复用标签页；Windows 通过默认浏览器打开地址，精确查找并切换已有标签页尚未支持。系统 PAC 自动接管与恢复目前仍仅支持 macOS，Windows 使用浏览器代理模式。

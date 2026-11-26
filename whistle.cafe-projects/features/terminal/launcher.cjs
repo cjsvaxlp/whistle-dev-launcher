@@ -98,22 +98,18 @@ async function openWindowsTerminal(project, file, launchId, runtime) {
         '--allowed-hosts', host,
         '--client-web-socket-url', 'wss://' + host + ':18443' + prefix + '__hmr',
       ];
-  const value = [
-    '$ErrorActionPreference = \'Stop\'',
-    'Set-Location -LiteralPath ' + psLiteral(directory),
-    '$env:NODE_ENV = \'development\'',
-    '$env:CAFE_LAUNCH_ID = ' + psLiteral(launchId),
-    '$env:PATH = ' + psLiteral(runtimePath(runtime)),
-    '$env:HOST = \'127.0.0.1\'',
-    '$env:__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS = ' + psLiteral(host),
-    '& ' + [process.execPath, join(pluginDir, 'features/logs/run-log.cjs'), file, runtime.node, cli, ...args]
-      .map(psLiteral).join(' '),
-  ].join('\n');
-  const open = '$ErrorActionPreference = \'Stop\'; Start-Process -FilePath ' + psLiteral(POWERSHELL)
-    + ' -ArgumentList \'-NoProfile\',\'-NoExit\',\'-EncodedCommand\',\'' + powershellEncoded(value) + '\'';
-  await run(POWERSHELL, ['-NoProfile', '-NonInteractive', '-EncodedCommand', powershellEncoded(open)], {
-    windowsHide: true,
-    timeout: 10000,
+  await launchLogged(file, runtime.node, [cli, ...args], {
+    cwd: directory,
+    env: {
+      ...process.env,
+      PATH: runtimePath(runtime),
+      NODE_ENV: 'development',
+      CAFE_WORKSPACE: readWorkspace(),
+      CAFE_STATE_DIR: stateDir,
+      CAFE_LAUNCH_ID: launchId,
+      HOST: '127.0.0.1',
+      __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: host,
+    },
   });
 }
 
@@ -126,13 +122,8 @@ async function openTerminal(project, file, launchId, runtime) {
     throw new Error('项目缺少开发依赖。请先安装依赖。');
   }
 
-  const child = spawn(process.execPath, [
-    join(pluginDir, 'features/logs/run-log.cjs'), file,
-    '/bin/zsh', join(tools, 'scripts/commands/启动任意项目.command'), project,
-  ], {
+  await launchLogged(file, '/bin/zsh', [join(tools, 'scripts/commands/启动任意项目.command'), project], {
     cwd: projectDir,
-    detached: true,
-    stdio: 'ignore',
     env: {
       ...process.env,
       PATH: runtimePath(runtime),
@@ -142,6 +133,17 @@ async function openTerminal(project, file, launchId, runtime) {
       CAFE_NODE_BIN: runtime.node,
     },
   });
+}
+
+async function launchLogged(file, command, args, options) {
+  const child = spawn(process.execPath, [
+    join(pluginDir, 'features/logs/run-log.cjs'), file, command, ...args,
+  ], {
+    ...options,
+    detached: !isWindows,
+    windowsHide: true,
+    stdio: 'ignore',
+  });
   await once(child, 'spawn');
   launched.set(child.pid, child);
   child.once('close', () => launched.delete(child.pid));
@@ -149,11 +151,15 @@ async function openTerminal(project, file, launchId, runtime) {
 }
 
 async function stopLaunchedServices() {
-  for (const [pid, child] of launched) {
+  for (const pid of launched.keys()) {
     try {
-      process.kill(-pid, 'SIGTERM');
+      if (isWindows) {
+        await run('taskkill.exe', ['/PID', String(pid), '/T', '/F'], { windowsHide: true, timeout: 10000 });
+      } else {
+        process.kill(-pid, 'SIGTERM');
+      }
     } catch (error) {
-      if (error.code !== 'ESRCH') throw error;
+      if (error.code !== 'ESRCH' && launched.has(pid)) throw error;
     }
   }
 }

@@ -73,15 +73,10 @@ async function selectWorkspace(request, response) {
     return;
   }
 
-  // Windows 上系统选择框是独立进程，不能让它长时间占着保存锁，
-  // 否则用户在面板里输入路径也会被 409 挡住。macOS 保持原来的锁行为。
-  const deferLock = isWindows;
+  // Neither platform holds the save lock while its native picker is open.
+  // A later explicit path must take precedence over an older picker result.
   const revision = workspaceRevision;
   let locked = false;
-  if (!deferLock) {
-    savingWorkspace = true;
-    locked = true;
-  }
 
   const temporary = `${workspaceFile}.${process.pid}.tmp`;
   try {
@@ -100,20 +95,18 @@ async function selectWorkspace(request, response) {
       json(response, 400, { message: '请选择包含 cybercafe-* 子项目的目录。' });
       return;
     }
-    if (deferLock) {
-      // 等待系统选择框期间，用户可能已经通过路径输入保存了工作区；
-      // 这种情况下不要再用旧的选择框结果覆盖。
-      if (revision !== workspaceRevision) {
-        json(response, 200, { workspace: readWorkspace(), superseded: true });
-        return;
-      }
-      if (savingWorkspace) {
-        json(response, 409, { message: '正在保存，请稍后重试。' });
-        return;
-      }
-      savingWorkspace = true;
-      locked = true;
+    // 等待系统选择框期间，用户可能已经通过路径输入保存了工作区；
+    // 这种情况下不要再用旧的选择框结果覆盖。
+    if (revision !== workspaceRevision) {
+      json(response, 200, { workspace: readWorkspace(), superseded: true });
+      return;
     }
+    if (savingWorkspace) {
+      json(response, 409, { message: '正在保存，请稍后重试。' });
+      return;
+    }
+    savingWorkspace = true;
+    locked = true;
     await mkdir(stateDir, { recursive: true });
     await writeFile(temporary, directory + '\n', { mode: 0o600 });
     await rename(temporary, workspaceFile);
@@ -126,8 +119,10 @@ async function selectWorkspace(request, response) {
       : `无法选择或保存工作区：${error.message}`;
     json(response, error.code === 'ENOENT' || error.code === 'ENOTDIR' ? 400 : 500, { message });
   } finally {
-    await rm(temporary, { force: true }).catch(() => {});
-    if (locked) savingWorkspace = false;
+    if (locked) {
+      await rm(temporary, { force: true }).catch(() => {});
+      savingWorkspace = false;
+    }
   }
   return;
 }
