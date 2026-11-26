@@ -37,7 +37,11 @@ function projectPageUrl(project, { channelCode } = {}) {
   // Preserve the existing login/session-exchange entry, carrying the intended module separately.
   const launch = ['power', 'service', 'open'].includes(project) ? new URL(entryUrl)
     : project === 'newcms' ? new URL('/cybercafe-cms/#/testLogin', entryUrl) : new URL(target);
-  launch.searchParams.set('__cafe_return', target.pathname + target.search + target.hash);
+  // New CMS is entered from the CMS user menu after login; auto-returning to
+  // cybercafe-newcms makes its login page bounce back to the CMS login page.
+  if (project !== 'newcms') {
+    launch.searchParams.set('__cafe_return', target.pathname + target.search + target.hash);
+  }
   return launch.href;
 }
 

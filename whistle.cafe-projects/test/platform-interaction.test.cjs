@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const vm = require('node:vm');
+const { projectPageUrl } = require('../shared/config/config.cjs');
 
 for (const platform of ['darwin', 'win32']) {
   test(`${platform}: workspace is explicitly selected, persisted and restored`, t => {
@@ -188,3 +189,20 @@ for (const project of ['store', 'hub']) {
     assert.deepEqual(page.redirects, [expected]);
   });
 }
+
+
+test('newcms 入口只打开 CMS 登录，不再自动跳转到 newcms 登录页', () => {
+  const url = new URL(projectPageUrl('newcms'));
+  assert.equal(url.pathname, '/cybercafe-cms/');
+  assert.equal(url.hash, '#/testLogin');
+  assert.equal(url.searchParams.has('__cafe_return'), false);
+});
+
+test('CMS 登录完成后不自动回跳到 newcms 登录页', () => {
+  const origin = 'https://cloudgametest2.migufun.com:18443';
+  const target = '/cybercafe-newcms/';
+  const page = returnPage(origin + '/cybercafe-cms/?__cafe_return=' + encodeURIComponent(target) + '#/testLogin');
+  page.location.hash = '/home';
+  page.events.get('hashchange')();
+  assert.deepEqual(page.redirects, []);
+});

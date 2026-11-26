@@ -115,11 +115,6 @@
       }
       state.url = location.href;
       save();
-    } else if (state.loginSeen && current === 'cms' && target.project === 'newcms' && !state.handoff) {
-      state.handoff = true;
-      save();
-      location.replace(target.url);
-      return;
     } else if (!state.loginSeen && current === target.project) {
       // Follow normal in-module navigation, so a later login resumes the latest page.
       state.url = location.href;
