@@ -5,6 +5,16 @@ export function bindWindowControls() {
   const nativeWindow = window.__TAURI__?.window?.getCurrentWindow();
   if (!controls || !nativeWindow) return;
 
+  // Bind explicitly so blank toolbar space and its brand drag consistently.
+  const toolbar = document.querySelector('.toolbar');
+  toolbar?.addEventListener('mousedown', (event) => {
+    if (event.button !== 0 || event.target.closest('button, a, input, label, fieldset, .proxy-control, .window-controls')) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const action = event.detail === 2 ? nativeWindow.toggleMaximize() : nativeWindow.startDragging();
+    action.catch((error) => showError(`窗口操作失败：${error.message || error}`));
+  });
+
   let busy = false;
   let readingSize = false;
   const maximize = controls.querySelector('[data-window-action="maximize"]');

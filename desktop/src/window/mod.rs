@@ -77,7 +77,8 @@ fn open_panel(app: &AppHandle) -> tauri::Result<()> {
     let builder = builder
         .title_bar_style(tauri::TitleBarStyle::Overlay)
         .hidden_title(true)
-        .traffic_light_position(tauri::LogicalPosition::new(14.0, 18.0));
+        // Wry uses a titlebar inset, rather than the button's top coordinate.
+        .traffic_light_position(tauri::LogicalPosition::new(14.0, 21.0));
     #[cfg(target_os = "windows")]
     let builder = builder.decorations(false);
     let window = builder
