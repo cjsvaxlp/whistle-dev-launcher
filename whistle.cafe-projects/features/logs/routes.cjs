@@ -1,9 +1,9 @@
 const { createReadStream, existsSync, unlinkSync, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
-const { isWindows } = require('../../shared/config/config.cjs');
+const { isWindows, readWorkspace } = require('../../shared/config/config.cjs');
 const { setTimeout: delay } = require('node:timers/promises');
 const { json } = require('../../shared/http/http.cjs');
-const { archiveDir, archiveNames, logPath, listLogRuns, clearLogs, readLog, diagnose, isRunning, liveLogWriter } = require('./store.cjs');
+const { archiveDir, archiveNames, logPath, listLogRuns, clearLogs, readLog, diagnose, isRunning, logWriterPid, liveLogWriter } = require('./store.cjs');
 const { jobs, isProjectBusy } = require('../projects/server.cjs');
 const { stateEntry } = require('../projects/store.cjs');
 const { startupSnapshot } = require('../startup/startup.cjs');
@@ -16,7 +16,7 @@ async function getLog(response, url, project) {
       json(response, 404, { message: '日志不存在。' });
       return;
     }
-    file = join(archiveDir, run);
+    file = join(archiveDir(), run);
   }
   if (url.searchParams.get('download') === '1') {
     const stream = createReadStream(file);
@@ -37,12 +37,14 @@ async function getLog(response, url, project) {
   const search = (url.searchParams.get('q') || '').slice(0, 200).toLowerCase();
   const { lines, count } = readLog(file, search);
   const job = !run || run === 'current' ? jobs.get(project) : null;
-  const writer = liveLogWriter(project);
+  // Polling only displays liveness; command ownership is checked afresh before clearing/signalling.
+  const writerPid = logWriterPid(project);
   const entry = stateEntry(project);
-  const source = writer.pid ? 'panel'
+  const source = isRunning(writerPid) ? 'panel'
     : isRunning(Number(entry?.pid)) ? 'external' : 'none';
   json(response, 200, {
     project,
+    workspace: readWorkspace(),
     run: run && run !== 'current' ? run : 'current',
     source,
     pid: entry?.pid || null,

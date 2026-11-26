@@ -1,7 +1,8 @@
 const { execFile, spawn } = require('node:child_process');
 const { accessSync, constants, existsSync, statSync } = require('node:fs');
 const { once } = require('node:events');
-const { dirname, join } = require('node:path');
+const { setTimeout: delay } = require('node:timers/promises');
+const { basename, dirname, join } = require('node:path');
 const { promisify } = require('node:util');
 const { pluginDir, readWorkspace, tools, stateDir, isWindows, POWERSHELL } = require('../../shared/config/config.cjs');
 const { installPolicy, runtimePath } = require('../runtime/runtime.cjs');
@@ -145,13 +146,21 @@ async function launchLogged(file, command, args, options) {
     stdio: 'ignore',
   });
   await once(child, 'spawn');
-  launched.set(child.pid, child);
-  child.once('close', () => launched.delete(child.pid));
+  const record = { child, workspace: options.env.CAFE_WORKSPACE, project: basename(options.cwd).replace(/^cybercafe-/, ''), exited: false, stopping: false };
+  launched.set(child.pid, record);
+  child.once('close', () => {
+    record.exited = true;
+    if (!record.stopping && launched.get(child.pid) === record) launched.delete(child.pid);
+  });
   child.unref();
 }
 
-async function stopLaunchedServices() {
-  for (const pid of launched.keys()) {
+async function stopLaunchedServices(workspace) {
+  const targets = [...launched.entries()].filter(([, record]) => workspace === undefined || record.workspace === workspace);
+  const results = await Promise.allSettled(targets.map(async ([pid, record]) => {
+    // The registry contains only this plugin instance's children. Never infer ownership from a project name.
+    if (launched.get(pid) !== record) return;
+    record.stopping = true;
     try {
       if (isWindows) {
         await run('taskkill.exe', ['/PID', String(pid), '/T', '/F'], { windowsHide: true, timeout: 10000 });
@@ -159,9 +168,26 @@ async function stopLaunchedServices() {
         process.kill(-pid, 'SIGTERM');
       }
     } catch (error) {
-      if (error.code !== 'ESRCH' && launched.has(pid)) throw error;
+      if (error.code !== 'ESRCH' && launched.get(pid) === record) throw error;
     }
-  }
+    const deadline = Date.now() + 5000;
+    while (true) {
+      let running = !record.exited;
+      if (!isWindows) {
+        try { process.kill(-pid, 0); running = true; }
+        catch (error) { if (error.code !== 'ESRCH') throw error; running = false; }
+      }
+      if (!running) {
+        if (launched.get(pid) === record) launched.delete(pid);
+        return;
+      }
+      if (Date.now() >= deadline) throw new Error(`cybercafe-${record.project} 未能完全停止${workspace === undefined ? '。' : '，工作目录未切换。'}`);
+      await delay(50);
+    }
+  }));
+  const errors = results.filter(result => result.status === 'rejected');
+  if (errors.length) throw new Error(errors.map(result => result.reason.message).join('；'));
+  return [...new Set(targets.map(([, record]) => record.project))];
 }
 
-module.exports = { depInfo, cliFor, windowsCommand, openTerminal, stopLaunchedServices };
+module.exports = { hasLaunchedServices: () => launched.size > 0, depInfo, cliFor, windowsCommand, openTerminal, stopLaunchedServices };

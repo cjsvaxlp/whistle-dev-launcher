@@ -6,13 +6,19 @@
   display: flex;
   flex: 1 0 280px;
   min-height: 280px;
-  margin-top: 20px;
+  margin-top: 16px;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
 }
 .inline-terminal[hidden] { display: none; }
+#project-entry-note {
+  margin: 16px 0 0;
+}
+#project-entry-note:not([hidden]) + .inline-terminal {
+  margin-top: 12px;
+}
 .inline-terminal iframe {
   flex: 1;
   width: 100%;

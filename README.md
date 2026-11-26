@@ -9,7 +9,7 @@ Cybercafe 本地开发工具：把测试环境里的任意 `cybercafe-*` 子应�
 
 ## 选择项目工作区
 
-打开面板右上角的「体检」，点击「选择目录」，选择直接包含 `cybercafe-hub`、`cybercafe-monitor`、`cybercafe-power` 等子项目的 `cloudgame-cybercafe/cybercafe-front` 目录。若仓库克隆在 macOS 的 `~/Desktop/work` 下，完整路径为 `~/Desktop/work/cloudgame-cybercafe/cybercafe-front`。
+在主面板顶部「当前工作目录」区域点击「选择项目目录」，选择直接包含 `cybercafe-hub`、`cybercafe-monitor`、`cybercafe-power` 等子项目的 `cloudgame-cybercafe/cybercafe-front` 目录。配置后按钮显示为「切换项目目录」；体检只负责环境检查与修复。若仓库克隆在 macOS 的 `~/Desktop/work` 下，完整路径为 `~/Desktop/work/cloudgame-cybercafe/cybercafe-front`。
 
 ## macOS 桌面端
 
@@ -88,7 +88,7 @@ git push origin v0.1.1
 | `panel/` | 主面板 HTML、全局布局样式、浅色/深色主题配色和功能初始化入口。 |
 | `features/projects/client.mjs` | 项目列表、搜索、收藏、启动进度和操作按钮。 |
 | `features/terminal/client.mjs`、`terminal.html`、`terminal.css` | 应用内终端页面、输出展示和服务控制，均位于 `features/terminal/`。 |
-| `features/doctor/client.mjs` | 环境体检结果、工作区设置和修复操作界面。 |
+| `features/doctor/client.mjs` | 环境体检结果和修复操作界面。 |
 | `features/rules/` | 规则预览、复制及内嵌 Whistle 编辑器弹框。 |
 | `features/whistle/client.mjs` | 面板中的 Whistle 重启、同步和浏览器打开操作。 |
 | `features/badge/` | 注入测试页面的环境徽标及其样式。 |
@@ -102,7 +102,7 @@ git push origin v0.1.1
 | 目录或文件 | 功能和目的 |
 | --- | --- |
 | `features/projects/server.cjs`、`store.cjs` | 项目操作编排、依赖安装、项目状态和偏好存储，均位于 `features/projects/`。 |
-| `features/workspace/` | 目录选择、路径持久化和本地代理开关。 |
+| `features/workspace/` | 工作区选择、路径持久化、最近记录、当前 Git 分支展示和本地代理开关；`history.cjs` 保存工作区记录，`selector.mjs` 管理常驻选择器，`actions.mjs` 统一目录选择、切换确认和保存交互。 |
 | `features/proxy/` | 检测本地服务、生成 Whistle 规则并写入同步状态。 |
 | `features/startup/` | 跟踪启动阶段、服务退出、接管结果和超时。 |
 | `features/dependencies/` | 依赖安装进程、安装日志与安装后启动，维护安装任务状态。 |
@@ -114,6 +114,7 @@ git push origin v0.1.1
 | `features/doctor/server.cjs` | 环境检查、证书、代理和插件配置修复。 |
 | `features/whistle/server.cjs` | Whistle 重启、规则查询和关闭代理前的清理。 |
 | `features/browser/` | 项目页面和测试入口的浏览器打开 API。 |
+| `features/navigation/` | 工具打开项目时的标签页返回目标记录、登录后恢复及同源目标校验；脚本在业务脚本之前注入，使用标签页独立记录避免互相覆盖。 |
 | `shared/config/` | 公共路径、测试入口和项目路由配置。 |
 | `shared/http/http.cjs` | HTTP 响应、令牌与本机请求鉴权。 |
 | `server/` | UI 服务入口、静态资源映射和 API 路由分发。 |
@@ -141,6 +142,7 @@ git push origin v0.1.1
 | `.github/workflows/` | 手动触发云端测试和打包，并上传可下载产物。 |
 | `scripts/commands/` | 可双击使用的通用项目启动、手动同步、桌面端启动、浏览器打开和打包入口。 |
 | `scripts/browser/` | macOS 默认浏览器标签页查找、复用和新建。 |
+| `scripts/preview-panel.cjs` | 独立的本地只读界面预览，提供醒目标识、禁用服务操作，只转发白名单中的状态读取请求。运行 `node scripts/preview-panel.cjs` 后访问 `http://127.0.0.1:18997/?doctor=0`。 |
 | `desktop/windows/` | NSIS 安装钩子及旧版内置运行时升级清理；不再包含另一套 CMD 安装和启动入口，不修改全局 Node/Whistle。 |
 | `desktop/packaging/` | 共用资源收集、版本校验、应用组装和签名，供开发启动和分发打包使用。 |
 | `desktop/package-macos.sh` | 收集功能模块、脚本与桌面资源，生成可拖拽安装的 macOS DMG。 |
@@ -186,3 +188,17 @@ Windows 项目服务与 macOS 一样由插件后台启动，标准输出和错�
 Windows 首次使用先安装 Node.js LTS（包含 npm），然后执行 `npm install -g whistle`。可以在终端运行 `node --version`、`npm --version` 和 `w2 -h` 验证。无需安装 Rust 或手动启动 Whistle，应用负责启动/复用与加载内置插件。刚安装依赖后，在连接页点击“开启代理 / 启动 Whistle”重试；程序会重新读取当前环境。若使用 NVM，请先 `nvm use` 激活满足项目要求的 Node，并在该环境安装 Whistle。升级安装会移除旧应用目录 `tools/runtime`，不会移除用户自己安装的环境。
 
 macOS 和 Windows 桌面服务统一从 `desktop/src/services/mod.rs` 进入，公共流程只有一份；系统差异保留在两个平台实现中。两端安装包均由 `desktop/packaging/resources.py` 收集插件资源，Windows 仅保留 Actions 原生 EXE 打包，不再维护独立的 Legacy CMD 分发包。
+
+主面板用状态链区分服务启动、代理规则同步和浏览器本地访问确认。选择工作区后即可使用项目列表，必要环境可通过体检检查；项目依赖按需安装，浏览器确认在打开项目后完成。操作与启动失败会保留原因，提供重试、环境体检和终端入口，错误 Toast 仍按原约定显示 2 秒。
+
+工具同时只绑定、监听和代理一个当前工作目录，最近记录只用于切换。主面板的目录选择器按完整真实路径区分同名 clone，展示当前路径、Git 分支及最近 20 个工作区；Git 不可用或目录不是 Git 仓库时仍可使用。记录保存在本机状态目录的 `workspaces.json`。切换已有工作目录时先提示并确认，确认后停止原目录中由工具启动的所有服务、日志进程及其子进程，再保存新目录；外部手动启动的服务不自动停止，新目录中的项目也不会自动启动。原目录服务未能完全停止时不切换目录。规则同步成功后只接管当前目录，请刷新测试页面。启动、安装、停止、清理或切换代理过程中暂不允许切换工作区。
+
+项目日志按工作区隔离，首次工作区沿用原有日志位置（`logs/.workspace` 记录归属），其他工作区位于 `logs/workspaces/<工作区路径摘要>/`。切换时清除已结束的启动与安装状态，重新加载内嵌终端；已打开的旧终端会停止轮询并拒绝跨工作区控制同名服务。运行日志保留；关闭应用时仍按原有管理范围清理应用启动的服务。
+
+系统选择框取消或切换确认取消均不修改目录、停止服务；最近记录切换也需要同样的确认。环境体检的 `npm root -g` 使用异步子进程，避免阻塞目录请求；目录保存完成后可在后台刷新体检结果。
+
+从工具打开项目时，入口携带标签页独立的返回目标；进入业务页面后随当前模块的导航更新目标，同域登录跳转保留登录前的路径、查询参数和 hash，目标仅允许测试域名下的 `cybercafe-*` 页面。回跳记录同时保存在标签页名称和 sessionStorage 中；业务清理会话数据时仅保留这条临时回跳记录，完成退出跟踪后清除。记录 15 分钟过期，不保存账号、密码或令牌。全部实现位于工具的 `features/navigation/` 中，不修改业务源码。统一门户适配脚本仅观察页面已有的账号资料校验结果；校验成功、无需强制改密且目标模块入口可见可用时，触发原有模块按钮，沿用页面的会话交换逻辑。账号校验失败、出现改密等弹窗、入口不匹配、跨域 4A 登录或关闭代理时保留原流程，不绕过审核、改密和权限，也不会自行补发登录请求。
+
+面板首次读取项目与代理模式状态并行进行。终端和代理模式的页面轮询在页面隐藏时暂停，恢复可见时重新读取，并避免重叠请求；后台项目检测和规则同步仍持续运行。日志未变化时不重绘终端内容和诊断信息；普通日志轮询不启动 `ps/pgrep`，清理日志前仍执行原有进程归属校验。日志归属信息按文件标识缓存，文件变化或清理重建后自动失效。
+
+工作目录栏显示名称、分支和末两级目录，例如 `…/cloudgame-cybercafe/cybercafe-front`；悬停可查看完整路径，实际识别和切换仍使用完整真实路径。切换目录按钮始终可见；不显示首次使用向导，也不提供目录别名设置。

@@ -3,7 +3,7 @@ const { proxyChecks } = require('./proxy-checks.cjs');
 const { modeSnapshot } = require('../system-proxy/mode.cjs');
 const { browserStatus } = require('../proxy/browser-status.cjs');
 const { pacBody, pacUrl } = require('../system-proxy/pac.cjs');
-const { execFile, execFileSync } = require('node:child_process');
+const { execFile } = require('node:child_process');
 const { randomBytes, X509Certificate } = require('node:crypto');
 const { existsSync, lstatSync, mkdirSync, realpathSync, renameSync, symlinkSync, unlinkSync, writeFileSync } = require('node:fs');
 const { mkdtemp, writeFile, rm } = require('node:fs/promises');
@@ -23,24 +23,25 @@ function npmCliPath() {
   return existsSync(candidate) ? candidate : 'npm';
 }
 
-function globalPluginTarget() {
+async function globalPluginTarget() {
   try {
     const npm = npmCliPath();
     const args = ['root', '-g'];
-    const root = execFileSync(isWindows ? POWERSHELL : npm, isWindows ? windowsCommand(npm, args) : args, {
+    const { stdout } = await run(isWindows ? POWERSHELL : npm, isWindows ? windowsCommand(npm, args) : args, {
       encoding: 'utf8', timeout: 5000, windowsHide: true,
-    }).trim();
+    });
+    const root = stdout.trim();
     return root ? join(root, 'whistle.cafe-projects') : '';
   } catch {
     return '';
   }
 }
 
-function pluginLinkCheck() {
+async function pluginLinkCheck() {
   if (existsSync(join(dirname(pluginDir), '.installed'))) {
     return { status: 'ok', detail: '已加载安装包内置的插件' };
   }
-  const target = globalPluginTarget();
+  const target = await globalPluginTarget();
   if (!target) {
     return { status: 'unknown', detail: '无法定位全局 node_modules', action: '' };
   }
@@ -116,7 +117,7 @@ async function doctor() {
     id: 'workspace', label: '项目工作区', status: existsSync(workspace) ? 'ok' : 'fail',
     detail: workspace || '尚未选择目录', action: existsSync(workspace) ? '' : '在面板选择目录',
   });
-  const link = pluginLinkCheck();
+  const link = await pluginLinkCheck();
   checks.push({ id: 'plugin', label: '插件链接', ...link });
 
   const ca = { id: 'ca', label: 'Whistle CA' };
@@ -251,7 +252,7 @@ async function fix(request, response, action) {
       return;
     }
     if (action === 'link-plugin') {
-      const target = globalPluginTarget();
+      const target = await globalPluginTarget();
       if (!target) throw new Error('无法定位全局 node_modules（npm root -g 失败）。');
       const existing = lstatSync(target, { throwIfNoEntry: false });
       if (existing) {

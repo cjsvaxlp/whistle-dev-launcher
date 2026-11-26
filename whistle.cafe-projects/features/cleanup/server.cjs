@@ -2,18 +2,20 @@ const { readdir, lstat, rm } = require('node:fs/promises');
 const { join } = require('node:path');
 const { stateDir, logsDir, stateFile, pacFile } = require('../../shared/config/config.cjs');
 const { authorized, json } = require('../../shared/http/http.cjs');
-const { snapshot, jobs, isProjectBusy, runSync } = require('../projects/server.cjs');
+const { hasLaunchedServices } = require('../terminal/launcher.cjs');
+const { snapshot, jobs, isProjectBusy, runSync, isChangingWorkspace } = require('../projects/server.cjs');
 
 let cleaning = false;
 
 async function cleanGeneratedFiles(request, response) {
   if (!authorized(request)) return json(response, 403, { message: '请从本机面板操作。' });
+  if (isChangingWorkspace()) return json(response, 409, { message: '正在切换工作区，请稍后清理。' });
   if (cleaning) return json(response, 409, { message: '正在清理，请稍候。' });
   cleaning = true;
   try {
     await runSync();
     const state = snapshot();
-    if (state.syncError || state.projects.some(project => project.active || project.unmatched
+    if (hasLaunchedServices() || state.syncError || state.projects.some(project => project.active || project.unmatched
       || isProjectBusy(project.name)) || [...jobs.values()].some(job => job.status === 'running')) {
       return json(response, 409, { message: '请先停止所有项目服务和安装任务，确认同步正常后再清理。' });
     }

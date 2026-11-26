@@ -48,3 +48,143 @@ for (const platform of ['darwin', 'win32']) {
     }
   });
 }
+
+// Exercise the injected adapter without touching a business checkout or issuing login requests.
+function portalAdapterFixture({ forceChangePassword = 0, returnCode = '000000', enabled = true, dialog = false } = {}) {
+  const timers = new Map();
+  let nextTimer = 0;
+  let clicked = 0;
+  let attempted = false;
+  let cancelled = false;
+  class XHR {
+    open(...args) { this.args = args; return 'original'; }
+    addEventListener(name, callback) { this[name] = callback; }
+  }
+  const originalOpen = XHR.prototype.open;
+  const button = {
+    textContent: '门店运营模块', disabled: !enabled, hidden: false,
+    getClientRects: () => [1], getAttribute: () => null,
+    click() { clicked++; },
+  };
+  const window = {
+    __cafeReturn: {
+      read: () => cancelled ? null : ({ project: 'store' }),
+      cancel() { cancelled = true; },
+      beginExchange() { if (attempted) return false; attempted = true; return true; },
+    },
+    addEventListener() {}, removeEventListener() {},
+  };
+  const document = {
+    addEventListener() {}, removeEventListener() {},
+    querySelectorAll(selector) {
+      return selector.includes('service-entry') ? [button] : dialog ? [{ hidden: false, getClientRects: () => [1] }] : [];
+    },
+  };
+  const context = {
+    window, document, XMLHttpRequest: XHR, URL,
+    location: { origin: 'https://cloudgametest2.migufun.com:18443', pathname: '/cybercafe-power/', href: 'https://cloudgametest2.migufun.com:18443/cybercafe-power/#/freeLogin', hash: '#/freeLogin' },
+    MutationObserver: class { observe() {} disconnect() {} },
+    setTimeout(callback, delay) { timers.set(++nextTimer, { callback, delay }); return nextTimer; },
+    clearTimeout(id) { timers.delete(id); },
+  };
+  vm.runInNewContext(fs.readFileSync(join(__dirname, '../features/navigation/portal.js'), 'utf8'), context);
+  const xhr = new XHR();
+  assert.equal(xhr.open('POST', '/cybercafe-ruiyun-api/cmsapi/v2/street/account/profile'), 'original');
+  xhr.status = 200;
+  xhr.responseType = 'json';
+  xhr.response = { returnCode, resultData: { forceChangePassword } };
+  xhr.loadend();
+  for (const [id, timer] of [...timers]) if (timer.delay === 0) { timers.delete(id); timer.callback(); }
+  return { clicked, attempted, restored: XHR.prototype.open === originalOpen };
+}
+
+test('门户运行时适配仅在已有校验成功后触发原模块入口，并恢复观察包装', () => {
+  const result = portalAdapterFixture();
+  assert.equal(result.clicked, 1);
+  assert.equal(result.attempted, true);
+  assert.equal(result.restored, true);
+});
+
+test('门户校验失败、强制改密、弹窗及禁用入口不触发自动进入', () => {
+  for (const options of [{ returnCode: '070008' }, { forceChangePassword: 1 }, { dialog: true }, { enabled: false }]) {
+    const result = portalAdapterFixture(options);
+    assert.equal(result.clicked, 0);
+    assert.equal(result.attempted, false);
+  }
+});
+
+function returnPage(href, values = new Map(), name = '') {
+  const events = new Map();
+  const redirects = [];
+  class Storage {
+    getItem(key) { return values.get(key) ?? null; }
+    setItem(key, value) { values.set(key, String(value)); }
+    removeItem(key) { values.delete(key); }
+    clear() { values.clear(); }
+  }
+  const sessionStorage = new Storage();
+  const location = new URL(href);
+  location.replace = value => redirects.push(value);
+  const history = {
+    state: null,
+    pushState(state, title, url) { location.href = new URL(url, location).href; },
+    replaceState(state, title, url) { location.href = new URL(url, location).href; },
+  };
+  const window = { name, Storage, sessionStorage, setTimeout: () => 1, clearTimeout() {},
+    addEventListener(type, callback) { events.set(type, callback); }, removeEventListener(type) { events.delete(type); } };
+  window.top = window.self = window;
+  const document = { addEventListener() {} };
+  const originalClear = Storage.prototype.clear;
+  vm.runInNewContext(fs.readFileSync(join(__dirname, '../features/navigation/return.js'), 'utf8'), { window, location, history, document, URL, Date });
+  return { window, location, redirects, events, sessionStorage, originalClear };
+}
+
+test('登录跨页面后 window.name 丢失、会话被清理，仍返回原深链接，取消跟踪后清除临时记录', () => {
+  const origin = 'https://cloudgametest2.migufun.com:18443';
+  const target = '/cybercafe-hub/#/enterprise/detail?id=42';
+  const values = new Map([['business-token', 'old']]);
+  const first = returnPage(origin + '/cybercafe-hub/?__cafe_return=' + encodeURIComponent(target) + '#/login', values);
+  first.sessionStorage.clear();
+  assert.equal(values.has('business-token'), false);
+  assert.equal(values.has('__cafe_return_state'), true);
+  const next = returnPage(origin + '/cybercafe-hub/#/login', values, '');
+  assert.equal(next.window.__cafeReturn.read().url, origin + target);
+  next.location.hash = '/enterprise/manage';
+  next.events.get('hashchange')();
+  assert.deepEqual(next.redirects, [origin + target]);
+  next.window.__cafeReturn.cancel();
+  assert.equal(values.has('__cafe_return_state'), false);
+  assert.equal(next.window.Storage.prototype.clear, next.originalClear);
+});
+
+test('普通页面不注入回跳，过期记录不能触发跳转', () => {
+  const origin = 'https://cloudgametest2.migufun.com:18443';
+  const plain = returnPage(origin + '/cybercafe-hub/#/login');
+  assert.equal(plain.window.__cafeReturn, undefined);
+  assert.equal(plain.window.Storage.prototype.clear, plain.originalClear);
+  const values = new Map([['__cafe_return_state', JSON.stringify({ url: origin + '/cybercafe-hub/#/enterprise/detail', expiresAt: Date.now() - 1 })]]);
+  const expired = returnPage(origin + '/cybercafe-hub/#/enterprise/manage', values);
+  assert.equal(expired.window.__cafeReturn, undefined);
+  assert.equal(values.size, 0);
+  assert.deepEqual(expired.redirects, []);
+});
+
+for (const project of ['store', 'hub']) {
+  test(`${project}: 工具入口后的实际业务路径随导航更新，登录后恢复最新路径及参数`, () => {
+    const origin = 'https://cloudgametest2.migufun.com:18443';
+    const base = `/cybercafe-${project}/`;
+    const page = returnPage(origin + base + '?__cafe_return=' + encodeURIComponent(base + '#/noPower') + '#/noPower');
+    page.location.hash = '/home';
+    page.events.get('hashchange')();
+    const expected = origin + base + '?view=compact#/merchant/store/list?page=3';
+    page.location.href = expected;
+    page.events.get('hashchange')();
+    assert.equal(page.window.__cafeReturn.read().url, expected);
+    page.location.hash = '/login';
+    page.events.get('hashchange')();
+    page.sessionStorage.clear();
+    page.location.hash = '/home';
+    page.events.get('hashchange')();
+    assert.deepEqual(page.redirects, [expected]);
+  });
+}

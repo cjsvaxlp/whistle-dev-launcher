@@ -1,6 +1,14 @@
 const container = document.querySelector('#inline-terminal');
 const frame = document.querySelector('#terminal-frame');
 let current = '';
+let workspace = '';
+document.addEventListener('cafe-projects-updated', event => {
+  if (workspace !== event.detail.workspace) {
+    workspace = event.detail.workspace || '';
+    current = '';
+    frame.removeAttribute('src');
+  }
+});
 
 export function showTerminal(project, visible) {
   if (!project || !visible) {
@@ -12,7 +20,7 @@ export function showTerminal(project, visible) {
   container.hidden = false;
   if (current === project) return;
   current = project;
-  frame.src = './terminal.html?' + new URLSearchParams({ project, embedded: '1' });
+  frame.src = './terminal.html?' + new URLSearchParams({ project, embedded: '1', workspace });
 }
 
 export function focusTerminal(project) {

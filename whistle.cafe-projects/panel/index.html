@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="./features/terminal/embedded.css">
 <link rel="stylesheet" href="./features/rules/dialog.css">
 <header class="toolbar">
-  <span class="brand">Cybercafe 本地调试</span>
+  <span class="brand">Cybercafe</span>
   <div class="proxy-control">
     <label class="proxy-switch">
       <input id="local-proxy" type="checkbox" role="switch" disabled>
@@ -31,6 +31,25 @@
   <button class="ghost" id="restart" type="button" title="重启 Whistle 以加载插件的最新代码">重启 Whistle</button>
   <a class="entry" id="entry" href="https://cloudgametest2.migufun.com:18443/cybercafe-power/#/amsportal" target="_blank" rel="noreferrer">打开测试入口</a>
 </header>
+<div class="workspace-bar" aria-label="当前工作目录">
+  <div class="workspace-picker">
+    <span class="workspace-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3z"/><path d="M3 10h18"/></svg>
+    </span>
+    <div class="workspace-identity">
+      <div class="workspace-heading">
+        <label class="workspace-caption" for="workspace-select">工作目录</label>
+        <select id="workspace-select" disabled><option>正在读取…</option></select>
+        <span id="current-workspace-branch"></span>
+      </div>
+      <p class="workspace-location" id="current-workspace-path"></p>
+    </div>
+    <div class="workspace-actions">
+      <button class="secondary" id="save-workspace" type="button">选择项目目录</button>
+    </div>
+  </div>
+  <p class="status" id="workspace-change-note" role="status"></p>
+</div>
 <main class="panel">
   <div class="project-layout" id="project-page">
     <nav aria-label="项目列表">
@@ -41,6 +60,13 @@
     <section class="project-card">
       <h1 id="title">选择项目</h1>
       <p class="meta" id="meta">在左侧选择项目后，可以启动本地开发服务。</p>
+      <div class="readiness" id="readiness" hidden aria-live="polite">
+        <ol id="readiness-steps" aria-label="本地调试准备状态"></ol>
+      </div>
+      <div class="issue" id="project-issue" hidden aria-live="polite">
+        <b id="issue-title"></b><p id="issue-detail"></p>
+        <div class="actions"><button class="secondary" id="issue-retry" type="button">重试</button><button class="secondary" id="issue-doctor" type="button">检查环境</button><button class="secondary" id="issue-log" type="button">查看终端</button></div>
+      </div>
       <div class="actions">
         <button class="start" id="start" type="button" disabled>启动服务</button>
         <button class="secondary" id="install" type="button" hidden>安装依赖</button>
@@ -50,7 +76,6 @@
         <button class="secondary primary" id="takeover" type="button" hidden>接管并重启</button>
         <button class="secondary" id="rules" type="button">查看规则</button>
       </div>
-      <p class="status" id="browser-status" role="status" hidden></p>
       <div class="startup-result" id="startup-result" hidden>
         <span id="startup-status" role="status"></span>
       </div>
@@ -93,17 +118,8 @@
     <ul class="checks" id="doctor-list"></ul>
     <div class="doctor-workspace">
       <span class="sync" id="sync" role="status">正在检查同步状态…</span>
-      <form class="workspace-path-form" id="workspace-path-form">
-        <label for="workspace-path">或直接输入工作区路径</label>
-        <div class="workspace-path-controls">
-          <input class="search" id="workspace-path" type="text" placeholder="/路径/cloudgame-cybercafe/cybercafe-front" required>
-          <button class="secondary" id="apply-workspace-path" type="submit">使用此路径</button>
-        </div>
-      </form>
-      <p class="status" id="workspace-status" role="status"></p>
     </div>
     <footer class="modal-foot">
-      <button class="secondary" id="save-workspace" type="button">选择目录</button>
       <button class="secondary" id="sync-now" type="button" hidden>立即同步</button>
       <button class="secondary danger" id="cleanup" type="button">清理生成文件</button>
       <button class="secondary" id="rerun-doctor" type="button">重新检查</button>
@@ -119,6 +135,7 @@
     </header>
     <p id="confirm-message"></p>
     <footer class="action-dialog-buttons">
+      <button class="secondary" value="cancel">取消</button>
       <button class="start" value="confirm">继续</button>
     </footer>
   </form>

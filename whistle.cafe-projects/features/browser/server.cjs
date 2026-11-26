@@ -22,7 +22,7 @@ async function openBrowser(request, response, url, chrome) {
     if (!/^[A-Za-z0-9_-]{1,80}$/.test(channelCode)) {
       return json(response, 400, { message: '请输入有效的游戏渠道编码。' });
     }
-    launchUrl += '?' + new URLSearchParams({ channelCode });
+    launchUrl = projectPageUrl(project, { channelCode });
   }
   try {
     if (isWindows) {

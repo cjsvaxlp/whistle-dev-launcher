@@ -7,6 +7,7 @@ export async function bindProxyMode() {
   let lastError = '';
   let lastNotice = '';
   let requestedMode = null;
+  let refreshTimer;
   function notifyPending(message) {
     const notice = message ? message.replace(/[…。.]+$/u, '') : '';
     if (notice && notice !== lastNotice) showInfo(message);
@@ -61,6 +62,7 @@ export async function bindProxyMode() {
     } finally { busy = false; control.disabled = !supported; }
   });
   async function refresh() {
+    clearTimeout(refreshTimer);
     if (!busy && !document.hidden) {
       busy = true;
       try { await readMode(); } catch (error) {
@@ -68,7 +70,16 @@ export async function bindProxyMode() {
         lastError = error.message;
       } finally { busy = false; }
     }
-    setTimeout(refresh, 3000);
+    clearTimeout(refreshTimer);
+    if (!document.hidden) refreshTimer = setTimeout(refresh, 3000);
   }
+  document.addEventListener('visibilitychange', () => {
+    clearTimeout(refreshTimer);
+    if (!document.hidden) refresh();
+  });
+  window.addEventListener('pagehide', () => clearTimeout(refreshTimer));
+  window.addEventListener('pageshow', event => {
+    if (event.persisted && !document.hidden) refresh();
+  });
   await refresh();
 }

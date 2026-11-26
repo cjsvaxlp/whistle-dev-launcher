@@ -2,13 +2,14 @@ const { modeSnapshot, setMode } = require('../features/system-proxy/mode.cjs');
 const { cleanGeneratedFiles } = require('../features/cleanup/server.cjs');
 const { pacRoute, servePac } = require('../features/system-proxy/pac.cjs');
 const { selectWorkspace } = require('../features/workspace/server.cjs');
+const { workspaceOverview } = require('../features/workspace/history.cjs');
 const { openBrowser } = require('../features/browser/server.cjs');
 const { readFileSync, statSync } = require('node:fs');
 const { join } = require('node:path');
 const { origin, pluginDir, readWorkspace } = require('../shared/config/config.cjs');
 const { authorized, json, token } = require('../shared/http/http.cjs');
 const { listProjects } = require('../features/projects/store.cjs');
-const { projectAction, stopAllServices, runSync, snapshot, changeProxy } = require('../features/projects/server.cjs');
+const { projectAction, stopAllServices, runSync, snapshot, changeProxy, isChangingWorkspace, beginLogCleanup } = require('../features/projects/server.cjs');
 const { doctor, fix } = require('../features/doctor/server.cjs');
 const { getLog, clearProjectLogs } = require('../features/logs/routes.cjs');
 const { listLogRuns } = require('../features/logs/store.cjs');
@@ -33,6 +34,8 @@ const panelAssets = new Map([
   ["/features/terminal/client.mjs", ["features/terminal/client.mjs", "text/javascript; charset=utf-8"]],
   ["/shared/http/client.mjs", ["shared/http/client.mjs", "text/javascript; charset=utf-8"]],
   ["/shared/toast/toast.mjs", ["shared/toast/toast.mjs", "text/javascript; charset=utf-8"]],
+  ["/features/workspace/actions.mjs", ["features/workspace/actions.mjs", "text/javascript; charset=utf-8"]],
+  ["/features/workspace/selector.mjs", ["features/workspace/selector.mjs", "text/javascript; charset=utf-8"]],
   ["/features/projects/client.mjs", ["features/projects/client.mjs", "text/javascript; charset=utf-8"]],
   ["/shared/toast/toast.css", ["shared/toast/toast.css", "text/css; charset=utf-8"]],
   ["/features/whistle/client.mjs", ["features/whistle/client.mjs", "text/javascript; charset=utf-8"]],
@@ -74,6 +77,7 @@ async function handle(request, response) {
     if (panelAssets.has(path)) return servePanel(response, path);
     if (path === '/api/proxy-mode') return json(response, 200, modeSnapshot());
     if (path === '/api/token') return json(response, 200, { token });
+    if (path === '/api/workspaces') return json(response, 200, await workspaceOverview());
     if (path === '/api/projects') {
       try {
         return json(response, 200, snapshot());
@@ -84,7 +88,10 @@ async function handle(request, response) {
     }
     if (path === '/api/doctor') {
       try {
-        return json(response, 200, await doctor());
+        const workspace = readWorkspace();
+        const data = await doctor();
+        if (workspace !== readWorkspace()) return json(response, 409, { message: '工作区已切换，请重新检查当前环境。' });
+        return json(response, 200, data);
       } catch (error) {
         return json(response, 503, { message: error.message });
       }
@@ -95,11 +102,21 @@ async function handle(request, response) {
   const logMatch = /^\/api\/logs\/([a-z0-9-]+)(?:\/(runs|clear))?$/.exec(path);
   if (logMatch) {
     const [, project, action] = logMatch;
+    if (url.searchParams.has('workspace') && url.searchParams.get('workspace') !== readWorkspace()) return json(response, 409, { message: '工作区已切换，请从主面板重新打开终端。' });
     if (action === 'clear' && (request.method !== 'POST' || !authorized(request))) {
       return json(response, 403, { message: '请从本机 Whistle 面板操作。' });
     }
     if (!listProjects().includes(project)) return json(response, 404, { message: '项目不存在。' });
-    if (action === 'clear') return clearProjectLogs(response, project);
+    if (action === 'clear') {
+      let release;
+      try {
+        release = beginLogCleanup();
+        return await clearProjectLogs(response, project);
+      } catch (error) {
+        if (error.code !== 'WORKSPACE_BUSY') throw error;
+        return json(response, 409, { message: error.message });
+      } finally { release?.(); }
+    }
     if (request.method === 'GET') {
       if (action === 'runs') return json(response, 200, { runs: listLogRuns(project) });
       return getLog(response, url, project);
@@ -127,7 +144,10 @@ async function handle(request, response) {
   }
 
   const modeMatch = /^\/api\/proxy-mode\/(system|browser)$/.exec(path);
-  if (modeMatch && request.method === 'POST') return setMode(request, response, modeMatch[1]);
+  if (modeMatch && request.method === 'POST') {
+    if (isChangingWorkspace()) return json(response, 409, { message: '正在切换工作区，请稍后切换代理模式。' });
+    return setMode(request, response, modeMatch[1]);
+  }
 
   const actionMatch = /^\/api\/(install|install-and-start|start|stop|restart-service|takeover|favorite|touch)\/([a-z0-9-]+)$/.exec(path);
   if (actionMatch) return projectAction(request, response, actionMatch[1], actionMatch[2]);

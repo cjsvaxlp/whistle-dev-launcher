@@ -24,6 +24,39 @@ const STALE_AFTER = 30000;
 const { jobs, startInstall, cancelInstalls } = require('../dependencies/installer.cjs');
 const operations = new Set();
 let stoppingServices = false;
+let changingWorkspace = false;
+let logCleanups = 0;
+
+function hasPendingWorkspaceStartup() {
+  try { return listProjects().some(project => hasPendingStartup(project)); }
+  catch (error) { if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return false; throw error; }
+}
+function beginWorkspaceChange() {
+  if (changingWorkspace || stoppingServices || changingProxy || operations.size || logCleanups
+    || [...jobs.values()].some(job => job.status === 'running')
+    || hasPendingWorkspaceStartup()
+    || require('../cleanup/server.cjs').isCleaning()) {
+    const error = new Error('项目正在启动、安装、停止、清理或切换代理，请等待操作完成后再切换工作区。');
+    error.code = 'WORKSPACE_BUSY';
+    throw error;
+  }
+  changingWorkspace = true;
+}
+function endWorkspaceChange() { changingWorkspace = false; }
+function isChangingWorkspace() { return changingWorkspace; }
+async function stopWorkspaceServices(workspace) {
+  if (!changingWorkspace || workspace !== readWorkspace()) throw new Error('工作目录已变化，请重新选择。');
+  return stopLaunchedServices(workspace);
+}
+function beginLogCleanup() {
+  if (changingWorkspace) {
+    const error = new Error('正在切换工作目录，请稍后清理日志。');
+    error.code = 'WORKSPACE_BUSY';
+    throw error;
+  }
+  logCleanups += 1;
+  return () => { logCleanups -= 1; };
+}
 
 function snapshot() {
   const state = readState();
@@ -201,6 +234,7 @@ function saveProxyEnabled(enabled) {
 async function changeProxy(request, response, enabled) {
   if (!authorized(request)) return json(response, 403, { message: '请从本机 Whistle 面板操作。' });
   if (!readWorkspace()) return json(response, 409, { message: '请先选择项目工作区。' });
+  if (changingWorkspace) return json(response, 409, { message: '正在切换工作区，请稍后再切换代理。' });
   if (changingProxy) return json(response, 409, { message: '正在切换本地代理。' });
   changingProxy = true;
   const previous = isLocalProxyEnabled();
@@ -240,11 +274,16 @@ async function projectAction(request, response, action, project) {
     json(response, 403, { message: '请从本机 Whistle 面板操作。' });
     return;
   }
+  if (request.headers['x-cafe-workspace']) {
+    let requested;
+    try { requested = decodeURIComponent(request.headers['x-cafe-workspace']); } catch { requested = ''; }
+    if (requested !== readWorkspace()) return json(response, 409, { message: '工作区已切换，请从当前工作区重新操作。' });
+  }
   if (!listProjects().includes(project)) {
     json(response, 404, { message: '项目不存在。' });
     return;
   }
-  if (stoppingServices) return json(response, 409, { message: '正在停止所有服务，请稍后重试。' });
+  if (stoppingServices || changingWorkspace) return json(response, 409, { message: '正在停止服务或切换工作区，请稍后重试。' });
   if (require('../cleanup/server.cjs').isCleaning()) {
     return json(response, 409, { message: '正在清理生成文件，请稍后再操作。' });
   }
@@ -332,15 +371,19 @@ async function projectAction(request, response, action, project) {
   }
 }
 
-async function refreshWorkspace() {
+async function refreshWorkspace(previousProjects = null) {
   syncError = null;
   await syncInFlight;
-  scheduleSync(0);
+  if (previousProjects) {
+    for (const project of previousProjects) clearStartup(project);
+    jobs.clear();
+  }
+  return runSync();
 }
 
 async function stopAllServices(request, response) {
   if (!authorized(request)) return json(response, 403, { message: '请从本机面板操作。' });
-  if (stoppingServices) return json(response, 409, { message: '正在停止所有服务。' });
+  if (stoppingServices || changingWorkspace) return json(response, 409, { message: '正在停止所有服务或切换工作区。' });
   stoppingServices = true;
   try {
     cancelInstalls();
@@ -367,4 +410,4 @@ async function stopAllServices(request, response) {
   }
 }
 
-module.exports = { stopAllServices, refreshWorkspace, snapshot, projectAction, runSync, jobs, isProjectBusy, changeProxy };
+module.exports = { stopWorkspaceServices, beginLogCleanup, beginWorkspaceChange, endWorkspaceChange, isChangingWorkspace, stopAllServices, refreshWorkspace, snapshot, projectAction, runSync, jobs, isProjectBusy, changeProxy };

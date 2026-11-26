@@ -12,6 +12,10 @@ const prefsFile = join(stateDir, 'preferences.json');
 const origin = 'http://127.0.0.1:8899';
 const entryUrl = 'https://cloudgametest2.migufun.com:18443/cybercafe-power/#/amsportal';
 const projectEntryRoutes = new Map([
+  ['power', '/freeLogin'],
+  ['service', '/noPower'],
+  ['open', '/noPower'],
+  ['newcms', '/noPower'],
   ['client', '/Home'],
   ['web-client', '/Home'],
   ['h5', '/download'],
@@ -25,15 +29,16 @@ const projectEntryRoutes = new Map([
   ['monitor', '/noPower'],
 ]);
 
-function projectPageUrl(project) {
-  // These modules use the portal to exchange the session before entering a business page.
-  if (['power', 'service', 'open'].includes(project)) return entryUrl;
-  // New CMS reads the session established by CMS in the same browser tab.
-  const entryProject = project === 'newcms' ? 'cms' : project;
-  const url = new URL('/cybercafe-' + entryProject + '/', entryUrl);
-  const route = projectEntryRoutes.get(entryProject);
-  if (route) url.hash = route;
-  return url.href;
+function projectPageUrl(project, { channelCode } = {}) {
+  const target = new URL('/cybercafe-' + project + '/', entryUrl);
+  const route = projectEntryRoutes.get(project);
+  if (route) target.hash = route;
+  if (project === 'game' && channelCode) target.hash += '?' + new URLSearchParams({ channelCode });
+  // Preserve the existing login/session-exchange entry, carrying the intended module separately.
+  const launch = ['power', 'service', 'open'].includes(project) ? new URL(entryUrl)
+    : project === 'newcms' ? new URL('/cybercafe-cms/#/testLogin', entryUrl) : new URL(target);
+  launch.searchParams.set('__cafe_return', target.pathname + target.search + target.hash);
+  return launch.href;
 }
 
 const ruleName = 'Cafe 自动代理';

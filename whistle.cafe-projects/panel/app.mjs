@@ -4,12 +4,12 @@ async function startPanel() {
     loaded = await Promise.all([
       import('../features/system-proxy/client.mjs'),
       import('../features/cleanup/client.mjs'),
-      import('../shared/toast/toast.mjs'),
-      import('../shared/http/client.mjs'),
       import('../features/doctor/client.mjs'),
       import('../features/rules/client.mjs'),
       import('../features/projects/client.mjs'),
       import('../features/whistle/client.mjs'),
+      import('../features/workspace/selector.mjs'),
+      import('../features/workspace/actions.mjs'),
     ]);
   } catch (error) {
     showBootFailure(error);
@@ -18,61 +18,24 @@ async function startPanel() {
   const [
     { bindProxyMode },
     { bindCleanup },
-    { showError },
-    { post },
     { bindDoctor },
     { bindRules },
     { hasWorkspace, load, setStatus, shouldOpenDirectly },
     { bindWhistleControls },
+    { bindWorkspaceSelector },
+    { bindWorkspaceActions },
   ] = loaded;
 
   const { showDoctor } = bindDoctor({ load });
   bindRules();
-  await bindProxyMode();
+  const proxyModeReady = bindProxyMode();
   bindCleanup({ load });
   bindWhistleControls({ load, setStatus, shouldOpenDirectly });
 
-  const picker = document.querySelector('#save-workspace');
-  const workspaceStatus = document.querySelector('#workspace-status');
-  const workspacePathForm = document.querySelector('#workspace-path-form');
-  const workspacePath = document.querySelector('#workspace-path');
-  const applyWorkspacePath = document.querySelector('#apply-workspace-path');
-
-  async function updateWorkspace(directory) {
-    picker.disabled = true;
-    applyWorkspacePath.disabled = true;
-    workspaceStatus.dataset.state = '';
-    workspaceStatus.textContent = directory ? '正在检查目录…' : '请在系统窗口中选择目录。';
-    try {
-      const body = directory ? new URLSearchParams({ directory }) : undefined;
-      const response = await post('./api/workspace', body);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || '选择目录失败。');
-      if (data.cancelled) {
-        workspaceStatus.textContent = '';
-        return;
-      }
-      workspacePath.value = data.workspace;
-      workspaceStatus.textContent = '已保存工作区。';
-      await load();
-      if (!picker.closest('.modal').hidden) await showDoctor();
-    } catch (error) {
-      workspaceStatus.textContent = '';
-      showError(error.message);
-    } finally {
-      picker.disabled = false;
-      applyWorkspacePath.disabled = false;
-    }
-  }
-
-  picker.addEventListener('click', () => updateWorkspace());
-  workspacePathForm.addEventListener('submit', event => {
-    event.preventDefault();
-    const directory = workspacePath.value.trim();
-    if (directory) updateWorkspace(directory);
-  });
-
+  const { updateWorkspace } = bindWorkspaceActions({ load, showDoctor });
+  bindWorkspaceSelector({ updateWorkspace });
   await load();
+  await proxyModeReady;
   const params = new URLSearchParams(location.search);
   if (hasWorkspace()
     && !localStorage.getItem('cafe-doctor-seen') && params.get('doctor') !== '0') showDoctor({ auto: true });

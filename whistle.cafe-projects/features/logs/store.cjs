@@ -6,17 +6,42 @@ const {
 const { join } = require('node:path');
 const { MAX_SIZE } = require('./run-log.cjs');
 const { logsDir, isWindows } = require('../../shared/config/config.cjs');
-const archiveDir = join(logsDir, 'archive');
+const { readWorkspace, workspaceId } = require('../workspace/store.cjs');
+let logOwnerCache;
+
+function projectLogsDir() {
+  const workspace = readWorkspace();
+  if (!workspace) return logsDir;
+  const id = workspaceId(workspace);
+  // Retain existing log locations for the first workspace, including active writer markers.
+  const ownerFile = join(logsDir, '.workspace');
+  let info;
+  try { info = statSync(ownerFile); }
+  catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    mkdirSync(logsDir, { recursive: true });
+    try { writeFileSync(ownerFile, id, { flag: 'wx', mode: 0o600 }); }
+    catch (writeError) { if (writeError.code !== 'EEXIST') throw writeError; }
+    info = statSync(ownerFile);
+  }
+  // Invalidate on replacement/change or cleanup; workspace changes still select their own directory.
+  const signature = `${info.ino}:${info.size}:${info.mtimeMs}:${info.ctimeMs}`;
+  if (logOwnerCache?.signature !== signature) {
+    logOwnerCache = { signature, owner: readFileSync(ownerFile, 'utf8').trim() };
+  }
+  return logOwnerCache.owner === id ? logsDir : join(logsDir, 'workspaces', id);
+}
+function archiveDir() { return join(projectLogsDir(), 'archive'); }
 
 function logPath(project) {
   const file = project === 'whistle-restart' ? 'whistle-restart.project.log' : project + '.log';
-  return join(logsDir, file);
+  return join(projectLogsDir(), file);
 }
 
 function archiveNames(project, strict = false) {
   const pattern = new RegExp('^' + project + '-[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9-]+Z(?:-[a-f0-9]+)?\\.log$');
   try {
-    return readdirSync(archiveDir).filter(name => pattern.test(name)).sort().reverse();
+    return readdirSync(archiveDir()).filter(name => pattern.test(name)).sort().reverse();
   } catch (error) {
     if (strict && error.code !== 'ENOENT') throw error;
     return [];
@@ -24,13 +49,13 @@ function archiveNames(project, strict = false) {
 }
 
 function prepareLog(project) {
-  mkdirSync(logsDir, { recursive: true });
+  mkdirSync(projectLogsDir(), { recursive: true });
   const file = logPath(project);
   if (existsSync(file) && statSync(file).size > 0) {
-    mkdirSync(archiveDir, { recursive: true });
+    mkdirSync(archiveDir(), { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    renameSync(file, join(archiveDir, `${project}-${stamp}-${randomBytes(4).toString('hex')}.log`));
-    for (const name of archiveNames(project).slice(5)) unlinkSync(join(archiveDir, name));
+    renameSync(file, join(archiveDir(), `${project}-${stamp}-${randomBytes(4).toString('hex')}.log`));
+    for (const name of archiveNames(project).slice(5)) unlinkSync(join(archiveDir(), name));
   }
   writeFileSync(file, '');
   return file;
@@ -46,7 +71,7 @@ function listLogRuns(project) {
   }
   try {
     for (const name of archiveNames(project)) {
-      const info = statSync(join(archiveDir, name));
+      const info = statSync(join(archiveDir(), name));
       runs.push({ name, at: info.mtimeMs, size: info.size });
     }
   } catch {
@@ -56,7 +81,7 @@ function listLogRuns(project) {
 }
 
 function clearLogs(project, keepCurrent) {
-  const files = archiveNames(project, true).map(name => join(archiveDir, name));
+  const files = archiveNames(project, true).map(name => join(archiveDir(), name));
   const current = logPath(project);
   if (!keepCurrent) files.push(current);
   let removed = 0;

@@ -1,7 +1,10 @@
 import { showError, reportError } from '../../shared/toast/toast.mjs';
 import { confirmAction, post } from '../../shared/http/client.mjs';
 
-const project = new URLSearchParams(location.search).get('project') || '';
+const params = new URLSearchParams(location.search);
+const project = params.get('project') || '';
+let workspace = params.get('workspace') || '';
+let workspaceChanged = false;
 const title = document.querySelector('#title');
 const status = document.querySelector('#status');
 const dot = document.querySelector('#dot');
@@ -14,6 +17,8 @@ const takeover = document.querySelector('#takeover');
 
 let pending = false;
 let refreshing = false;
+let refreshTimer;
+let diagnosticsKey;
 
 if (!/^[a-z0-9-]+$/.test(project)) {
   title.textContent = '项目参数无效';
@@ -25,11 +30,15 @@ title.textContent = `cybercafe-${project}`;
 document.title = `终端 · cybercafe-${project}`;
 
 function setStatus(text, state) {
-  status.textContent = text;
-  dot.className = 'dot' + (state ? ' ' + state : '');
+  if (status.textContent !== text) status.textContent = text;
+  const className = 'dot' + (state ? ' ' + state : '');
+  if (dot.className !== className) dot.className = className;
 }
 
 function renderDiagnostics(list) {
+  const key = JSON.stringify(list);
+  if (diagnosticsKey === key) return;
+  diagnosticsKey = key;
   if (!list.length) {
     diags.replaceChildren();
     return;
@@ -43,17 +52,27 @@ function renderDiagnostics(list) {
 }
 
 async function refresh() {
-  if (refreshing) return;
+  if (refreshing || pending || document.hidden || workspaceChanged) return;
+  clearTimeout(refreshTimer);
   refreshing = true;
   try {
-    const response = await fetch(`./api/logs/${encodeURIComponent(project)}`, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+    const query = workspace ? '?' + new URLSearchParams({ workspace }) : '';
+    const response = await fetch(`./api/logs/${encodeURIComponent(project)}${query}`, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.message || '读取失败。');
+    if (!response.ok) {
+      workspaceChanged = response.status === 409;
+      throw new Error(data.message || '读取失败。');
+    }
+    workspaceChanged = false;
+    workspace ||= data.workspace || '';
+    if (workspace) title.title = workspace;
     reportError('terminal-load', '');
-    const atBottom = output.scrollTop + output.clientHeight >= output.scrollHeight - 30;
-    const text = data.lines.join('\n');
-    output.textContent = text || '（暂无日志）';
-    if (atBottom) output.scrollTop = output.scrollHeight;
+    const text = data.lines.join('\n') || '（暂无日志）';
+    if (output.textContent !== text) {
+      const atBottom = output.scrollTop + output.clientHeight >= output.scrollHeight - 30;
+      output.textContent = text;
+      if (atBottom) output.scrollTop = output.scrollHeight;
+    }
     renderDiagnostics(data.diagnostics || []);
     if (data.source === 'external') {
       notice.hidden = false;
@@ -76,22 +95,31 @@ async function refresh() {
       setStatus('等待启动…', '');
     }
   } catch (error) {
-    setStatus('等待 Whistle…', 'warn');
+    setStatus(workspaceChanged ? '工作区已切换，请从主面板重新打开终端。' : '等待 Whistle…', 'warn');
     reportError('terminal-load', error.message);
+    if (workspaceChanged) {
+      clearTimeout(refreshTimer);
+      output.textContent = '';
+      diags.replaceChildren();
+      notice.hidden = false;
+      noticeText.textContent = '原目录终端已关闭，运行日志已保留；请从当前工作目录重新打开终端。';
+    }
     takeover.hidden = true;
   } finally {
     refreshing = false;
+    clearTimeout(refreshTimer);
+    if (!document.hidden && !workspaceChanged && !pending) refreshTimer = setTimeout(refresh, 3000);
   }
 }
 
 async function serviceAction(button, action, message, pendingText) {
-  if (pending || button.disabled) return;
+  if (pending || button.disabled || workspaceChanged || !workspace) return;
   pending = true;
   button.disabled = true;
   try {
     if (!await confirmAction(message)) return;
     setStatus(pendingText, 'warn');
-    const response = await post(`./api/${action}/${encodeURIComponent(project)}`);
+    const response = await post(`./api/${action}/${encodeURIComponent(project)}`, undefined, { workspace });
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || '操作失败。');
   } catch (error) {
@@ -115,9 +143,11 @@ back.addEventListener('click', () => {
 });
 
 refresh();
-setInterval(() => {
-  if (!document.hidden && !pending) refresh();
-}, 3000);
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && !pending) refresh();
+  clearTimeout(refreshTimer);
+  if (!document.hidden && !pending && !workspaceChanged) refresh();
+});
+window.addEventListener('pagehide', () => clearTimeout(refreshTimer));
+window.addEventListener('pageshow', event => {
+  if (event.persisted && !document.hidden && !workspaceChanged) refresh();
 });

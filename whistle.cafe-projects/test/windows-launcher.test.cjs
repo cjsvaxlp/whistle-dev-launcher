@@ -6,7 +6,7 @@ const { join, posix, win32 } = require('node:path');
 const vm = require('node:vm');
 const source = readFileSync(join(__dirname, '../features/terminal/launcher.cjs'), 'utf8');
 
-function fixture(vite, paths) {
+function fixture(vite, paths, failStop = false) {
   const workspace = paths === win32 ? 'C:\\workspace with spaces' : '/workspace with spaces';
   const calls = [], child = new EventEmitter();
   child.pid = 12345;
@@ -23,6 +23,7 @@ function fixture(vite, paths) {
       },
       execFile(command, args, options, callback) {
         calls.push({ command, args, options });
+        if (failStop) return callback(new Error('fixture taskkill failure'));
         child.emit('close');
         callback(null, '', '');
       },
@@ -35,7 +36,7 @@ function fixture(vite, paths) {
   mockRequire.resolve = name => paths.join(workspace, 'node_modules', name);
   const context = { require: mockRequire, module: { exports: {} }, process, Buffer };
   vm.runInNewContext(source, context);
-  return { api: context.module.exports, calls, workspace };
+  return { api: context.module.exports, calls, workspace, setStopFailure(value) { failStop = value; } };
 }
 
 for (const paths of [posix, win32]) {
@@ -57,7 +58,9 @@ for (const paths of [posix, win32]) {
       assert.equal(launch.options.stdio, 'ignore');
       assert.equal(launch.options.env.CAFE_LAUNCH_ID, 'launch-1');
       assert.ok(launch.args.includes('--host'));
-      await api.stopLaunchedServices();
+      await api.stopLaunchedServices(workspace + '-other');
+      assert.equal(calls.length, 1);
+      await api.stopLaunchedServices(workspace);
       assert.equal(calls[1].command, 'taskkill.exe');
       assert.equal(calls[1].args.join(' '), '/PID 12345 /T /F');
       assert.equal(calls[1].options.windowsHide, true);
@@ -66,3 +69,13 @@ for (const paths of [posix, win32]) {
     });
   }
 }
+
+test('Windows 停止失败保留托管归属，重试后才能释放', async () => {
+  const { api, workspace, setStopFailure } = fixture(true, win32, true);
+  await api.openTerminal('demo', win32.join(workspace, 'demo.log'), 'retry', { node: 'node.exe' });
+  await assert.rejects(api.stopLaunchedServices(workspace), /fixture taskkill failure/);
+  assert.equal(api.hasLaunchedServices(), true);
+  setStopFailure(false);
+  await api.stopLaunchedServices(workspace);
+  assert.equal(api.hasLaunchedServices(), false);
+});

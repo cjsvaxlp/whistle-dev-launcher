@@ -9,9 +9,9 @@
   transform: translateX(-50%);
   box-sizing: border-box;
   width: max-content;
+  height: max-content;
   max-width: min(560px, calc(100vw - 48px));
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
+  display: flex;
   align-items: center;
   gap: 10px;
   padding: 12px 18px;
@@ -30,6 +30,7 @@
 .error-toast[hidden] { display: none; }
 .error-toast::before {
   content: "!";
+  flex: 0 0 20px;
   display: grid;
   place-items: center;
   width: 20px;

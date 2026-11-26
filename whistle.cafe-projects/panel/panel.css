@@ -695,24 +695,6 @@ h1 {
   cursor: default;
 }
 
-.workspace-path-form {
-  margin-top: 10px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.workspace-path-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: 5px;
-}
-
-.workspace-path-controls .search {
-  flex: 1 1 230px;
-}
-
 input, select, textarea { color: inherit; }
 
 .proxy-mode-picker {
@@ -752,9 +734,6 @@ input, select, textarea { color: inherit; }
 .proxy-mode-picker:disabled label { cursor: default; }
 @media (prefers-reduced-motion: reduce) { .proxy-mode-picker::before { transition: none; } }
 
-#browser-status { margin: 8px 0 0; min-height: 0; font-size: 12px; }
-#browser-status[hidden] { display: none; }
-#browser-status[data-state=ok] { color: var(--success); }
 
 /* Shared control rhythm: compact macOS controls with clear content insets. */
 :where(.ghost, .entry, .start, .secondary):not([hidden]) {
@@ -768,3 +747,164 @@ input, select, textarea { color: inherit; }
 .toolbar { gap: 10px; padding-block: 12px; }
 .action-dialog form { padding: 24px; }
 .modal-foot { gap: 10px; }
+
+/* Compact workspace identity and progressive disclosure; reuse the panel theme tokens. */
+.workspace-bar {
+  flex: none;
+  padding: 12px clamp(12px, 2vw, 24px);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.workspace-picker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.workspace-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--accent);
+  background: var(--subtle);
+}
+.workspace-identity {
+  flex: 1;
+  min-width: 0;
+}
+.workspace-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.workspace-caption {
+  flex: none;
+  font-size: 11px;
+  color: var(--secondary);
+}
+.workspace-heading select {
+  width: auto;
+  min-width: 100px;
+  max-width: min(340px, 45vw);
+  height: 26px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+#current-workspace-branch {
+  overflow: hidden;
+  max-width: 220px;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--subtle);
+  color: var(--secondary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#current-workspace-branch:empty {
+  display: none;
+}
+.workspace-location {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--secondary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
+}
+.workspace-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.workspace-actions > .secondary {
+  min-height: 30px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.readiness[hidden], .issue[hidden] {
+  display: none;
+}
+.readiness ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--secondary);
+  font-size: 11px;
+}
+.project-card h1 {
+  font-size: clamp(22px, 3vw, 26px);
+}
+.readiness {
+  margin-bottom: 16px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--border);
+}
+.readiness li[data-complete=true] {
+  color: var(--success);
+}
+.readiness p {
+  margin: 7px 0 0;
+  color: var(--secondary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.issue {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--control-border);
+  border-radius: 12px;
+  background: var(--warning-bg);
+}
+.issue b {
+  color: var(--warning);
+}
+.issue p {
+  margin: 8px 0 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.modal-state {
+  overflow-wrap: anywhere;
+}
+.modal-foot {
+  flex-wrap: wrap;
+}
+@media (max-width: 900px) {
+  .workspace-caption {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .workspace-picker {
+    flex-wrap: wrap;
+  }
+  .workspace-identity {
+    flex-basis: calc(100% - 56px);
+  }
+  .workspace-actions {
+    margin-left: 50px;
+  }
+  .workspace-heading select {
+    max-width: 48vw;
+  }
+}
+
+#confirm-message { white-space: pre-line; }
+.action-dialog { max-height: calc(100dvh - 48px); overflow-y: auto; }

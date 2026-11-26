@@ -6,6 +6,17 @@ const doctorTitle = document.querySelector('#doctor-title');
 const doctorState = document.querySelector('#doctor-state');
 const doctorList = document.querySelector('#doctor-list');
 
+let doctorRequest;
+export function readDoctor() {
+  if (!doctorRequest) doctorRequest = fetch('./api/doctor', { cache: 'no-store' })
+    .then(async response => {
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || '检查失败。');
+      return data;
+    }).finally(() => { doctorRequest = null; });
+  return doctorRequest;
+}
+
 export function bindDoctor({ load }) {
 
   const FIX_LABELS = {
@@ -34,7 +45,7 @@ export function bindDoctor({ load }) {
       doctorState.textContent = data.message;
       await load();
     } catch (error) {
-      doctorState.textContent = '';
+      doctorState.textContent = error.message;
       showError(error.message);
     } finally {
       repairing = false;
@@ -79,21 +90,32 @@ export function bindDoctor({ load }) {
       : '有需要处理的项';
   }
 
-  async function showDoctor({ auto = false } = {}) {
+  let checking;
+  let autoCloseAllowed = false;
+  function showDoctor(options = {}) {
+    doctorModal.hidden = false;
+    if (checking) {
+      if (!options.auto) autoCloseAllowed = false;
+      return checking;
+    }
+    autoCloseAllowed = Boolean(options.auto);
+    checking = checkDoctor(options).finally(() => { checking = null; });
+    return checking;
+  }
+
+  async function checkDoctor({ auto = false } = {}) {
     doctorModal.hidden = false;
     doctorState.textContent = '检查中…';
     doctorList.replaceChildren();
     try {
-      const response = await fetch('./api/doctor', { cache: 'no-store' });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || '检查失败。');
+      const data = await readDoctor();
       renderChecks(data);
-      if (auto && data.ok && !data.checks.some(check => check.id === 'proxy' && check.status === 'unknown')) {
+      if (auto && autoCloseAllowed && data.ok && !data.checks.some(check => check.id === 'proxy' && check.status === 'unknown')) {
         doctorModal.hidden = true;
         localStorage.setItem('cafe-doctor-seen', '1');
       }
     } catch (error) {
-      doctorState.textContent = '';
+      doctorState.textContent = error.message;
       showError(error.message);
     }
   }

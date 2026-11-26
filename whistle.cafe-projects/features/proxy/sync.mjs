@@ -23,6 +23,10 @@ const RULE_NAME = 'Cafe 自动代理';
 const MARKER = '# cafe-tools managed: cafe-auto-proxy';
 const POWERSHELL = join(process.env.SystemRoot || 'C:\\Windows',
   'System32/WindowsPowerShell/v1.0/powershell.exe');
+const RETURN_HTML = join(here, '../navigation/return.html');
+const RETURN_JS = join(here, '../navigation/return.js');
+const PORTAL_HTML = join(here, '../navigation/portal.html');
+const PORTAL_JS = join(here, '../navigation/portal.js');
 const BADGE_HTML = join(here, '../badge/badge.html');
 const BADGE_JS = join(here, '../badge/badge.js');
 const BADGE_CSS = join(here, '../badge/badge.css');
@@ -273,10 +277,15 @@ export function buildRule(projects, locals, compat = {}) {
     '# 由 cafe-tools 自动同步，请勿手动编辑。',
     `${HOST} enable://capture`,
     `${HOST}/__cafe/confirm cafe-projects://browser-report cache://no-store`,
+    `${HOST}/__cafe/return.js ${ruleUrl('file', RETURN_JS)}`,
+    `${HOST}/__cafe/portal.js ${ruleUrl('file', PORTAL_JS)}`,
     `${HOST}/__cafe/badge.js ${ruleUrl('file', BADGE_JS)}`,
     `${HOST}/__cafe/badge.css ${ruleUrl('file', BADGE_CSS)}`,
     `${HOST}/__cafe/state.json ${ruleUrl('file', stateFile)}`,
   ];
+  for (const project of new Set([...projects, 'power', 'cms', 'newcms'])) {
+    lines.push(`${HOST}${prefixOf(project)} ${ruleUrl('htmlPrepend', project === 'power' ? PORTAL_HTML : RETURN_HTML)}`);
+  }
   for (const project of projects) {
     lines.push(`${HOST}${prefixOf(project)} ${ruleUrl('htmlAppend', BADGE_HTML)}`);
   }

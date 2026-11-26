@@ -11,14 +11,14 @@ const title = document.querySelector('#title');
 const meta = document.querySelector('#meta');
 const projectEntryNote = document.querySelector('#project-entry-note');
 const portalEntryNotes = {
-  power: '登录统一服务平台后，点击「算力管理模块」，进入账号可访问的业务页。',
-  hub: '如果首次打开返回统一门户，请登录后点击「云网吧服务模块」完成会话交换。',
-  open: '登录统一服务平台后，点击「算力开放模块」，由平台完成登录态交换。',
-  service: '登录统一服务平台后，点击「运营分析模块」，由平台完成登录态交换。',
+  power: '登录统一服务平台后，将自动进入账号可访问的算力管理页面。',
+  hub: '首次打开如需登录，登录后将完成会话交换并返回云网吧服务页面。',
+  open: '登录后由统一服务平台完成会话交换，并返回算力开放页面。',
+  service: '登录后由统一服务平台完成会话交换，并返回运营分析页面。',
 };
 const cmsEntryNotes = {
   cms: '使用 CMS 测试账号登录。需要使用 4A 时，请从 4A 的应用资源进入。',
-  newcms: '用 CMS 测试账号登录后，在同一标签页从用户菜单选择「新业管」。',
+  newcms: '用 CMS 测试账号登录后，将在同一标签页返回新业管页面。',
 };
 const start = document.querySelector('#start');
 const install = document.querySelector('#install');
@@ -32,13 +32,14 @@ const installPrompt = document.querySelector('#install-prompt');
 const status = document.querySelector('#status');
 const startupResult = document.querySelector('#startup-result');
 const startupStatus = document.querySelector('#startup-status');
-const browserStatus = document.querySelector('#browser-status');
 const sync = document.querySelector('#sync');
 const syncNow = document.querySelector('#sync-now');
 const search = document.querySelector('#search');
 const onlyFav = document.querySelector('#only-fav');
 
 let snapshot = null;
+const actionErrors = new Map();
+let retryAction = 'start';
 let selected = new URLSearchParams(location.search).get('project') || '';
 let busy = false;
 let listKey = '';
@@ -55,13 +56,6 @@ function ago(iso) {
   return `${Math.round(ms / 3600000)} 小时前`;
 }
 
-function clock(iso) {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime())
-    ? '未知'
-    : date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-}
-
 export function setStatus(text, state) {
   if (state === 'error') {
     showError(text);
@@ -74,7 +68,7 @@ export function setStatus(text, state) {
 function depLabel(project) {
   if (project.installing) return { text: '安装中', className: 'installing' };
   if (project.deps.status === 'missing') return { text: '缺依赖', className: 'missing' };
-  if (project.deps.status === 'stale') return { text: '待更新', className: 'stale' };
+  if (project.deps.status === 'stale') return { text: '待更新', className: 'stale', title: 'lockfile 比 node_modules 新，依赖可能已过期，建议重新安装。' };
   return null;
 }
 
@@ -120,6 +114,7 @@ function renderList() {
       const badge = document.createElement('span');
       badge.className = 'dep ' + dep.className;
       badge.textContent = dep.text;
+      if (dep.title) badge.title = dep.title;
       button.append(badge);
     }
     const tag = document.createElement('span');
@@ -147,8 +142,8 @@ function renderList() {
     if (!snapshot.projects.length) {
       const button = document.createElement('button');
       button.type = 'button';
-      button.textContent = '在体检中选择目录';
-      button.addEventListener('click', () => document.querySelector('#doctor').click());
+      button.textContent = snapshot.workspace ? '重新选择项目目录' : '选择项目目录';
+      button.addEventListener('click', () => document.querySelector('#save-workspace').click());
       fragment.append(button);
     }
   }
@@ -193,25 +188,23 @@ function render() {
   }
 
   renderList();
+  document.dispatchEvent(new CustomEvent('cafe-projects-updated', { detail: snapshot }));
+  renderReadiness(info);
   title.textContent = info ? `cybercafe-${info.name}` : '选择项目';
 
   if (info && info.active) {
-    meta.textContent = snapshot.proxyEnabled === false
-      ? `本地服务运行中 · 端口 ${info.port} · 测试地址当前走测试部署`
-      : info.compat
-      ? `转发规则已就绪（兼容模式）· 端口 ${info.port} · 资源路径由代理改写，HMR 转发规则已配置`
-      : `转发规则已就绪 · 端口 ${info.port} · ${info.engine} · ${clock(info.since)} 开始（服务已在运行，无需重复启动）`;
+    meta.textContent = '';
   } else if (info && info.unmatched) {
     meta.textContent = `检测到 127.0.0.1:${info.unmatched.port} 上的服务，但它没有以 /cybercafe-${info.name}/ 为 base 启动；可以点「接管并重启」结束它并按可接管方式重启。`;
   } else if (info && info.deps.status === 'missing') {
     meta.textContent = '缺少开发依赖，可以在启动时安装。';
-  } else if (info && info.deps.status === 'stale') {
-    meta.textContent = 'lockfile 比 node_modules 新，依赖可能已过期，建议重新安装。';
   } else if (info) {
-    meta.textContent = '未运行 · 启动后同步本地转发规则；测试浏览器需通过 Whistle 访问。';
+    meta.textContent = '';
   } else {
     meta.textContent = '在左侧选择项目后，可以启动本地开发服务。';
   }
+
+  meta.hidden = !meta.textContent;
 
   const active = Boolean(info && info.active);
   const unmatched = Boolean(info && !info.active && info.unmatched);
@@ -233,21 +226,10 @@ function render() {
   const entryNoteText = cmsEntryNoteText || portalEntryNoteText;
   projectEntryNote.hidden = !entryNoteText;
   projectEntryNote.textContent = entryNoteText;
-  const confirmed = info?.browser?.confirmed && !snapshot.stale && snapshot.proxyEnabled !== false;
   const openLabel = cmsEntryNoteText ? '打开 CMS 测试登录' : '打开项目页面';
   open.textContent = openLabel;
   const startup = info?.startup;
   const startupPending = startup && startup.stage !== 'ready';
-  browserStatus.hidden = !active || snapshot.proxyEnabled === false || Boolean(startupPending);
-  browserStatus.dataset.state = confirmed ? 'ok' : '';
-  browserStatus.textContent = confirmed ? '服务就绪 · 已确认本地访问'
-    : snapshot.stale ? '同步已过期 · 页面未确认' : '规则就绪 · 页面未确认';
-  browserStatus.title = confirmed
-    ? '最近收到测试标签页的本地访问回报。'
-    : snapshot.proxyMode === 'browser'
-      ? '请在浏览器扩展中启用 HTTP 127.0.0.1:8899 的测试域名规则，然后刷新项目页面。详细配置可在体检中查看。'
-      : '请确认 Whistle 代理配置成功，然后刷新项目页面。详细状态可在体检中查看。';
-  if (startup?.message) browserStatus.title += '\n' + startup.message;
   gameChannelField.hidden = info?.name !== 'game';
   gameChannel.required = !gameChannelField.hidden;
   open.hidden = !info;
@@ -265,7 +247,7 @@ function render() {
   showTerminal(info?.name, Boolean(info && (info.active || info.log || installing || launching)));
   startupResult.hidden = !startupPending;
   startupResult.dataset.stage = startup?.stage || '';
-  const message = startupResult.hidden ? '' : (startup.stage === 'failed' ? '启动失败，请查看下方终端。' : startup.message) || '';
+  const message = startupResult.hidden ? '' : startup.message || '';
   if (startupStatus.textContent !== message) startupStatus.textContent = message;
 }
 
@@ -306,9 +288,9 @@ proxySwitch.addEventListener('change', async () => {
   }
 });
 
-export function load() {
+export function load({ fresh = false } = {}) {
   if (proxyShutdown) return Promise.resolve();
-  if (refreshInFlight) return refreshInFlight;
+  if (refreshInFlight) return fresh ? refreshInFlight.then(() => load()) : refreshInFlight;
   clearTimeout(refreshTimer);
   refreshInFlight = fetch('./api/projects', { cache: 'no-store', signal: AbortSignal.timeout(5000) })
     .then(response => response.json().then(data => ({ response, data })))
@@ -323,6 +305,7 @@ export function load() {
       for (const project of data.projects) {
         reportError('startup-' + project.name, project.startup?.stage === 'failed' ? project.startup.message : '');
       }
+      if (snapshot?.workspace !== data.workspace) actionErrors.clear();
       snapshot = data;
       render();
     })
@@ -363,29 +346,33 @@ function confirmInstall() {
 async function projectAction(action, pending) {
   if (!selected || busy) return;
   const project = selected;
+  const workspace = snapshot?.workspace;
   busy = true;
+  actionErrors.delete(project);
   render();
   setStatus(pending, 'busy');
   try {
-    let response = await post('./api/' + action + '/' + project);
+    let response = await post('./api/' + action + '/' + project, undefined, { workspace });
     let data = await response.json();
     if (action === 'start' && response.status === 409 && data.action === 'install') {
       if (!(await confirmInstall())) {
-        if (selected === project) setStatus('');
+        if (selected === project && snapshot?.workspace === workspace) setStatus('');
         return;
       }
+      if (snapshot?.workspace !== workspace) return;
       action = 'install-and-start';
-      response = await post('./api/' + action + '/' + project);
+      response = await post('./api/' + action + '/' + project, undefined, { workspace });
       data = await response.json();
     }
     if (!response.ok) throw new Error(data.message || '操作失败。');
-    if (selected === project) {
+    if (selected === project && snapshot?.workspace === workspace) {
       setStatus(action === 'stop' ? data.message : '');
       const terminalActions = ['start', 'install', 'install-and-start', 'restart-service', 'takeover'];
       if (terminalActions.includes(action)) focusTerminal(project);
     }
   } catch (error) {
-    if (selected === project) setStatus(error.message, 'error');
+    if (snapshot?.workspace === workspace) actionErrors.set(project, { message: error.message, action });
+    if (selected === project && snapshot?.workspace === workspace) setStatus(error.message, 'error');
   } finally {
     await load();
     busy = false;
@@ -400,7 +387,8 @@ restartService.addEventListener('click', () => projectAction('restart-service', 
 takeover.addEventListener('click', async () => {
   if (!selected || busy) return;
   const project = selected;
-  if (await confirmAction('会结束当前运行的实例，再用可接管的方式重新启动。继续？') && selected === project) {
+  const workspace = snapshot?.workspace;
+  if (await confirmAction('会结束当前运行的实例，再用可接管的方式重新启动。继续？') && selected === project && snapshot?.workspace === workspace) {
     projectAction('takeover', '正在重启实例…');
   }
 });
@@ -415,6 +403,9 @@ open.addEventListener('click', event => {
   }
   const url = new URL(open.href);
   url.hash = '/gameList/menu?' + new URLSearchParams({ channelCode: gameChannel.value });
+  const target = new URL(url);
+  target.searchParams.delete('__cafe_return');
+  url.searchParams.set('__cafe_return', target.pathname + target.search + target.hash);
   open.href = url.href;
 });
 
@@ -436,3 +427,40 @@ document.addEventListener('visibilitychange', () => {
 export function hasWorkspace() {
   return Boolean(snapshot?.workspace);
 }
+
+function renderReadiness(info) {
+  const card = document.querySelector('#readiness');
+  card.hidden = !info;
+  const service = Boolean(info?.active);
+  const rules = service && snapshot.proxyEnabled === true && !snapshot.stale && !snapshot.syncError && Boolean(snapshot.updatedAt) && !loadError;
+  const confirmed = rules && Boolean(info?.browser?.confirmed);
+  const steps = document.querySelector('#readiness-steps');
+  steps.replaceChildren();
+  for (const [label, done] of [['服务已启动', service && !loadError], ['代理已经开启', rules], ['测试链接已代理到本地资源', confirmed]]) {
+    const item = document.createElement('li');
+    item.dataset.complete = String(done);
+    item.textContent = (done ? '✓ ' : '○ ') + label;
+    steps.append(item);
+  }
+  const error = actionErrors.get(selected);
+  const failed = info?.startup?.stage === 'failed';
+  const syncFailure = snapshot.proxyEnabled !== false && (snapshot.syncError || (snapshot.workspace && snapshot.stale && !info?.launching && !info?.installing));
+  const detail = loadError ? '无法读取最新状态，请检查 Whistle 是否运行，然后重试。' : error?.message || (failed && info.startup.message) || (info?.installStatus === 'failed' && '依赖安装失败，请查看终端中的具体原因，处理后重新安装。') || syncFailure;
+  const issue = document.querySelector('#project-issue');
+  issue.hidden = !detail;
+  document.querySelector('#issue-title').textContent = loadError ? '连接异常' : error || failed ? '项目操作未完成' : info?.installStatus === 'failed' ? '依赖安装失败' : '代理规则未就绪';
+  document.querySelector('#issue-detail').textContent = typeof detail === 'string' ? detail : '同步状态已过期，请在环境体检中检查并同步规则。';
+  retryAction = loadError || (!error && !failed && info?.installStatus !== 'failed') ? 'load' : error?.action || (info?.installStatus === 'failed' ? 'install' : 'start');
+  const retry = document.querySelector('#issue-retry');
+  retry.hidden = retryAction === 'load' && !loadError;
+  retry.disabled = busy || Boolean(info?.installing || info?.launching) || (retryAction !== 'load' && !info);
+  document.querySelector('#issue-log').hidden = !info?.log && !info?.startup?.hasLog;
+}
+document.querySelector('#issue-retry').addEventListener('click', () => {
+  if (retryAction === 'load') return load();
+  // 复用原操作入口，保留确认弹窗、安装提示和按钮的可用性判断。
+  const control = { start, install, 'install-and-start': start, stop, 'restart-service': restartService, takeover }[retryAction];
+  if (control && !control.disabled && !control.hidden) control.click();
+});
+document.querySelector('#issue-doctor').addEventListener('click', () => document.querySelector('#doctor').click());
+document.querySelector('#issue-log').addEventListener('click', () => focusTerminal(selected));
