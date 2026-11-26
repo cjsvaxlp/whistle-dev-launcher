@@ -1,13 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "panel-drag",
-  "description": "Allow the local panel toolbar to drag, minimize, maximize and close its own window.",
+  "description": "Allow only the panel window to use window controls from the fixed local Whistle origin; IPC Origin headers do not contain page paths.",
   "windows": [
     "panel"
   ],
   "remote": {
     "urls": [
-      "http://127.0.0.1:8899/plugin.cafe-projects/"
+      "http://127.0.0.1:8899"
     ]
   },
   "permissions": [
@@ -17,5 +17,6 @@
     "core:window:allow-is-maximized",
     "core:window:allow-close",
     "core:window:allow-internal-toggle-maximize"
-  ]
+  ],
+  "local": false
 }

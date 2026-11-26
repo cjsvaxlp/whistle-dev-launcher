@@ -218,4 +218,4 @@ macOS 和 Windows 桌面服务统一从 `desktop/src/services/mod.rs` 进入，�
 
 工作目录栏显示名称、分支和末两级目录，例如 `…/cloudgame-cybercafe/cybercafe-front`；悬停可查看完整路径，实际识别和切换仍使用完整真实路径。切换目录按钮始终可见；不显示首次使用向导，也不提供目录别名设置。
 
-macOS 主窗口的原生关闭、最小化和全屏按钮与第一栏工具栏合并，左侧保留安全间距；工具栏空白和品牌区域可拖动窗口。Windows 同样将最小化、最大化/还原和关闭按钮放在第一栏右侧，工具栏空白处可拖动，关闭沿用服务清理与退出流程。`desktop/capabilities/panel-drag.json` 仅授予本机项目面板必要的窗口操作权限，其他远程页面没有窗口控制权限。
+macOS 主窗口的原生关闭、最小化和全屏按钮与第一栏工具栏合并，左侧保留安全间距；工具栏空白和品牌区域可拖动窗口。Windows 同样将最小化、最大化/还原和关闭按钮放在第一栏右侧，工具栏空白处可拖动，关闭沿用服务清理与退出流程。`desktop/capabilities/panel-drag.json` 将窗口操作限定在 `panel` 窗口和固定本机来源 `http://127.0.0.1:8899`。Tauri IPC 的 Origin 不含页面路径，因此权限不能限定到 `/plugin.cafe-projects/`；其他来源不授予权限，窗口导航继续由 Rust 校验。
