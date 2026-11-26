@@ -100,11 +100,11 @@
     if (current && current !== target.project && current !== 'power' && !(current === 'cms' && target.project === 'newcms')) { cancel(); return; }
     const route = location.hash.slice(1).split('?')[0] || '/';
     // CMS / New CMS have their own login, but the unified SSO may land on the
-    // power portal. Only this CMS target is returned to CMS; portal projects
-    // continue to use portal.js, and all other projects keep their own flow.
+    // power portal. Return only these two targets to their business pages;
+    // portal projects continue to use portal.js, and all other projects keep
+    // their existing login flow.
     if (current === 'power' && route === '/amsportal' && state.loginSeen
-        && target.project === 'cms' && !state.powerReturned
-        && !new URL(target.url).hash) {
+        && (target.project === 'cms' || target.project === 'newcms') && !state.powerReturned) {
       state.loginSeen = false;
       state.powerReturned = true;
       save();
@@ -127,6 +127,13 @@
       }
       state.url = location.href;
       save();
+    } else if (state.loginSeen && current === 'cms' && target.project === 'newcms' && !state.handoff) {
+      // CMS login is shared by New CMS. After CMS authenticates, hand off to the
+      // New CMS business page instead of staying on the CMS page.
+      state.handoff = true;
+      save();
+      location.replace(target.url);
+      return;
     } else if (!state.loginSeen && current === target.project) {
       // Follow normal in-module navigation, so a later login resumes the latest page.
       state.url = location.href;

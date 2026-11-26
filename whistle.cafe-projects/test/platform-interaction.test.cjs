@@ -198,26 +198,43 @@ for (const project of ['store', 'hub']) {
 }
 
 
-test('newcms 走 CMS 登录，登录后回到 CMS 而不是 power 门户', () => {
+test('newcms 走 CMS 登录，登录后进入 newcms 商品列表', () => {
   const url = new URL(projectPageUrl('newcms'));
   assert.equal(url.pathname, '/cybercafe-cms/');
   assert.equal(url.hash, '#/testLogin');
-  assert.equal(url.searchParams.get('__cafe_return'), '/cybercafe-cms/');
+  assert.equal(url.searchParams.get('__cafe_return'),
+    '/cybercafe-newcms/#/bercafe/product/productlist');
 });
 
-test('CMS 登录完成后不自动回跳到 newcms 登录页', () => {
+test('cms 走 CMS 登录，登录后进入 CMS 商品列表', () => {
+  const url = new URL(projectPageUrl('cms'));
+  assert.equal(url.pathname, '/cybercafe-cms/');
+  assert.equal(url.hash, '#/testLogin');
+  assert.equal(url.searchParams.get('__cafe_return'),
+    '/cybercafe-cms/#/businessManagement/product/productList');
+});
+
+test('CMS 登录完成后从 cms 交接到 newcms 商品列表', () => {
   const origin = 'https://cloudgametest2.migufun.com:18443';
-  const target = '/cybercafe-newcms/';
+  const target = '/cybercafe-newcms/#/bercafe/product/productlist';
   const page = returnPage(origin + '/cybercafe-cms/?__cafe_return=' + encodeURIComponent(target) + '#/testLogin');
-  page.location.hash = '/home';
+  page.location.href = origin + '/cybercafe-cms/#/home';
   page.events.get('hashchange')();
-  assert.deepEqual(page.redirects, []);
+  assert.deepEqual(page.redirects, [origin + target]);
 });
 
-
-test('CMS 登录后被统一门户重定向到 power/amsportal 时回到 CMS 页面', () => {
+test('CMS 登录后被统一门户重定向到 power/amsportal 时回到 CMS 商品列表', () => {
   const origin = 'https://cloudgametest2.migufun.com:18443';
-  const target = '/cybercafe-cms/';
+  const target = '/cybercafe-cms/#/businessManagement/product/productList';
+  const page = returnPage(origin + '/cybercafe-cms/?__cafe_return=' + encodeURIComponent(target) + '#/testLogin');
+  page.location.href = origin + '/cybercafe-power/#/amsportal';
+  page.events.get('hashchange')();
+  assert.deepEqual(page.redirects, [origin + target]);
+});
+
+test('CMS 登录后被统一门户重定向到 power/amsportal 时进入 newcms 商品列表', () => {
+  const origin = 'https://cloudgametest2.migufun.com:18443';
+  const target = '/cybercafe-newcms/#/bercafe/product/productlist';
   const page = returnPage(origin + '/cybercafe-cms/?__cafe_return=' + encodeURIComponent(target) + '#/testLogin');
   page.location.href = origin + '/cybercafe-power/#/amsportal';
   page.events.get('hashchange')();

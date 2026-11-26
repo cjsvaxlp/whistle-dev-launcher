@@ -37,11 +37,14 @@ function projectPageUrl(project, { channelCode } = {}) {
   // Preserve the existing login/session-exchange entry, carrying the intended module separately.
   const launch = ['power', 'service', 'open'].includes(project) ? new URL(entryUrl)
     : project === 'newcms' ? new URL('/cybercafe-cms/#/testLogin', entryUrl) : new URL(target);
-  // CMS and New CMS use the CMS login, not the power portal. After login the
-  // unified SSO can still land on power/amsportal; keep the CMS page as the
-  // return target so its user menu can enter 新业管.
-  if (project === 'cms' || project === 'newcms') {
-    launch.searchParams.set('__cafe_return', '/cybercafe-cms/');
+  // CMS and New CMS use the CMS login, not the power portal. Return to their
+  // business pages after login, even if the unified SSO lands on power/amsportal.
+  const postLogin = project === 'newcms'
+    ? '/cybercafe-newcms/#/bercafe/product/productlist'
+    : project === 'cms' ? '/cybercafe-cms/#/businessManagement/product/productList' : '';
+  if (postLogin) {
+    const returnTarget = new URL(postLogin, entryUrl);
+    launch.searchParams.set('__cafe_return', returnTarget.pathname + returnTarget.search + returnTarget.hash);
   } else {
     launch.searchParams.set('__cafe_return', target.pathname + target.search + target.hash);
   }
