@@ -1,9 +1,8 @@
 import { showTerminal, focusTerminal } from '../terminal/embedded.mjs';
-import { showError, reportError } from '../../shared/toast/toast.mjs';
+import { showError, showInfo, reportError } from '../../shared/toast/toast.mjs';
 import { confirmAction, post } from '../../shared/http/client.mjs';
 
 const proxySwitch = document.querySelector('#local-proxy');
-const proxyNotice = document.querySelector('#proxy-notice');
 let changingProxy = false;
 let proxyShutdown = false;
 
@@ -288,7 +287,7 @@ function scheduleRefresh() {
 proxySwitch.addEventListener('change', async () => {
   changingProxy = true;
   proxySwitch.disabled = true;
-  proxyNotice.textContent = '正在切换…';
+  showInfo('正在切换本地代理…');
   try {
     const response = await post('./api/proxy/' + (proxySwitch.checked ? 'on' : 'off'));
     const data = await response.json();
@@ -297,10 +296,9 @@ proxySwitch.addEventListener('change', async () => {
     if (proxyShutdown) clearTimeout(refreshTimer);
     await refreshInFlight;
     snapshot.proxyEnabled = data.proxyEnabled;
-    proxyNotice.textContent = data.message;
+    showInfo(data.message);
     if (data.proxyEnabled) await load();
   } catch (error) {
-    proxyNotice.textContent = '';
     showError(error.message);
   } finally {
     changingProxy = false;

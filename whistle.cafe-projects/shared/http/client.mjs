@@ -30,8 +30,10 @@ export async function currentServerToken() {
 }
 
 export function confirmAction(message, { title = '确认操作', label = '继续' } = {}) {
-  if (!window.cafeDesktop) return window.confirm(message);
   const dialog = document.querySelector('#confirm-action');
+  // Embedded terminal frames may not receive the desktop initialization flag.
+  // Prefer the page dialog so WebViews never silently cancel native confirm().
+  if (!dialog) return window.confirm(message);
   if (dialog.open) return false;
 
   dialog.returnValue = '';

@@ -7,7 +7,6 @@ const status = document.querySelector('#status');
 const dot = document.querySelector('#dot');
 const output = document.querySelector('#output');
 const diags = document.querySelector('#diags');
-const stop = document.querySelector('#stop');
 const back = document.querySelector('#back');
 const notice = document.querySelector('#notice');
 const noticeText = document.querySelector('#notice-text');
@@ -67,7 +66,6 @@ async function refresh() {
     } else {
       notice.hidden = true;
     }
-    stop.disabled = data.source === 'none' || !data.pid || data.job?.status === 'running';
     if (data.job && data.job.status === 'running') {
       setStatus(data.job.type === 'install' ? '正在安装依赖…' : '正在运行…', 'on');
     } else if (data.source === 'none') {
@@ -80,7 +78,6 @@ async function refresh() {
   } catch (error) {
     setStatus('等待 Whistle…', 'warn');
     reportError('terminal-load', error.message);
-    stop.disabled = true;
     takeover.hidden = true;
   } finally {
     refreshing = false;
@@ -90,28 +87,25 @@ async function refresh() {
 async function serviceAction(button, action, message, pendingText) {
   if (pending || button.disabled) return;
   pending = true;
+  button.disabled = true;
   try {
     if (!await confirmAction(message)) return;
-    button.disabled = true;
     setStatus(pendingText, 'warn');
     const response = await post(`./api/${action}/${encodeURIComponent(project)}`);
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || '操作失败。');
-    await refresh();
   } catch (error) {
     setStatus('操作失败', 'warn');
     showError(error.message);
   } finally {
     pending = false;
-    if (button === takeover) button.disabled = false;
+    button.disabled = false;
+    await refresh();
   }
 }
 
 takeover.addEventListener('click', () => serviceAction(
   takeover, 'restart-service', '会结束当前外部启动的进程，再由工具重新启动并接管日志。继续？', '正在接管并重启…',
-));
-stop.addEventListener('click', () => serviceAction(
-  stop, 'stop', '停止 cybercafe-' + project + ' 的本地服务？', '正在停止…',
 ));
 
 back.hidden = new URLSearchParams(location.search).get('embedded') === '1';
