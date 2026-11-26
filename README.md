@@ -175,7 +175,7 @@ git push origin v0.1.1
 
 ### Windows EXE 构建
 
-Windows Tauri NSIS 工作流在 Windows runner 编译原生桌面应用并直接上传带构建日期的 NSIS EXE 安装包。
+Windows Tauri NSIS 工作流在 Windows runner 编译原生桌面应用并直接上传带构建日期的 NSIS EXE 安装包。Windows 应用名称沿用 macOS 的 `Cybercafe 本地调试`，共用 `desktop/tauri.conf.json` 的 `productName`，快捷方式及默认安装目录随该名称生成；安装包文件名继续保留日期。
 desktop/tauri.windows.conf.json 定义当前用户安装、WebView2 检测和运行资源。
 desktop/src/services/windows.rs 管理 Windows Whistle 和浏览器入口。
 桌面端从 PATH、当前用户/系统最新 PATH、常见 Node 安装位置及 NVM/Volta 等活动路径查找本机 Node 和 npm，通过 npm root -g 定位 Whistle；缺失时显示安装方法。项目仍按各自的版本约束选择 Node。

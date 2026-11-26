@@ -86,7 +86,7 @@ fn open_panel(app: &AppHandle) -> tauri::Result<()> {
         .inner_size(1100.0, 740.0)
         .min_inner_size(560.0, 400.0)
         .initialization_script(format!(
-            "if (location.origin === 'http://127.0.0.1:8899') {{ window.cafeDesktop = true; window.cafeDesktopTerminal = true; if (window.top === window.self) document.addEventListener('DOMContentLoaded', () => {{ document.documentElement.dataset.desktopPlatform = '{}'; }}); }}",
+            "if (location.origin === 'http://127.0.0.1:8899') {{ window.cafeDesktop = true; window.cafeDesktopTerminal = true; window.cafeDesktopPlatform = '{}'; if (window.top === window.self) {{ const ready = () => {{ document.documentElement.dataset.desktopPlatform = window.cafeDesktopPlatform; window.dispatchEvent(new Event('cafe-desktop-ready')); }}; if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready, {{ once: true }}); else ready(); }} }}",
             if cfg!(target_os = "macos") { "macos" } else { "windows" },
         ))
         .on_navigation(|url| {

@@ -302,3 +302,52 @@ test('主动关闭代理时不把旧同步状态显示为同步故障', () => {
   assert.equal(nodes.get('#project-issue').hidden, true);
   assert.equal(nodes.get('#readiness-steps').children[1].dataset.complete, 'false');
 });
+
+test('Windows 窗口按钮在平台标记提前或延迟到达时均显示，只绑定一次操作', async () => {
+  for (const delayed of [false, true]) {
+    const events = {};
+    const calls = [];
+    const maximize = { querySelector: () => ({ setAttribute() {} }) };
+    const controls = { hidden: true, dataset: {}, querySelector: () => maximize,
+      addEventListener: (name, callback) => { events[name] = callback; } };
+    const native = { isMaximized: async () => false, close: async () => calls.push('close') };
+    const windowEvents = {};
+    const window = { cafeDesktopPlatform: delayed ? undefined : 'windows',
+      __TAURI__: { window: { getCurrentWindow: () => native } },
+      addEventListener: (name, callback) => { windowEvents[name] = callback; } };
+    const document = { readyState: 'interactive', documentElement: { dataset: {} },
+      querySelector: selector => selector === '.window-controls' ? controls : { addEventListener() {} },
+      addEventListener() {} };
+    const context = vm.createContext({ window, document, showError: error => assert.fail(error) });
+    const source = readFileSync(require.resolve('../features/window-controls/client.mjs'), 'utf8')
+      .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
+    vm.runInContext(source + '\nbindWindowControls();', context);
+    if (delayed) {
+      assert.equal(controls.hidden, true);
+      window.cafeDesktopPlatform = 'windows';
+      windowEvents['cafe-desktop-ready']();
+    }
+    assert.equal(controls.hidden, false);
+    vm.runInContext('bindWindowControls();', context);
+    await events.click({ target: { closest: () => ({ dataset: { windowAction: 'close' } }) } });
+    assert.deepEqual(calls, ['close']);
+  }
+});
+
+test('桌面平台标记不依赖尚未触发的 DOMContentLoaded，已加载页面也会通知控件', () => {
+  const rust = readFileSync(join(__dirname, '../../desktop/src/window/mod.rs'), 'utf8');
+  const template = rust.match(/"(if \(location\.origin[^\n]+)"/)[1];
+  const source = template.replaceAll('{{', '{').replaceAll('}}', '}').replace("'{}'", "'windows'");
+  for (const readyState of ['loading', 'interactive', 'complete']) {
+    let onReady;
+    const events = [];
+    const window = { dispatchEvent: event => events.push(event.type) };
+    window.top = window.self = window;
+    const document = { readyState, documentElement: { dataset: {} }, addEventListener: (_, callback) => { onReady = callback; } };
+    vm.runInNewContext(source, { window, document, location: { origin: 'http://127.0.0.1:8899' }, Event });
+    assert.equal(window.cafeDesktopPlatform, 'windows');
+    if (readyState === 'loading') onReady();
+    assert.equal(document.documentElement.dataset.desktopPlatform, 'windows');
+    assert.deepEqual(events, ['cafe-desktop-ready']);
+  }
+});

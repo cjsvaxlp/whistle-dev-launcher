@@ -14,12 +14,11 @@
     SetErrorLevel 1
     Abort
   ${EndIf}
+  ; Remove the legacy CMD shortcut before NSIS creates the native Cybercafe link.
+  Delete "$SMPROGRAMS\Cybercafe.lnk"
 !macroend
 
 !macro NSIS_HOOK_POSTINSTALL
-  ; The legacy CMD installer created Cybercafe.lnk pointing at Open-Cybercafe.cmd.
-  ; Remove it so the Start menu only launches the native app (no console window).
-  Delete "$SMPROGRAMS\Cybercafe.lnk"
   ; Upgrade cleanup is limited to the former app-owned runtime directory.
   RMDir /r "$INSTDIR\tools\runtime"
 !macroend

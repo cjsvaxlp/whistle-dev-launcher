@@ -3,7 +3,13 @@ import { showError } from '../../shared/toast/toast.mjs';
 export function bindWindowControls() {
   const controls = document.querySelector('.window-controls');
   const nativeWindow = window.__TAURI__?.window?.getCurrentWindow();
-  if (!controls || !nativeWindow) return;
+  if (!controls) return;
+  if (!nativeWindow) {
+    window.addEventListener('cafe-desktop-ready', bindWindowControls, { once: true });
+    return;
+  }
+  if (controls.dataset.bound) return;
+  controls.dataset.bound = 'true';
 
   // Bind explicitly so blank toolbar space and its brand drag consistently.
   const toolbar = document.querySelector('.toolbar');
@@ -33,14 +39,15 @@ export function bindWindowControls() {
     }
   }
   function initialize() {
-    if (document.documentElement.dataset.desktopPlatform !== 'windows') return;
+    const platform = window.cafeDesktopPlatform || document.documentElement.dataset.desktopPlatform;
+    if (platform !== 'windows' || !controls.hidden) return;
     controls.hidden = false;
     updateMaximized();
     window.addEventListener('resize', updateMaximized);
   }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initialize, { once: true });
-  } else initialize();
+  initialize();
+  document.addEventListener('DOMContentLoaded', initialize, { once: true });
+  window.addEventListener('cafe-desktop-ready', initialize, { once: true });
 
   controls.addEventListener('click', async (event) => {
     const button = event.target.closest('[data-window-action]');
