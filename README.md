@@ -37,13 +37,13 @@ npm --prefix whistle.cafe-projects test
 
 对方机器需要：
 
-- macOS、Node.js 20+、全局 Whistle（`npm i -g whistle`）；
+- macOS 或 Windows，本机 Node.js 20+（含 npm）和全局 Whistle（`npm install -g whistle`）；
 - 不需要 Rust/Xcode（使用已构建好的 App 时）；
 - 测试页面使用默认浏览器；HTTPS 证书和代理按 [使用说明.md](使用说明.md) 配置。
 
 App 使用 ad-hoc 签名，首次打开如果提示「无法验证开发者」，右键选择「打开」即可。
 
-首次打开桌面端时，App 会自动通过登录 shell 查找 `w2`，并把工具目录里的 `whistle.cafe-projects` 链接到全局 `node_modules`，不需要再手动执行链接命令。若提示找不到 `w2`，先确认终端里 `w2 -h` 可用。
+macOS 首次打开桌面端时，App 会自动通过登录 shell 查找 `w2`，并把工具目录里的 `whistle.cafe-projects` 链接到全局 `node_modules`，不需要再手动执行链接命令。若提示找不到 `w2`，先确认终端里 `w2 -h` 可用。
 
 ## 打包
 
@@ -73,7 +73,7 @@ git push origin v0.1.1
 
 请先把工作流修改提交到要打 tag 的版本中。发布使用 GitHub 自带的 `GITHUB_TOKEN`，仅发布任务申请 `contents: write`，无需额外配置个人令牌。构建失败时不会执行发布任务，可从 Actions 日志排查后重跑。
 
-构建使用 GitHub 托管机器，本机无需安装 Rust。macOS 包使用现有 ad-hoc 签名。Windows EXE 包含 Tauri 桌面程序、Node.js、Whistle 和插件资源。每次构建先运行相关测试，失败时可在 Actions 日志中查看原因。
+构建使用 GitHub 托管机器，本机无需安装 Rust。macOS 包使用现有 ad-hoc 签名。Windows EXE 与 macOS 一样仅包含桌面程序和工具资源，不内置 Node.js、npm 或 Whistle，运行时自动查找本机环境。每次构建先运行相关测试，失败时可在 Actions 日志中查看原因。
 
 ## 代码目录与职责
 
@@ -130,7 +130,7 @@ git push origin v0.1.1
 | `desktop/src/menu/` | 菜单栏、单色菜单图标、异步操作和状态反馈。 |
 | `desktop/src/window/` | 面板与终端窗口、导航范围和下载处理。 |
 | `desktop/src/system_proxy/` | macOS PAC 配置、原设置备份和恢复、授权状态及取消重试控制；空 PAC 通过系统配置接口清除，保留其他 VPN 设置。 |
-| `desktop/src/services/` | 本机 Whistle 的发现、启动、停止和浏览器入口。 |
+| `desktop/src/services/` | `mod.rs` 共用连接状态校验、暂停状态、代理恢复重试和测试入口；`macos.rs` / `windows.rs` 仅实现本机命令、环境查找及进程操作，Windows 环境脚本由程序嵌入执行。 |
 | `desktop/ui/` | 连接异常时显示的本地页面。 |
 | `desktop/icons/` | 应用包使用 Cybercafe.icns，Tauri 默认图标使用其同款 PNG，保持 Dock 与应用图标一致。 |
 
@@ -141,10 +141,9 @@ git push origin v0.1.1
 | `.github/workflows/` | 手动触发云端测试和打包，并上传可下载产物。 |
 | `scripts/commands/` | 可双击使用的通用项目启动、手动同步、桌面端启动、浏览器打开和打包入口。 |
 | `scripts/browser/` | macOS 默认浏览器标签页查找、复用和新建。 |
-| `desktop/windows/` | Windows 安装和启动脚本。 |
+| `desktop/windows/` | NSIS 安装钩子及旧版内置运行时升级清理；不再包含另一套 CMD 安装和启动入口，不修改全局 Node/Whistle。 |
 | `desktop/packaging/` | 共用资源收集、版本校验、应用组装和签名，供开发启动和分发打包使用。 |
 | `desktop/package-macos.sh` | 收集功能模块、脚本与桌面资源，生成可拖拽安装的 macOS DMG。 |
-| `desktop/package-cross-platform.py` | 独立收集共用插件资源，生成 Windows 插件安装包。 |
 
 ### 本机数据与构建产物
 
@@ -162,14 +161,13 @@ git push origin v0.1.1
 Windows Tauri NSIS 工作流在 Windows runner 编译原生桌面应用并直接上传带构建日期的 NSIS EXE 安装包。
 desktop/tauri.windows.conf.json 定义当前用户安装、WebView2 检测和运行资源。
 desktop/src/services/windows.rs 管理 Windows Whistle 和浏览器入口。
-工具专用 Node 与 Whistle 打包到 tools/runtime，项目继续使用各自的开发环境。
+桌面端从 PATH、当前用户/系统最新 PATH、常见 Node 安装位置及 NVM/Volta 等活动路径查找本机 Node 和 npm，通过 npm root -g 定位 Whistle；缺失时显示安装方法。项目仍按各自的版本约束选择 Node。
 Windows 实机安装、浏览器代理配合和浏览器标签页复用仍需验收。
 
-### Windows 原生安装包与旧版 CMD 包
+### Windows 原生安装包
 
 macOS 的 scripts/commands/打包.command 构建本机 DMG，并提示 Windows 在线构建入口。
 Windows 原生 EXE 请运行 GitHub Actions 的 Build desktop packages 工作流，下载 Cybercafe-Windows-x64-Setup 产物，解压 GitHub 自动提供的下载归档后即可运行 NSIS EXE。
-旧版 desktop/package-cross-platform.py 只生成名称包含 Windows-Legacy-CMD 的兼容包，通用打包入口已停止调用它。
 
 界面通过 `prefers-color-scheme` 跟随系统自动切换浅色/深色主题，无需刷新；面板、操作弹框、Toast、项目终端及悬浮状态标识同步适配。
 
@@ -184,3 +182,7 @@ macOS 证书体检同时检查当前 Whistle CA 是否实际存在于钥匙串�
 Windows 项目服务与 macOS 一样由插件后台启动，标准输出和错误输出写入面板内终端，不再打开独立 PowerShell 窗口；应用退出时清理插件启动的日志进程及其子进程树。启动逻辑位于 `whistle.cafe-projects/features/terminal/launcher.cjs`，日志采集位于 `features/logs/run-log.cjs`。
 
 两端桌面交互：打开测试入口或项目页均使用默认浏览器，不强制 Chrome、不创建独立浏览器配置、不在启动参数中设置全局代理。首次工作区由用户选择或输入，之后读取已保存目录；不扫描并自动选用其他项目。macOS 支持通过浏览器脚本复用标签页；Windows 通过默认浏览器打开地址，精确查找并切换已有标签页尚未支持。系统 PAC 自动接管与恢复目前仍仅支持 macOS，Windows 使用浏览器代理模式。
+
+Windows 首次使用先安装 Node.js LTS（包含 npm），然后执行 `npm install -g whistle`。可以在终端运行 `node --version`、`npm --version` 和 `w2 -h` 验证。无需安装 Rust 或手动启动 Whistle，应用负责启动/复用与加载内置插件。刚安装依赖后，在连接页点击“开启代理 / 启动 Whistle”重试；程序会重新读取当前环境。若使用 NVM，请先 `nvm use` 激活满足项目要求的 Node，并在该环境安装 Whistle。升级安装会移除旧应用目录 `tools/runtime`，不会移除用户自己安装的环境。
+
+macOS 和 Windows 桌面服务统一从 `desktop/src/services/mod.rs` 进入，公共流程只有一份；系统差异保留在两个平台实现中。两端安装包均由 `desktop/packaging/resources.py` 收集插件资源，Windows 仅保留 Actions 原生 EXE 打包，不再维护独立的 Legacy CMD 分发包。

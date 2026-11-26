@@ -4,10 +4,6 @@ mod menu;
 mod lifecycle;
 #[cfg(target_os = "macos")]
 mod system_proxy;
-#[cfg(not(target_os = "windows"))]
-mod services;
-#[cfg(target_os = "windows")]
-#[path = "services/windows.rs"]
 mod services;
 mod window;
 
