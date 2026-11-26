@@ -34,6 +34,10 @@
     if (XMLHttpRequest.prototype.open === openWrapper) XMLHttpRequest.prototype.open = originalOpen;
     if (window.fetch === fetchWrapper) window.fetch = originalFetch;
   }
+  function onPortalEntry() {
+    const route = location.hash.split('?')[0];
+    return route === '#/freeLogin' || route === '#/amsportal';
+  }
   function visible(element) {
     return !element.hidden && element.getClientRects().length > 0;
   }
@@ -41,7 +45,7 @@
     if (disposed) return;
     const target = navigation.read();
     if (!target) { cleanup(); return; }
-    if (!profileReady || location.hash.split('?')[0] !== '#/freeLogin') return;
+    if (!profileReady || !onPortalEntry()) return;
     // Account review, forced password changes and other active dialogs retain their original flow.
     if ([...document.querySelectorAll('[role="dialog"], .el-dialog__wrapper, .v-modal')].some(visible)) return;
     const label = labels[target.project];
@@ -54,7 +58,7 @@
     try { matches[0].click(); } finally { automaticClick = false; cleanup(); }
   }
   function schedule() {
-    if (disposed || !profileReady || location.hash.split('?')[0] !== '#/freeLogin') return;
+    if (disposed || !profileReady || !onPortalEntry()) return;
     clearTimeout(timer);
     timer = setTimeout(resume, 0);
   }

@@ -51,7 +51,7 @@ for (const platform of ['darwin', 'win32']) {
 }
 
 // Exercise the injected adapter without touching a business checkout or issuing login requests.
-function portalAdapterFixture({ forceChangePassword = 0, returnCode = '000000', enabled = true, dialog = false } = {}) {
+function portalAdapterFixture({ forceChangePassword = 0, returnCode = '000000', enabled = true, dialog = false, hash = '#/freeLogin' } = {}) {
   const timers = new Map();
   let nextTimer = 0;
   let clicked = 0;
@@ -83,7 +83,7 @@ function portalAdapterFixture({ forceChangePassword = 0, returnCode = '000000', 
   };
   const context = {
     window, document, XMLHttpRequest: XHR, URL,
-    location: { origin: 'https://cloudgametest2.migufun.com:18443', pathname: '/cybercafe-power/', href: 'https://cloudgametest2.migufun.com:18443/cybercafe-power/#/freeLogin', hash: '#/freeLogin' },
+    location: { origin: 'https://cloudgametest2.migufun.com:18443', pathname: '/cybercafe-power/', href: 'https://cloudgametest2.migufun.com:18443/cybercafe-power/' + hash, hash },
     MutationObserver: class { observe() {} disconnect() {} },
     setTimeout(callback, delay) { timers.set(++nextTimer, { callback, delay }); return nextTimer; },
     clearTimeout(id) { timers.delete(id); },
@@ -101,6 +101,13 @@ function portalAdapterFixture({ forceChangePassword = 0, returnCode = '000000', 
 
 test('门户运行时适配仅在已有校验成功后触发原模块入口，并恢复观察包装', () => {
   const result = portalAdapterFixture();
+  assert.equal(result.clicked, 1);
+  assert.equal(result.attempted, true);
+  assert.equal(result.restored, true);
+});
+
+test('登录后停在门户 amsportal 时也会自动进入目标模块', () => {
+  const result = portalAdapterFixture({ hash: '#/amsportal' });
   assert.equal(result.clicked, 1);
   assert.equal(result.attempted, true);
   assert.equal(result.restored, true);
@@ -191,11 +198,11 @@ for (const project of ['store', 'hub']) {
 }
 
 
-test('newcms 入口只打开 CMS 登录，不再自动跳转到 newcms 登录页', () => {
+test('newcms 入口打开 CMS 登录，登录后回到 CMS 菜单而不是 newcms 登录页', () => {
   const url = new URL(projectPageUrl('newcms'));
   assert.equal(url.pathname, '/cybercafe-cms/');
   assert.equal(url.hash, '#/testLogin');
-  assert.equal(url.searchParams.has('__cafe_return'), false);
+  assert.equal(url.searchParams.get('__cafe_return'), '/cybercafe-cms/');
 });
 
 test('CMS 登录完成后不自动回跳到 newcms 登录页', () => {
@@ -205,4 +212,14 @@ test('CMS 登录完成后不自动回跳到 newcms 登录页', () => {
   page.location.hash = '/home';
   page.events.get('hashchange')();
   assert.deepEqual(page.redirects, []);
+});
+
+
+test('CMS 登录后被统一门户重定向到 power/amsportal 时回到 CMS 页面', () => {
+  const origin = 'https://cloudgametest2.migufun.com:18443';
+  const target = '/cybercafe-cms/';
+  const page = returnPage(origin + '/cybercafe-cms/?__cafe_return=' + encodeURIComponent(target) + '#/testLogin');
+  page.location.href = origin + '/cybercafe-power/#/amsportal';
+  page.events.get('hashchange')();
+  assert.deepEqual(page.redirects, [origin + target]);
 });
