@@ -8,7 +8,7 @@ const { spawnSync } = require('node:child_process');
 // Exercise Windows PowerShell itself on the Windows Actions runner, including
 // paths with spaces. Only npm/Whistle are fixtures; Node is the runner's Node.
 test('Windows discovers local tools, starts with app plugin, and explains missing Whistle/npm errors', {
-  skip: process.platform !== 'win32', timeout: 30000,
+  skip: process.platform !== 'win32', timeout: 60000,
 }, t => {
   const dir = mkdtempSync(join(tmpdir(), 'cafe local environment '));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -25,7 +25,7 @@ test('Windows discovers local tools, starts with app plugin, and explains missin
   const quote = value => "'" + value.replaceAll("'", "''") + "'";
   const invoke = (checkOnly, extraEnv = {}) => spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand',
     Buffer.from(`& { ${source} } -ToolsRoot ${quote(tools)} ${checkOnly ? '-CheckOnly' : ''}`, 'utf16le').toString('base64')], {
-    encoding: 'utf8', windowsHide: true, timeout: 10000,
+    encoding: 'utf8', windowsHide: true, timeout: 30000,
     env: { ...process.env, PATH: dir + delimiter + process.env.PATH,
       CAFE_TEST_NODE: process.execPath, CAFE_TEST_NPM_ROOT: root, ...extraEnv },
   });

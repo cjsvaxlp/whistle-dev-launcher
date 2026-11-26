@@ -32,7 +32,7 @@ function harness(file, extra = {}) {
     setTimeout() {}, clearTimeout() {}, AbortSignal,
     ...extra,
   });
-  const source = readFileSync(require.resolve(file), 'utf8').replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
+  const source = readFileSync(require.resolve(file), 'utf8').replace(/\r\n?/g, '\n').replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
   vm.runInContext(source, context);
   return { context, nodes, document, values };
 }
