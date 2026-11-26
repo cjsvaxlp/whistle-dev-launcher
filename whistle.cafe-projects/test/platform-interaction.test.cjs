@@ -198,11 +198,11 @@ for (const project of ['store', 'hub']) {
 }
 
 
-test('newcms 入口打开 CMS 登录，登录后回到 CMS 菜单而不是 newcms 登录页', () => {
+test('newcms 入口打开 CMS 登录，不套用 power 门户登录', () => {
   const url = new URL(projectPageUrl('newcms'));
   assert.equal(url.pathname, '/cybercafe-cms/');
   assert.equal(url.hash, '#/testLogin');
-  assert.equal(url.searchParams.get('__cafe_return'), '/cybercafe-cms/');
+  assert.equal(url.searchParams.has('__cafe_return'), false);
 });
 
 test('CMS 登录完成后不自动回跳到 newcms 登录页', () => {
@@ -212,14 +212,4 @@ test('CMS 登录完成后不自动回跳到 newcms 登录页', () => {
   page.location.hash = '/home';
   page.events.get('hashchange')();
   assert.deepEqual(page.redirects, []);
-});
-
-
-test('CMS 登录后被统一门户重定向到 power/amsportal 时回到 CMS 页面', () => {
-  const origin = 'https://cloudgametest2.migufun.com:18443';
-  const target = '/cybercafe-cms/';
-  const page = returnPage(origin + '/cybercafe-cms/?__cafe_return=' + encodeURIComponent(target) + '#/testLogin');
-  page.location.href = origin + '/cybercafe-power/#/amsportal';
-  page.events.get('hashchange')();
-  assert.deepEqual(page.redirects, [origin + target]);
 });

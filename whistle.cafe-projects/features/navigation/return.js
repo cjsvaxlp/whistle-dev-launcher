@@ -99,17 +99,6 @@
     const current = /^\/cybercafe-([a-z0-9-]+)\//.exec(location.pathname)?.[1];
     if (current && current !== target.project && current !== 'power' && !(current === 'cms' && target.project === 'newcms')) { cancel(); return; }
     const route = location.hash.slice(1).split('?')[0] || '/';
-    // CMS 登录可能被统一门户重定向到 power/amsportal；此时回到 CMS，
-    // 由用户菜单进入新业管。只处理 CMS 根路径，避免 testLogin 回跳死循环。
-    if (current === 'power' && route === '/amsportal' && state.loginSeen
-        && target.project === 'cms' && !state.powerReturned
-        && !new URL(target.url).hash) {
-      state.loginSeen = false;
-      state.powerReturned = true;
-      save();
-      location.replace(target.url);
-      return;
-    }
     const isBootstrap = route === '/' || bootstrap.test(route);
     if (isBootstrap) {
       if (!state.loginSeen) { state.loginSeen = true; save(); }

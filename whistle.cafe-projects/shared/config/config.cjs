@@ -37,12 +37,11 @@ function projectPageUrl(project, { channelCode } = {}) {
   // Preserve the existing login/session-exchange entry, carrying the intended module separately.
   const launch = ['power', 'service', 'open'].includes(project) ? new URL(entryUrl)
     : project === 'newcms' ? new URL('/cybercafe-cms/#/testLogin', entryUrl) : new URL(target);
-  // New CMS logs in through CMS, then the unified login can land on the power
-  // portal. Return to the CMS page so its user menu can enter 新业管; returning
-  // to cybercafe-newcms directly makes its login page bounce back.
-  if (project === 'newcms') {
-    launch.searchParams.set('__cafe_return', '/cybercafe-cms/');
-  } else {
+  // New CMS is entered from the CMS user menu after login; auto-returning to
+  // cybercafe-newcms makes its login page bounce back to the CMS login page.
+  // The power/amsportal login only applies to portal projects; leave other
+  // projects on their existing login entry.
+  if (project !== 'newcms') {
     launch.searchParams.set('__cafe_return', target.pathname + target.search + target.hash);
   }
   return launch.href;
