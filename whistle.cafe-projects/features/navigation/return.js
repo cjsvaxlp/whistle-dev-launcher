@@ -99,6 +99,18 @@
     const current = /^\/cybercafe-([a-z0-9-]+)\//.exec(location.pathname)?.[1];
     if (current && current !== target.project && current !== 'power' && !(current === 'cms' && target.project === 'newcms')) { cancel(); return; }
     const route = location.hash.slice(1).split('?')[0] || '/';
+    // CMS / New CMS have their own login, but the unified SSO may land on the
+    // power portal. Only this CMS target is returned to CMS; portal projects
+    // continue to use portal.js, and all other projects keep their own flow.
+    if (current === 'power' && route === '/amsportal' && state.loginSeen
+        && target.project === 'cms' && !state.powerReturned
+        && !new URL(target.url).hash) {
+      state.loginSeen = false;
+      state.powerReturned = true;
+      save();
+      location.replace(target.url);
+      return;
+    }
     const isBootstrap = route === '/' || bootstrap.test(route);
     if (isBootstrap) {
       if (!state.loginSeen) { state.loginSeen = true; save(); }
