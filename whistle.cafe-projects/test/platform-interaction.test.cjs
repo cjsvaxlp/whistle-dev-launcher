@@ -113,6 +113,20 @@ test('登录后停在门户 amsportal 时也会自动进入目标模块', () => 
   assert.equal(result.restored, true);
 });
 
+test('store 入口落到门店商品列表，登录后返回该页', () => {
+  const url = new URL(projectPageUrl('store'));
+  assert.equal(url.pathname, '/cybercafe-store/');
+  assert.equal(url.hash, '#/merchant/store/list');
+  assert.equal(url.searchParams.get('__cafe_return'), '/cybercafe-store/#/merchant/store/list');
+
+  const origin = 'https://cloudgametest2.migufun.com:18443';
+  const target = '/cybercafe-store/#/merchant/store/list';
+  const page = returnPage(origin + '/cybercafe-store/?__cafe_return=' + encodeURIComponent(target) + '#/login');
+  page.location.hash = '/home';
+  page.events.get('hashchange')();
+  assert.deepEqual(page.redirects, [origin + target]);
+});
+
 test('门户校验失败、强制改密、弹窗及禁用入口不触发自动进入', () => {
   for (const options of [{ returnCode: '070008' }, { forceChangePassword: 1 }, { dialog: true }, { enabled: false }]) {
     const result = portalAdapterFixture(options);

@@ -24,7 +24,7 @@ const projectEntryRoutes = new Map([
   ['cloud', '/login'],
   ['external', '/amsportal'],
   ['hub', '/enterprise/manage'],
-  ['store', '/noPower'],
+  ['store', '/merchant/store/list'],
   ['inter', '/noPower'],
   ['monitor', '/noPower'],
 ]);
