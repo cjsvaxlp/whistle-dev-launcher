@@ -492,14 +492,14 @@ h1 {
   font-size: 12px;
 }
 
-.toolbar { flex: none; flex-wrap: wrap; padding-inline: clamp(12px, 2vw, 16px); }
+.toolbar { flex: none; flex-wrap: wrap; padding-inline: 12px; }
 .toolbar .brand { margin-right: auto; font-size: 17px; }
 .panel {
   flex: 1;
   min-height: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
-  padding: 12px clamp(12px, 2vw, 16px) 16px;
+  padding: 12px;
 }
 .project-layout {
   display: grid;
@@ -535,7 +535,10 @@ h1 {
 }
 .project-layout .list:is(:hover, :focus-within)::-webkit-scrollbar-thumb { background: var(--scroll); }
 .project-layout .list::-webkit-scrollbar-thumb:hover { background: var(--scroll-hover); }
-.project-card { min-height: 0; }
+.project-card {
+  min-height: 0;
+  padding: 16px;
+}
 .project-layout > nav, .project-card {
   min-width: 0;
   background: var(--surface);
@@ -775,7 +778,7 @@ input, select, textarea { color: inherit; }
   flex: none;
   box-sizing: border-box;
   height: 40px;
-  padding: 5px clamp(12px, 2vw, 16px);
+  padding: 5px 12px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
