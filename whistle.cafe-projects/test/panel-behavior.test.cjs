@@ -1,6 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
+const { join } = require('node:path');
 const vm = require('node:vm');
 
 function harness(file, extra = {}) {
@@ -225,4 +226,79 @@ test('确认切换后响应不完整时提示先确认状态，不误报成功�
   assert.equal(requests, 2);
   assert.equal(loads, 0);
   assert.match(errors[0], /刷新面板确认当前工作目录后再重试/);
+});
+
+const source = readFileSync(join(__dirname, '../shared/http/client.mjs'), 'utf8').replace(/^export /gm, '');
+function setup(dialog) {
+  const context = vm.createContext({
+    document: { querySelector: selector => selector.startsWith('meta') ? { content: 'test' } : dialog },
+    window: { confirm: () => { throw new Error('WebView native confirmation must not be called'); } },
+  });
+  vm.runInContext(source, context);
+  return context;
+}
+function createDialog() {
+  return {
+    open: false, returnValue: '', fields: {}, listeners: {},
+    querySelector(selector) { return this.fields[selector] ||= {}; },
+    addEventListener(event, listener) { this.listeners[event] = listener; },
+    showModal() { this.open = true; },
+    close(value) { this.returnValue = value; this.open = false; this.listeners.close(); },
+  };
+}
+test('embedded terminal confirms through its dialog without a desktop flag', async () => {
+  const dialog = createDialog(), context = setup(dialog);
+  const choice = context.confirmAction('停止服务？', { title: '停止服务', label: '停止' });
+  assert.equal(dialog.open, true);
+  assert.equal(dialog.fields['#confirm-message'].textContent, '停止服务？');
+  assert.equal(context.confirmAction('重复操作'), false);
+  dialog.close('confirm');
+  assert.equal(await choice, true);
+});
+test('cancelling the page dialog does not confirm the service action', async () => {
+  const dialog = createDialog(), context = setup(dialog);
+  const choice = context.confirmAction('停止服务？');
+  dialog.close('cancel');
+  assert.equal(await choice, false);
+});
+
+function render(overrides = {}, projectOverrides = {}, error) {
+  const nodes = new Map();
+  function element() { return { dataset: {}, children: [], replaceChildren() { this.children = []; }, append(child) { this.children.push(child); } }; }
+  const document = { querySelector(id) { if (!nodes.has(id)) nodes.set(id, element()); return nodes.get(id); }, createElement: element };
+  const info = { active: true, browser: { confirmed: true }, ...projectOverrides };
+  const context = { document, snapshot: { proxyEnabled: true, updatedAt: 'now', workspace: '/work', ...overrides }, selected: 'hub', actionErrors: new Map(error ? [['hub', error]] : []), loadError: '', busy: false, info };
+  vm.createContext(context);
+  const source = readFileSync(require.resolve('../features/projects/client.mjs'), 'utf8');
+  vm.runInContext(source.slice(source.indexOf('function renderReadiness(info)'), source.indexOf("document.querySelector('#issue-retry').addEventListener")) + '\nrenderReadiness(info);', context);
+  return nodes;
+}
+
+test('只有服务、规则和浏览器均确认时才标记测试链接已代理', () => {
+  assert.equal(render().get('#readiness-steps').children[2].dataset.complete, 'true');
+  for (const override of [{ stale: true }, { syncError: '同步失败' }, { proxyEnabled: false }]) {
+    const nodes = render(override);
+    assert.equal(nodes.get('#readiness-steps').children[2].dataset.complete, 'false');
+  }
+  assert.equal(render({}, { active: false }).get('#readiness-steps').children[2].dataset.complete, 'false');
+});
+test('启动失败保留实际原因，操作重试保留原动作', () => {
+  const nodes = render({}, { active: false, startup: { stage: 'failed', message: '端口被占用，请停止占用进程' } });
+  assert.equal(nodes.get('#project-issue').hidden, false);
+  assert.match(nodes.get('#issue-detail').textContent, /端口被占用/);
+  assert.equal(nodes.get('#issue-retry').disabled, false);
+  const action = render({}, {}, { message: '停止失败', action: 'stop' });
+  assert.equal(action.get('#issue-detail').textContent, '停止失败');
+});
+test('等待浏览器确认时保持未完成，同步错误可进入体检', () => {
+  assert.equal(render({}, { browser: {} }).get('#readiness-steps').children[2].dataset.complete, 'false');
+  const nodes = render({ syncError: '规则写入失败' });
+  assert.equal(nodes.get('#issue-detail').textContent, '规则写入失败');
+  assert.equal(nodes.get('#issue-retry').hidden, true);
+});
+
+test('主动关闭代理时不把旧同步状态显示为同步故障', () => {
+  const nodes = render({ proxyEnabled: false, stale: true, syncError: '旧错误' });
+  assert.equal(nodes.get('#project-issue').hidden, true);
+  assert.equal(nodes.get('#readiness-steps').children[1].dataset.complete, 'false');
 });

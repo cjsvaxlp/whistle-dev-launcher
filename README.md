@@ -133,7 +133,7 @@ git push origin v0.1.1
 | `shared/config/` | 公共路径、测试入口和项目路由配置。 |
 | `shared/http/http.cjs` | HTTP 响应、令牌与本机请求鉴权。 |
 | `server/` | UI 服务入口、静态资源映射和 API 路由分发。 |
-| `test/` | 启动生命周期、运行时选择和日志功能的回归测试。 |
+| `test/` | 按功能保留关键回归测试：`panel-behavior` 面板操作与状态，`doctor` 体检与证书，`workspace-switch` 工作区切换与失败保护，`proxy` 代理模式与恢复；其余覆盖启动生命周期、运行时、浏览器回报、登录回跳及 Windows 环境。相同功能集中维护，避免单个修复新增零散文件；测试不进入安装包。 |
 
 `whistle.cafe-projects/index.cjs` 是插件入口。调整功能目录时，需要同步检查模块引用、页面资源映射与打包入口。
 
