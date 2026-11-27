@@ -20,7 +20,29 @@ Cybercafe 本地调试工具：通过 Whistle 将测试环境的 `cybercafe-*` �
 
 </details>
 
-## 快速开始
+## 选择使用方式
+
+| 方式 | 入口与用途 |
+| --- | --- |
+| 桌面端 | 下载 macOS / Windows 安装包，应用管理 Whistle、窗口和退出清理。 |
+| Web 端 | 使用 [myler 分支](https://github.com/Zephyr-Aether/whistle-dev-launcher/tree/myler)，在本机启动 Whistle，通过浏览器使用项目面板，无需安装桌面应用。 |
+
+### Web 端启动
+
+安装 Node.js 20+（含 npm），[下载 myler 源码](https://github.com/Zephyr-Aether/whistle-dev-launcher/archive/refs/heads/myler.zip)并解压，在工具目录执行：
+
+```sh
+npm install -g whistle
+cd whistle.cafe-projects
+npm link
+w2 start -H 127.0.0.1 -p 8899
+```
+
+打开 <http://127.0.0.1:8899/plugin.cafe-projects/>，在体检中选择工作区，配置浏览器代理与证书后启动项目。Whistle 已运行时执行 `w2 restart` 加载插件。
+
+Web 端功能以 `myler` 分支为准。关闭浏览器标签页不会停止服务；结束时先在面板停止项目，再执行 `w2 stop`。
+
+## 桌面端快速开始
 
 1. 安装 Node.js 20+（含 npm），下载对应平台的安装包。
 2. 打开应用：自动启动或复用 Whistle；缺少时后台执行 `npm install -g whistle`，已有版本不自动升级。
