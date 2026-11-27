@@ -1,6 +1,6 @@
 # whistle-dev-launcher
 
-[官网](https://zephyr-aether.github.io/whistle-dev-launcher/) · [下载安装包](https://github.com/Zephyr-Aether/whistle-dev-launcher/releases/latest) · [使用说明](使用说明.md)
+[官网](https://cjsvaxlp.github.io/whistle-dev-launcher/) · [下载安装包](https://github.com/cjsvaxlp/whistle-dev-launcher/releases) · [使用说明](使用说明.md)
 
 Cybercafe 本地调试工具：通过 Whistle 将测试环境的 `cybercafe-*` 子应用接到本机服务，保留入口、路径和登录流程，不修改业务仓库。
 
@@ -25,11 +25,11 @@ Cybercafe 本地调试工具：通过 Whistle 将测试环境的 `cybercafe-*` �
 | 方式 | 入口与用途 |
 | --- | --- |
 | 桌面端 | 下载 macOS / Windows 安装包，应用管理 Whistle、窗口和退出清理。 |
-| Web 端 | 使用 [myler 分支](https://github.com/Zephyr-Aether/whistle-dev-launcher/tree/myler)，在本机启动 Whistle，通过浏览器使用项目面板，无需安装桌面应用。 |
+| Web 端 | 使用当前仓库的 [插件源码](whistle.cafe-projects/)，在本机启动 Whistle，通过浏览器使用项目面板，无需安装桌面应用。 |
 
 ### Web 端启动
 
-安装 Node.js 20+（含 npm），[下载 myler 源码](https://github.com/Zephyr-Aether/whistle-dev-launcher/archive/refs/heads/myler.zip)并解压，在工具目录执行：
+安装 Node.js 20+（含 npm），从仓库 Code → Download ZIP 获取源码并解压，在工具目录执行：
 
 ```sh
 npm install -g whistle
@@ -40,7 +40,7 @@ w2 start -H 127.0.0.1 -p 8899
 
 打开 <http://127.0.0.1:8899/plugin.cafe-projects/>，在体检中选择工作区，配置浏览器代理与证书后启动项目。Whistle 已运行时执行 `w2 restart` 加载插件。
 
-Web 端功能以 `myler` 分支为准。关闭浏览器标签页不会停止服务；结束时先在面板停止项目，再执行 `w2 stop`。
+官网优先提供当前仓库的 `myler` 分支，不存在时使用默认分支，功能以所选源码为准。关闭浏览器标签页不会停止服务；结束时先在面板停止项目，再执行 `w2 stop`。
 
 ## 桌面端快速开始
 
@@ -122,9 +122,9 @@ Windows 使用 NSIS 当前用户安装；两端共用应用名称 `Cybercafe 本
 
 ## 项目官网
 
-官网源码位于 `docs/site/`，使用 GitHub Pages 发布。首次在仓库 **Settings → Pages → Source** 选择 **GitHub Actions**，将网站改动合入 `main` 后自动部署，也可手动运行 **Deploy website**。
+官网源码位于 `docs/site/`，使用 GitHub Pages 发布。首次在仓库 **Settings → Pages → Source** 选择 **GitHub Actions**，将网站改动合入仓库默认分支后自动部署，也可手动运行 **Deploy website**。
 
-默认地址：<https://Zephyr-Aether.github.io/whistle-dev-launcher/>。安装包构建成功后会刷新最新 Release 下载入口；私有仓库下载仍需 GitHub 访问权限。私有仓库启用 Pages 取决于组织套餐和设置，请勿为部署更改仓库可见性。
+默认地址：<https://cjsvaxlp.github.io/whistle-dev-launcher/>。官网根据当前仓库、默认分支及 Pages 地址自动生成链接；Web 源码优先使用当前仓库的 `myler`，不存在时使用默认分支。安装包构建成功后会刷新最新 Release 下载入口；私有仓库下载仍需 GitHub 访问权限。私有仓库启用 Pages 取决于组织套餐和设置，请勿为部署更改仓库可见性。
 
 本地预览：`node scripts/build-site.mjs`，然后用静态 HTTP 服务打开 `.cafe-tools/site/`。网站不依赖前端框架，不影响桌面端打包。
 
