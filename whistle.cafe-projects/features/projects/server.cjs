@@ -70,6 +70,10 @@ function snapshot() {
     const browser = browserStatus(state, name);
     const startup = startupSnapshot(name, browser.confirmed);
     const entry = local || unmatched;
+    let log = false;
+    let logError = '';
+    try { log = existsSync(logPath(name)) || archiveNames(name).length > 0; }
+    catch (error) { logError = `无法读取项目日志：${error.message}`; }
     const terminalSource = isRunning(logWriterPid(name))
       ? 'panel'
       : entry && isRunning(Number(entry.pid)) ? 'external' : 'none';
@@ -91,7 +95,8 @@ function snapshot() {
       installStatus: job ? job.status : null,
       favorite: prefs.favorites.includes(name),
       recentAt: prefs.recent[name] || null,
-      log: existsSync(logPath(name)) || archiveNames(name).length > 0,
+      log,
+      logError,
       terminalSource,
     };
   });

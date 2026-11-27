@@ -10,6 +10,17 @@ mod window;
 use tauri::RunEvent;
 
 #[tauri::command]
+#[cfg(target_os = "windows")]
+async fn select_project_folder() -> Option<String> {
+    rfd::AsyncFileDialog::new()
+        .set_title("选择包含 cybercafe-* 子项目的目录")
+        .pick_folder()
+        .await
+        .map(|folder| folder.path().to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+#[cfg(not(target_os = "windows"))]
 fn select_project_folder() -> Option<String> {
     rfd::FileDialog::new()
         .set_title("选择包含 cybercafe-* 子项目的目录")

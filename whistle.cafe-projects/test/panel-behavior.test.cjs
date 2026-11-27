@@ -406,3 +406,59 @@ test('面板失败刷新逐步退避，恢复后还原间隔，准备中保持�
   await context.load();
   assert.equal(intervals.length, scheduled);
 });
+
+test('macOS 目录选择仍走服务端，不调用 Windows 原生命令', async () => {
+  let requests = 0;
+  const { context, nodes } = harness('../features/workspace/actions.mjs', {
+    window: { cafeDesktopPlatform: 'macos', __TAURI__: { core: {
+      invoke: () => { throw new Error('macOS must retain its existing picker'); },
+    } } },
+    post: async (url, body) => {
+      requests++;
+      assert.equal(body, undefined);
+      return { ok: true, json: async () => ({ cancelled: true }) };
+    },
+  });
+  vm.runInContext('bindWorkspaceActions({ load: async () => {}, showDoctor: async () => {} });', context);
+  await nodes.get('#save-workspace').click();
+  assert.equal(requests, 1);
+});
+
+for (const outcome of ['cancel', 'reject', 'select']) {
+  test(`Windows 目录选择：${outcome}，取消不回退，调用失败回退且防止重复打开`, async () => {
+    const requests = [];
+    let finish;
+    let invokes = 0;
+    const { context, nodes } = harness('../features/workspace/actions.mjs', {
+      window: { cafeDesktopPlatform: 'windows', __TAURI__: { core: {
+        invoke: () => { invokes++; return new Promise((resolve, reject) => {
+          finish = () => outcome === 'reject' ? reject('native IPC unavailable')
+            : resolve(outcome === 'cancel' ? null : 'D:\\项目\\cybercafe-front');
+        }); },
+      } } },
+      post: async (url, body) => { requests.push(body); return {
+        ok: true, json: async () => ({ cancelled: true }),
+      }; },
+    });
+    vm.runInContext('bindWorkspaceActions({ load: async () => {}, showDoctor: async () => {} });', context);
+    const picker = nodes.get('#save-workspace');
+    const first = picker.listeners.click();
+    await picker.listeners.click();
+    assert.equal(invokes, 1);
+    finish();
+    await first;
+    assert.equal(requests.length, outcome === 'cancel' ? 0 : 1);
+    if (outcome === 'reject') assert.equal(requests[0], undefined);
+    if (outcome === 'select') assert.equal(requests[0].get('directory'), 'D:\\项目\\cybercafe-front');
+    assert.equal(picker.disabled, false);
+  });
+}
+
+test('项目列表失败展示接口具体原因', async () => {
+  const { context, nodes } = harness('../features/projects/client.mjs', {
+    fetch: async () => ({ ok: false, json: async () => ({ workspace: 'D:/missing', message: '找不到项目工作区，请重新选择目录。' }) }),
+  });
+  await context.load();
+  assert.equal(nodes.get('#issue-title').textContent, '项目列表读取失败');
+  assert.equal(nodes.get('#issue-detail').textContent, '找不到项目工作区，请重新选择目录。');
+});

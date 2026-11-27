@@ -313,6 +313,7 @@ export function load({ fresh = false } = {}) {
       reportError('projects-load', '');
       reportError('sync', data.syncError || '');
       for (const project of data.projects) {
+        reportError('logs-' + project.name, project.logError || '');
         reportError('startup-' + project.name, project.startup?.stage === 'failed' ? project.startup.message : '');
       }
       if (snapshot?.workspace !== data.workspace) actionErrors.clear();
@@ -323,7 +324,7 @@ export function load({ fresh = false } = {}) {
       refreshFailures++;
       snapshot ??= { projects: [] };
       reportError('projects-load', error.message);
-      loadError = '暂时无法读取项目列表';
+      loadError = error.message || '暂时无法读取项目列表';
       render();
       sync.textContent = '暂时无法读取状态';
       sync.dataset.state = 'warn';
@@ -456,10 +457,10 @@ function renderReadiness(info) {
   const error = actionErrors.get(selected);
   const failed = info?.startup?.stage === 'failed';
   const syncFailure = snapshot.proxyEnabled !== false && (snapshot.syncError || (snapshot.workspace && snapshot.stale && !info?.launching && !info?.installing));
-  const detail = loadError ? '无法读取最新状态，请检查 Whistle 是否运行，然后重试。' : error?.message || (failed && info.startup.message) || (info?.installStatus === 'failed' && '依赖安装失败，请查看终端中的具体原因，处理后重新安装。') || syncFailure;
+  const detail = loadError || error?.message || (failed && info.startup.message) || (info?.installStatus === 'failed' && '依赖安装失败，请查看终端中的具体原因，处理后重新安装。') || syncFailure;
   const issue = document.querySelector('#project-issue');
   issue.hidden = !detail;
-  document.querySelector('#issue-title').textContent = loadError ? '连接异常' : error || failed ? '项目操作未完成' : info?.installStatus === 'failed' ? '依赖安装失败' : '代理规则未就绪';
+  document.querySelector('#issue-title').textContent = loadError ? '项目列表读取失败' : error || failed ? '项目操作未完成' : info?.installStatus === 'failed' ? '依赖安装失败' : '代理规则未就绪';
   document.querySelector('#issue-detail').textContent = typeof detail === 'string' ? detail : '同步状态已过期，请在环境体检中检查并同步规则。';
   retryAction = loadError || (!error && !failed && info?.installStatus !== 'failed') ? 'load' : error?.action || (info?.installStatus === 'failed' ? 'install' : 'start');
   const retry = document.querySelector('#issue-retry');

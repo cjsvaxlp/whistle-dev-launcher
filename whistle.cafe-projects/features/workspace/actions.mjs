@@ -21,6 +21,7 @@ async function readWorkspaceResponse(response) {
 export function bindWorkspaceActions({ load, showDoctor }) {
   const picker = document.querySelector('#save-workspace');
   let pending = false;
+  let selecting = false;
 
   async function updateWorkspace(directory) {
     if (pending) return;
@@ -69,17 +70,22 @@ export function bindWorkspaceActions({ load, showDoctor }) {
     try {
       return await invoke('select_project_folder');
     } catch (error) {
-      showError(error?.message || '无法打开目录选择器。');
-      return null;
+      // Older installed shells may not expose this command. Use the server's
+      // Windows STA picker; null is reserved for a deliberate cancellation.
+      return undefined;
     } finally {
       delete picker.dataset.pending;
       picker.disabled = false;
     }
   }
   picker.addEventListener('click', async () => {
-    const selected = await nativeDirectory();
-    if (selected === undefined) return updateWorkspace();
-    if (selected) updateWorkspace(selected);
+    if (selecting || pending) return;
+    selecting = true;
+    try {
+      const selected = await nativeDirectory();
+      if (selected === undefined) await updateWorkspace();
+      else if (selected) await updateWorkspace(selected);
+    } finally { selecting = false; }
   });
   return { updateWorkspace };
 }

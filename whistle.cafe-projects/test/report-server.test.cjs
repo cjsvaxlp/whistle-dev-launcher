@@ -42,7 +42,17 @@ test('plugin protocol responds without redirect and shares confirmation with pan
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('location'), null);
   assert.deepEqual(await response.json(), { accepted: true });
-  const state = await (await fetch('http://127.0.0.1:' + panel.address().port + '/api/projects')).json();
+  // A damaged/unwritable logs location must not turn a readable checkout into
+  // a failed project-list request (including Windows ENOTDIR/EACCES failures).
+  writeFileSync(join(directory, 'logs'), 'blocked log directory');
+  const listResponse = await fetch('http://127.0.0.1:' + panel.address().port + '/api/projects');
+  assert.equal(listResponse.status, 200);
+  const state = await listResponse.json();
+  assert.match(state.projects[0].logError, /无法读取项目日志/);
+  assert.equal(state.projects[0].log, false);
+  rmSync(join(directory, 'logs'));
+  const recovered = await (await fetch('http://127.0.0.1:' + panel.address().port + '/api/projects')).json();
+  assert.equal(recovered.projects[0].logError, '');
   assert.equal(state.projects.find(project => project.name === 'demo').browser.confirmed, true);
   const rejected = await fetch(origin + '/__cafe/confirm?' + query, { headers: { referer: 'https://unrelated.example/' } });
   assert.equal(rejected.status, 409);
