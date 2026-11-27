@@ -63,13 +63,32 @@ fn restore_file(path: &PathBuf) -> Result<(), String> {
     fs::remove_file(path).map_err(|e| e.to_string())
 }
 
+fn startup_backup_row(current: Value, previous: &[Value]) -> Value {
+    if current["url"].as_str() == Some(PAC) {
+        if let Some(original) = previous.iter().find(|row| row["service"] == current["service"]) {
+            return original.clone();
+        }
+    }
+    current
+}
+
 pub fn enable() -> Result<(), String> {
     let _lock = LOCK.lock().map_err(|e| e.to_string())?;
     if QUITTING.load(Ordering::Acquire) || PAUSED.load(Ordering::Acquire) { return Ok(()); }
     let path = backup_path()?;
     if ACTIVE.load(Ordering::Acquire) { return Ok(()); }
-    // Recover a previous interrupted session before taking a fresh snapshot.
-    if path.exists() { restore_file(&path)?; }
+    // Carry the original settings forward when an interrupted session still
+    // owns the PAC. Restoring and re-enabling separately would prompt twice.
+    let previous = if path.exists() {
+        let value: Value = serde_json::from_slice(&fs::read(&path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+        let rows = value.as_array().ok_or("系统代理备份无效。")?;
+        if rows.iter().any(|row| !row["service"].is_string() || !row["url"].is_string()
+            || ["pac", "web", "secureweb", "discovery"].iter().any(|key| !row[*key].is_boolean())) {
+            return Err("系统代理备份字段无效。".into());
+        }
+        rows.clone()
+    } else { Vec::new() };
     let services = network(&["-listallnetworkservices"])?;
     let mut rows = Vec::new();
     let mut commands = Vec::new();
@@ -80,7 +99,8 @@ pub fn enable() -> Result<(), String> {
         let discovery = network(&["-getproxyautodiscovery", service])?;
         let url = field(&pac, "URL:");
         let url = if url == "(null)" { String::new() } else { url };
-        rows.push(json!({"service":service,"url":url,"pac":field(&pac,"Enabled:")=="Yes","web":field(&web,"Enabled:")=="Yes","secureweb":field(&secureweb,"Enabled:")=="Yes","discovery":field(&discovery,"Auto Proxy Discovery:")=="On"}));
+        let current = json!({"service":service,"url":url,"pac":field(&pac,"Enabled:")=="Yes","web":field(&web,"Enabled:")=="Yes","secureweb":field(&secureweb,"Enabled:")=="Yes","discovery":field(&discovery,"Auto Proxy Discovery:")=="On"});
+        rows.push(startup_backup_row(current, &previous));
         commands.push(command(&["-setautoproxyurl", service, PAC]));
         commands.push(command(&["-setautoproxystate", service, "on"]));
         for flag in ["-setwebproxystate", "-setsecurewebproxystate", "-setproxyautodiscovery"] { commands.push(command(&[flag, service, "off"])); }
@@ -88,8 +108,13 @@ pub fn enable() -> Result<(), String> {
     fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
     use std::os::unix::fs::OpenOptionsExt;
     use std::io::Write;
-    let mut file = fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&path).map_err(|e| e.to_string())?;
-    file.write_all(serde_json::to_string_pretty(&rows).unwrap().as_bytes()).and_then(|_|file.sync_all()).map_err(|e| e.to_string())?;
+    let temporary = path.with_extension(format!("{}.tmp", std::process::id()));
+    let save = (|| -> Result<(), String> {
+        let mut file = fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&temporary).map_err(|e| e.to_string())?;
+        file.write_all(serde_json::to_string_pretty(&rows).unwrap().as_bytes()).and_then(|_|file.sync_all()).map_err(|e| e.to_string())?;
+        fs::rename(&temporary, &path).map_err(|e| e.to_string())
+    })();
+    if let Err(error) = save { let _ = fs::remove_file(&temporary); return Err(error); }
     if let Err(error) = apply(commands) {
         if let Err(rollback) = restore_file(&path) { return Err(format!("{error}；恢复失败：{rollback}")); }
         return Err(error);
@@ -148,6 +173,7 @@ pub fn monitor(app: tauri::AppHandle) {
                     match crate::services::status() {
                         crate::services::Status::Ready => true,
                         crate::services::Status::PanelUnavailable => return Ok(()),
+                        crate::services::Status::Offline if crate::menu::is_busy(&app) => return Ok(()),
                         crate::services::Status::Offline => false,
                     }
                 } else { false };
@@ -186,6 +212,14 @@ pub fn monitor(app: tauri::AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn restarting_keeps_original_backup_only_for_our_pac() {
+        let original = json!({"service":"Wi-Fi","url":"http://vpn/pac","pac":true,"web":true,"secureweb":true,"discovery":false});
+        let current = json!({"service":"Wi-Fi","url":PAC,"pac":true,"web":false,"secureweb":false,"discovery":false});
+        assert_eq!(startup_backup_row(current, &[original.clone()]), original);
+        let later = json!({"service":"Wi-Fi","url":"http://new-vpn/pac","pac":true,"web":false,"secureweb":false,"discovery":false});
+        assert_eq!(startup_backup_row(later.clone(), &[original]), later);
+    }
     #[test]
     fn cancellation_has_a_readable_message() {
         let message = authorization_error("0:1684: execution error: User canceled. (-128)");
