@@ -60,6 +60,26 @@ export function bindWorkspaceActions({ load, showDoctor }) {
       picker.disabled = false;
     }
   }
-  picker.addEventListener('click', () => updateWorkspace());
+  async function nativeDirectory() {
+    if (window.cafeDesktopPlatform !== 'windows') return undefined;
+    const invoke = window.__TAURI__?.core?.invoke;
+    if (typeof invoke !== 'function') return undefined;
+    picker.disabled = true;
+    picker.dataset.pending = 'true';
+    try {
+      return await invoke('select_project_folder');
+    } catch (error) {
+      showError(error?.message || '无法打开目录选择器。');
+      return null;
+    } finally {
+      delete picker.dataset.pending;
+      picker.disabled = false;
+    }
+  }
+  picker.addEventListener('click', async () => {
+    const selected = await nativeDirectory();
+    if (selected === undefined) return updateWorkspace();
+    if (selected) updateWorkspace(selected);
+  });
   return { updateWorkspace };
 }

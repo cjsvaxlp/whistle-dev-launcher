@@ -142,6 +142,7 @@ function renderList() {
     if (!snapshot.projects.length) {
       const button = document.createElement('button');
       button.type = 'button';
+      button.className = 'secondary';
       button.textContent = snapshot.workspace ? '重新选择项目目录' : '选择项目目录';
       button.addEventListener('click', () => document.querySelector('#save-workspace').click());
       fragment.append(button);

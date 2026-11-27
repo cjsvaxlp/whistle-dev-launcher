@@ -18,9 +18,11 @@ export function bindWorkspaceSelector({ updateWorkspace }) {
     add.disabled = working;
     add.textContent = snapshot?.workspace ? '切换项目目录' : '选择项目目录';
     const directory = snapshot?.workspace || '';
+    const separator = directory.includes('\\') ? '\\' : '/';
     const segments = directory.split(/[\\/]+/).filter(Boolean);
+    const drive = /^[A-Za-z]:$/.test(segments[0] || '') ? segments[0] : '';
     path.textContent = segments.length > 2
-      ? '…/' + segments.slice(-2).join('/')
+      ? (drive ? drive + separator : '') + '…' + separator + segments.slice(-2).join(separator)
       : directory || '选择包含 cybercafe-* 子项目的目录';
     path.title = snapshot?.workspace || '';
     select.title = snapshot?.workspace || '选择最近使用的工作目录';
