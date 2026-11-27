@@ -510,3 +510,33 @@ for (const platform of ['macos', 'windows']) {
     assert.equal(nodes.get('#local-proxy').disabled, false);
   });
 }
+
+for (const state of ['unconfigured', 'missing', 'empty']) {
+  test(`Windows 无项目时的目录入口仍复用选择流程：${state}`, async () => {
+    let requests = 0;
+    let refreshes = 0;
+    const { context, nodes } = harness('../features/projects/client.mjs', {
+      window: { cafeDesktopPlatform: 'windows' },
+      post: async (url, body) => {
+        requests++;
+        assert.equal(url, './api/workspace');
+        assert.equal(body, undefined);
+        return { ok: true, json: async () => ({ cancelled: true }) };
+      },
+      refresh: async () => { refreshes++; },
+    });
+    const actionsSource = readFileSync(require.resolve('../features/workspace/actions.mjs'), 'utf8')
+      .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
+    vm.runInContext(actionsSource + '\nbindWorkspaceActions({ load: refresh, showDoctor: async () => {} });', context);
+    context.fixture = { workspace: state === 'unconfigured' ? '' : 'D:/workspace', projects: [], workspaceUnavailable: state === 'missing' };
+    vm.runInContext('snapshot = fixture; renderList();', context);
+    const entries = nodes.get('#projects').children[0].children;
+    const choose = entries.find(element => element.listeners.click);
+    assert.ok(choose);
+    assert.equal(choose.textContent, state === 'unconfigured' ? '选择项目目录' : '重新选择项目目录');
+    await choose.click();
+    assert.equal(requests, 1);
+    assert.equal(refreshes, 0); // Cancelling must not save, refresh or stop services.
+    assert.equal(nodes.get('#save-workspace').disabled, false);
+  });
+}

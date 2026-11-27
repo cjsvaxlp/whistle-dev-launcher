@@ -23,10 +23,21 @@ async function chooseWorkspace() {
       'Add-Type -AssemblyName System.Windows.Forms',
       '$owner = New-Object System.Windows.Forms.Form',
       '$owner.TopMost = $true',
+      '$owner.ShowInTaskbar = $false',
+      '$owner.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None',
+      '$owner.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen',
+      '$owner.Size = New-Object System.Drawing.Size(1, 1)',
+      '$owner.Opacity = 0',
       '$dialog = New-Object System.Windows.Forms.FolderBrowserDialog',
       "$dialog.Description = '请选择包含 cybercafe-* 子项目的目录'",
       '$dialog.ShowNewFolderButton = $false',
-      'try { if ($dialog.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { $dialog.SelectedPath } }',
+      // windowsHide can hide the process's first ShowWindow call. Consume that
+      // on an invisible owner, then show it again before opening its modal dialog.
+      // A real topmost owner also keeps the picker above the desktop panel.
+      'try {',
+      '  $owner.Show(); $owner.Hide(); $owner.Show(); $owner.Activate()',
+      '  if ($dialog.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { $dialog.SelectedPath }',
+      '}',
       'finally { $dialog.Dispose(); $owner.Dispose() }',
     ].join('\n');
     const { stdout } = await run(POWERSHELL, [
