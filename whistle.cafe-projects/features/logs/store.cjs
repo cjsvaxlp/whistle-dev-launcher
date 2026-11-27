@@ -122,7 +122,13 @@ function readLog(file, search, tailBytes = 400000) {
     const utf16 = bom[0] === 0xff && bom[1] === 0xfe;
     const data = Buffer.alloc(Math.min(size, search ? MAX_SIZE : tailBytes));
     const length = readSync(fd, data, 0, data.length, size - data.length);
-    const lines = data.toString(utf16 ? 'utf16le' : 'utf8', 0, length).replace(/^\uFEFF/, '').split(/\r?\n/);
+    // The panel renders plain text, not a terminal emulator. Clean the read view
+    // before searching/diagnosing; retain the original file for raw downloads.
+    const lines = data.toString(utf16 ? 'utf16le' : 'utf8', 0, length)
+      .replace(/^\uFEFF/, '')
+      .replace(/(?:\x1b\]|\x9d)[^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
+      .replace(/(?:\x1b\[|\x9b)[0-?]*[ -/]*[@-~]/g, '')
+      .split(/\r?\n/);
     if (size > data.length) lines.shift();
     const matches = search ? lines.filter(line => line.toLowerCase().includes(search)) : lines;
     return { lines: matches.slice(-240), count: matches.length };

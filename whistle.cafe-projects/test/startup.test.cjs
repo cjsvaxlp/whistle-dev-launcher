@@ -145,3 +145,23 @@ test('共享日志会话隔离项目日志、清空请求和服务进程组，�
   process.kill(-services[1], 'SIGTERM');
   await ended;
 });
+
+test('日志纯文本视图过滤颜色控制码，保留警告、搜索和原始文件', t => {
+  const { readLog, diagnose } = require('../features/logs/store.cjs');
+  const { readFileSync } = require('node:fs');
+  const directory = mkdtempSync(join(tmpdir(), 'cafe-ansi-log-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const file = join(directory, 'current.log');
+  const text = '\x1b[1m\x1b[33m[@vue/compiler-sfc]\x1b[0m :deep usage is deprecated.\n'
+    + '\x1b]0;terminal title\x07Error: EADDR\x1b[31mINUSE\x1b[0m\n';
+  for (const encoding of ['utf8', 'utf16le']) {
+    writeFileSync(file, encoding === 'utf16le' ? '\uFEFF' + text : text, encoding);
+    const before = readFileSync(file);
+    const result = readLog(file, '');
+    assert.equal(result.lines[0], '[@vue/compiler-sfc] :deep usage is deprecated.');
+    assert.equal(result.lines[1], 'Error: EADDRINUSE');
+    assert.equal(readLog(file, 'eaddrinuse').count, 1);
+    assert.equal(diagnose(result.lines.join('\n'))[0].text, '端口被占用');
+    assert.deepEqual(readFileSync(file), before);
+  }
+});
