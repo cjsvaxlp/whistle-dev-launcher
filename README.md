@@ -121,7 +121,7 @@ git push origin v0.1.1
 | `features/proxy/` | 检测本地服务、生成 Whistle 规则并写入同步状态。 |
 | `features/startup/` | 跟踪启动阶段、服务退出、接管结果和超时。 |
 | `features/dependencies/` | 依赖安装进程、安装日志与安装后启动，维护安装任务状态。 |
-| `features/system-proxy/` | 代理接入模式与高级浏览器选项的保存和交互，以及测试域名 PAC 内容和下载路由。体检 advanced 默认折叠，启用后才显示主面板模式切换；macOS 新用户默认系统代理，已有代理模式保留但需明确启用显示，Windows 同样默认隐藏模式切换，启用后显示并禁用不支持的系统代理选项。 |
+| `features/system-proxy/` | 代理接入模式与高级浏览器选项的保存和交互，以及测试域名 PAC 内容和下载路由。体检 Advanced 默认折叠，启用后才显示主面板模式切换；macOS 新用户默认系统代理，已有代理模式保留但需明确启用显示，Windows 同样默认隐藏模式切换，启用后显示并禁用不支持的系统代理选项。 |
 | `features/cleanup/` | 清理工具生成的日志、临时文件、同步状态、兼容代理文件和 PAC。 |
 | `features/runtime/` | 解析 Node 版本约束，选择运行时和依赖安装命令。 |
 | `features/terminal/launcher.cjs` | 后台启动开发服务并连接日志采集。 |
