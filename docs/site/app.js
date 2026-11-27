@@ -1,5 +1,6 @@
 // Release data is resolved at build time, including for private repositories.
 // No GitHub credentials or authenticated API calls are sent to the browser.
+const repository = document.documentElement.dataset.repository;
 fetch('./downloads.json', { cache: 'no-cache' })
   .then(response => {
     if (!response.ok) throw new Error('release data unavailable');
@@ -10,7 +11,7 @@ fetch('./downloads.json', { cache: 'no-cache' })
       const asset = release[platform];
       if (!asset) continue;
       const url = new URL(asset.url);
-      if (url.origin !== 'https://github.com' || !url.pathname.startsWith('/Zephyr-Aether/whistle-dev-launcher/releases/download/')) continue;
+      if (url.origin !== 'https://github.com' || !url.pathname.startsWith(`/${repository}/releases/download/`)) continue;
       const button = document.querySelector(`[data-download="${platform}"]`);
       button.href = url.href;
       button.textContent = `下载 ${platform === 'macos' ? 'macOS' : 'Windows'} 安装包 ↓`;
