@@ -9,8 +9,17 @@ mod window;
 
 use tauri::RunEvent;
 
+#[tauri::command]
+fn select_project_folder() -> Option<String> {
+    rfd::FileDialog::new()
+        .set_title("选择包含 cybercafe-* 子项目的目录")
+        .pick_folder()
+        .map(|path| path.to_string_lossy().into_owned())
+}
+
 fn main() {
     let app = tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![select_project_folder])
         .setup(|app| {
             menu::setup(app)?;
             menu::run_action(
