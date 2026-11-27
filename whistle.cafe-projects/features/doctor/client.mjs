@@ -18,6 +18,25 @@ export function readDoctor() {
 }
 
 export function bindDoctor({ load }) {
+  const help = document.querySelector('#browser-proxy-help');
+  const helpButton = document.querySelector('#browser-help-button');
+  function positionHelp() {
+    if (!help.matches(':popover-open')) return;
+    const anchor = helpButton.getBoundingClientRect();
+    const gap = 8;
+    const inset = 12;
+    const width = help.offsetWidth;
+    const height = help.offsetHeight;
+    help.style.left = `${Math.max(inset, Math.min(anchor.left, window.innerWidth - width - inset))}px`;
+    help.style.top = `${Math.max(inset, Math.min(anchor.bottom + gap, window.innerHeight - height - inset))}px`;
+  }
+  help.addEventListener('toggle', positionHelp);
+  window.addEventListener('resize', positionHelp);
+  doctorModal.addEventListener('scroll', positionHelp, true);
+  document.querySelector('.doctor-advanced').addEventListener('toggle', event => {
+    if (!event.target.open) help.hidePopover?.();
+  });
+
 
   const FIX_LABELS = {
     'install-ca': '安装 CA',
@@ -124,11 +143,13 @@ export function bindDoctor({ load }) {
   document.querySelector('#rerun-doctor').addEventListener('click', () => showDoctor());
   document.querySelector('#close-doctor').addEventListener('click', () => {
     doctorModal.hidden = true;
+    help.hidePopover?.();
     localStorage.setItem('cafe-doctor-seen', '1');
   });
   doctorModal.addEventListener('click', event => {
     if (event.target === doctorModal) {
       doctorModal.hidden = true;
+      help.hidePopover?.();
       localStorage.setItem('cafe-doctor-seen', '1');
     }
   });

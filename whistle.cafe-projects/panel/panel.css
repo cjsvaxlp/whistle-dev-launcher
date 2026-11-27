@@ -999,3 +999,35 @@ input, select, textarea { color: inherit; }
 .browser-proxy-guide li + li { margin-top: 8px; }
 .browser-proxy-guide code { overflow-wrap: anywhere; user-select: text; }
 .browser-proxy-guide a { color: var(--link); }
+
+.browser-help-button {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--secondary);
+  font: 17px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+.browser-help-button:hover { background: var(--hover); color: var(--accent); }
+.browser-proxy-help {
+  position: fixed;
+  inset: auto;
+  box-sizing: border-box;
+  width: min(480px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
+  font: 13px/1.6 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+.browser-proxy-help::backdrop { background: transparent; }

@@ -26,7 +26,7 @@ function harness(file, extra = {}) {
   };
   const values = new Map();
   const context = vm.createContext({
-    document, URLSearchParams, location: { search: '' },
+    document, window: { addEventListener() {} }, URLSearchParams, location: { search: '' },
     localStorage: { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) },
     CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } },
     showTerminal() {}, focusTerminal() {}, showError() {}, showInfo() {}, reportError() {},
