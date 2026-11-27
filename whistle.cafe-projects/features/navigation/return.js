@@ -52,9 +52,6 @@
     const value = window.__cafeLoginTargets?.[project];
     return typeof value === 'string' ? targetOf(value) : null;
   }
-  function currentProject() {
-    return /^\/cybercafe-([a-z0-9-]+)\//.exec(location.pathname)?.[1] || '';
-  }
   function linkProject() {
     try { return new URL(location.href).searchParams.get('__cafe_project') || ''; } catch { return ''; }
   }
@@ -65,13 +62,6 @@
       document.cookie = PROJECT_COOKIE + '=' + encodeURIComponent('cybercafe-' + project)
         + '; Path=/; Max-Age=900; SameSite=Lax' + secure;
     } catch { /* Cookie may be unavailable. */ }
-  }
-  function projectCookie() {
-    try {
-      const match = new RegExp('(?:^|;\\s*)' + PROJECT_COOKIE + '=([^;]*)').exec(document.cookie || '');
-      const value = match ? decodeURIComponent(match[1]) : '';
-      return value.replace(/^cybercafe-/, '');
-    } catch { return ''; }
   }
   const originalPush = history.pushState;
   const originalReplace = history.replaceState;
@@ -97,13 +87,10 @@
     }
   } catch { /* Invalid or expired return metadata never changes the application's navigation. */ }
   if (location.pathname === '/cybercafe-power/') {
-    // The business page can be redirected to the power login before a link
-    // parameter survives. Resolve the project from the referrer and use its
-    // configured post-login page instead of relying on the link.
+    // Only explicit tool metadata can activate login adaptation. A cookie or
+    // ordinary referrer alone must not alter a normal business login.
     if (!state) {
-      const cookieProject = projectCookie();
-      const referred = targetOf(document.referrer || '');
-      const project = linkProject() || cookieProject || referred?.project;
+      const project = linkProject();
       const configured = project && configuredTarget(project);
       if (configured) {
         state = { ...configured, expiresAt: Date.now() + TTL, loginSeen: false, attempted: false };
@@ -120,8 +107,8 @@
       }
     }
   }
-  setProjectCookie(state?.project || linkProject() || currentProject());
   if (!state) return;
+  setProjectCookie(state.project);
   // Login clears business session data. Preserve only our expiring return URL,
   // never account credentials; mirror it because window.name can be reset on navigation.
   if (originalClear) {

@@ -86,3 +86,62 @@ test('confirmed page reports are reflected in startup text', () => {
   assert.match(readyMessage('browser', true), /浏览器代理模式.*已确认测试标签页/);
   assert.doesNotMatch(readyMessage('browser', true), /尚未验证/);
 });
+
+test('共享日志会话隔离项目日志、清空请求和服务进程组，面板断开后继续记录', { skip: process.platform === 'win32', timeout: 10000 }, async t => {
+  const { spawn } = require('node:child_process');
+  const { once } = require('node:events');
+  const { existsSync, readFileSync } = require('node:fs');
+  const { setTimeout: delay } = require('node:timers/promises');
+  const directory = mkdtempSync(join(tmpdir(), 'cafe-shared-log-'));
+  const session = spawn(process.execPath, [join(__dirname, '../features/logs/session.cjs')], { stdio: ['ignore', 'ignore', 'pipe', 'ipc'] });
+  const services = [];
+  t.after(() => {
+    for (const pid of services) { try { process.kill(-pid, 'SIGTERM'); } catch {} }
+    session.kill();
+    rmSync(directory, { recursive: true, force: true });
+  });
+  await once(session, 'spawn');
+  async function message(type, id, action) {
+    const result = new Promise((resolve, reject) => {
+      const handler = value => {
+        if (value.id !== id) return;
+        if (value.type === type || value.type === 'error') {
+          session.off('message', handler);
+          if (value.type === 'error') reject(new Error(value.message)); else resolve(value);
+        }
+      };
+      session.on('message', handler);
+    });
+    action();
+    return result;
+  }
+  for (const id of [1, 2]) {
+    const file = join(directory, id + '.log');
+    const value = await message('started', id, () => session.send({ type: 'start', id, file, command: process.execPath,
+      args: ['-e', `console.log('project-${id}');console.error('error-${id}');setInterval(()=>console.log('tick-${id}'),100)`],
+      options: { cwd: directory, env: { ...process.env, CAFE_LAUNCH_ID: String(id) } } }));
+    services.push(value.pid);
+    assert.equal(readFileSync(file + '.pid', 'utf8'), String(session.pid));
+  }
+  const a = join(directory, '1.log');
+  const b = join(directory, '2.log');
+  for (let i = 0; i < 100 && !readFileSync(b, 'utf8').includes('error-2'); i++) await delay(10);
+  assert.match(readFileSync(a, 'utf8'), /project-1/);
+  assert.doesNotMatch(readFileSync(a, 'utf8'), /project-2/);
+  const request = a + '.clear-' + session.pid;
+  writeFileSync(request, '1');
+  for (let i = 0; i < 100 && existsSync(request); i++) await delay(10);
+  assert.equal(existsSync(request), false);
+  assert.doesNotMatch(readFileSync(a, 'utf8'), /project-1/);
+  assert.match(readFileSync(b, 'utf8'), /project-2/);
+  await message('closed', 1, () => process.kill(-services[0], 'SIGTERM'));
+  assert.equal(existsSync(a + '.pid'), false);
+  assert.equal(process.kill(services[1], 0), true);
+  session.disconnect();
+  const before = readFileSync(b, 'utf8').length;
+  for (let i = 0; i < 100 && readFileSync(b, 'utf8').length === before; i++) await delay(10);
+  assert.ok(readFileSync(b, 'utf8').length > before);
+  const ended = once(session, 'exit');
+  process.kill(-services[1], 'SIGTERM');
+  await ended;
+});

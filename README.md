@@ -96,7 +96,7 @@ Windows 使用 NSIS 当前用户安装；两端共用应用名称 `Cybercafe 本
 | 目录 | 职责 |
 | --- | --- |
 | `panel/` | 主面板、全局布局、深浅主题和功能初始化。 |
-| `features/projects/` | 项目列表、收藏、启停、状态和操作编排。 |
+| `features/projects/` | 项目列表、收藏、启停、状态和操作编排；准备中每 3 秒刷新，空闲每 15 秒刷新，失败时逐步退避至 120 秒，恢复后重置，隐藏时暂停。 |
 | `features/workspace/` | 目录选择、最近记录、分支、切换与持久化。 |
 | `features/terminal/` | 后台启动服务、内嵌终端和输出展示。 |
 | `features/doctor/` | 环境、证书、代理检查与修复。 |
@@ -109,10 +109,10 @@ Windows 使用 NSIS 当前用户安装；两端共用应用名称 `Cybercafe 本
 | `features/startup/` | 启动进度、失败原因和超时。 |
 | `features/dependencies/` | 依赖安装、任务状态和安装后启动。 |
 | `features/runtime/` | 按项目约束选择 Node 和包管理器。 |
-| `features/logs/` | 日志采集、归档、诊断和按工作区隔离。 |
+| `features/logs/` | 日志采集、归档、诊断和按工作区隔离；`session.cjs` 为工具启动的项目共用一个日志进程，保留独立服务进程组和清空请求；`run-log.cjs` 保留日志写入能力及旧包装入口。 |
 | `features/cleanup/` | 清理生成文件、临时状态和日志。 |
 | `features/browser/` | 默认浏览器打开入口。 |
-| `features/navigation/` | 登录目标记录、门户适配和登录后回跳。 |
+| `features/navigation/` | 仅测试域名的工具入口加载登录脚本，保留同标签页回跳；门户监听收敛到门户节点，profile 补查仅在 power 登录入口执行，最多 40 次，成功、离开或页面关闭即停止。 |
 | `shared/toast/` | 公共胶囊提示，错误显示 2 秒，持续错误去重。 |
 | `shared/http/` | 请求、令牌、本机鉴权和操作确认。 |
 | `shared/config/` | 公共路径、测试入口和登录目标配置。 |

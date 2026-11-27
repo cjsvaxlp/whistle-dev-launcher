@@ -380,3 +380,29 @@ test('高级浏览器选项控制工具栏显示，勾选不切模式，取消�
   assert.equal(state.mode, 'system');
   assert.deepEqual(requests, ['./api/browser-proxy-option/on', './api/browser-proxy-option/off']);
 });
+
+test('面板失败刷新逐步退避，恢复后还原间隔，准备中保持快速刷新，隐藏时停止', async () => {
+  const intervals = [];
+  let failing = true;
+  let projects = [];
+  const { context, document } = harness('../features/projects/client.mjs', {
+    setTimeout(callback, delay) { intervals.push(delay); return intervals.length; },
+    fetch: async () => {
+      if (failing) throw new Error('offline');
+      return { ok: true, json: async () => ({ workspace: '/work', projects }) };
+    },
+  });
+  vm.runInContext('render = () => {};', context);
+  for (let i = 0; i < 5; i++) await context.load();
+  assert.deepEqual(intervals, [15000, 30000, 60000, 120000, 120000]);
+  failing = false;
+  await context.load();
+  assert.equal(intervals.at(-1), 15000);
+  projects = [{ launching: true }];
+  await context.load();
+  assert.equal(intervals.at(-1), 3000);
+  document.hidden = true;
+  const scheduled = intervals.length;
+  await context.load();
+  assert.equal(intervals.length, scheduled);
+});

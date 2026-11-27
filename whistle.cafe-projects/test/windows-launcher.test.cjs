@@ -11,6 +11,14 @@ function fixture(vite, paths, failStop = false) {
   const calls = [], child = new EventEmitter();
   child.pid = 12345;
   child.unref = () => {};
+  child.connected = true;
+  let launchId;
+  child.send = (message, callback) => {
+    launchId = message.id;
+    calls.push({ ...message, args: message.args, options: message.options });
+    process.nextTick(() => child.emit('message', { type: 'started', id: launchId, pid: 12345 }));
+    callback?.();
+  };
   const config = { pluginDir: paths.join(workspace, 'tools', 'plugin'), tools: paths.join(workspace, 'tools'), stateDir: paths.join(workspace, 'state'), isWindows: true,
     POWERSHELL: 'powershell.exe', readWorkspace: () => workspace };
   const mockRequire = name => {
@@ -24,7 +32,7 @@ function fixture(vite, paths, failStop = false) {
       execFile(command, args, options, callback) {
         calls.push({ command, args, options });
         if (failStop) return callback(new Error('fixture taskkill failure'));
-        child.emit('close');
+        child.emit('message', { type: 'closed', id: launchId });
         callback(null, '', '');
       },
     };
@@ -46,26 +54,25 @@ for (const paths of [posix, win32]) {
       const log = paths.join(workspace, 'logs', 'demo.log');
       const node = paths.join(workspace, 'selected node', 'node.exe');
       await api.openTerminal('demo', log, 'launch-1', { node });
-      assert.equal(calls.length, 1);
-      const launch = calls[0];
-      assert.equal(launch.command, process.execPath);
-      assert.match(launch.args[0], /run-log\.cjs$/);
-      assert.equal(launch.args[1], log);
-      assert.equal(launch.args[2], node);
+      assert.equal(calls.length, 2);
+      const launch = calls[1];
+      assert.match(calls[0].args[0], /session\.cjs$/);
+      assert.equal(launch.file, log);
+      assert.equal(launch.command, node);
       assert.equal(launch.options.cwd, paths.join(workspace, 'cybercafe-demo'));
-      assert.equal(launch.options.windowsHide, true);
-      assert.equal(launch.options.detached, false);
-      assert.equal(launch.options.stdio, 'ignore');
+      assert.equal(calls[0].options.windowsHide, true);
+      assert.equal(calls[0].options.detached, false);
+      assert.equal(calls[0].options.stdio[3], 'ipc');
       assert.equal(launch.options.env.CAFE_LAUNCH_ID, 'launch-1');
       assert.ok(launch.args.includes('--host'));
       await api.stopLaunchedServices(workspace + '-other');
-      assert.equal(calls.length, 1);
-      await api.stopLaunchedServices(workspace);
-      assert.equal(calls[1].command, 'taskkill.exe');
-      assert.equal(calls[1].args.join(' '), '/PID 12345 /T /F');
-      assert.equal(calls[1].options.windowsHide, true);
-      await api.stopLaunchedServices();
       assert.equal(calls.length, 2);
+      await api.stopLaunchedServices(workspace);
+      assert.equal(calls[2].command, 'taskkill.exe');
+      assert.equal(calls[2].args.join(' '), '/PID 12345 /T /F');
+      assert.equal(calls[2].options.windowsHide, true);
+      await api.stopLaunchedServices();
+      assert.equal(calls.length, 3);
     });
   }
 }

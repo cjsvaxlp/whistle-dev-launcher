@@ -255,6 +255,8 @@ const IDLE_REFRESH_INTERVAL = 15000;
 const ACTIVE_REFRESH_INTERVAL = 3000;
 let refreshInFlight;
 let refreshTimer;
+let refreshFailures = 0;
+const MAX_ERROR_REFRESH_INTERVAL = 120000;
 
 export function shouldOpenDirectly() {
   return proxyShutdown || snapshot?.proxyEnabled === false;
@@ -263,7 +265,10 @@ export function shouldOpenDirectly() {
 function scheduleRefresh() {
   if (document.hidden || proxyShutdown) return;
   const pending = !loadError && snapshot?.projects.some(project => project.installing || project.launching);
-  refreshTimer = setTimeout(load, pending ? ACTIVE_REFRESH_INTERVAL : IDLE_REFRESH_INTERVAL);
+  const interval = refreshFailures
+    ? Math.min(MAX_ERROR_REFRESH_INTERVAL, IDLE_REFRESH_INTERVAL * 2 ** Math.min(refreshFailures - 1, 4))
+    : pending ? ACTIVE_REFRESH_INTERVAL : IDLE_REFRESH_INTERVAL;
+  refreshTimer = setTimeout(load, interval);
 }
 
 proxySwitch.addEventListener('change', async () => {
@@ -300,6 +305,7 @@ export function load({ fresh = false } = {}) {
         throw new Error(data.message || '读取状态失败。');
       }
       loadError = '';
+      refreshFailures = 0;
       reportError('projects-load', '');
       reportError('sync', data.syncError || '');
       for (const project of data.projects) {
@@ -310,6 +316,7 @@ export function load({ fresh = false } = {}) {
       render();
     })
     .catch(error => {
+      refreshFailures++;
       snapshot ??= { projects: [] };
       reportError('projects-load', error.message);
       loadError = '暂时无法读取项目列表';

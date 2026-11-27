@@ -57,7 +57,7 @@ async function getLog(response, url, project) {
   });
 }
 
-async function clearWindowsLog(project, pid) {
+async function clearRequestedLog(project, pid) {
   const request = logPath(project) + '.clear-' + pid;
   if (!existsSync(request + '.ready')) return false;
   try {
@@ -83,8 +83,8 @@ async function clearProjectLogs(response, project) {
   let cleared = false;
   if (writer.pid) {
     keptCurrent = true;
-    if (isWindows) {
-      cleared = await clearWindowsLog(project, writer.pid);
+    if (isWindows || existsSync(logPath(project) + '.clear-' + writer.pid + '.ready')) {
+      cleared = await clearRequestedLog(project, writer.pid);
     } else if (writer.canSignal) {
       try {
         process.kill(writer.pid, 'SIGUSR1');

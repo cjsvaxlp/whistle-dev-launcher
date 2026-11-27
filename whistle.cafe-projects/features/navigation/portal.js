@@ -1,8 +1,22 @@
 // Runtime adapter for tool-opened tabs. Observe the existing profile check, then use a visible portal entry.
-(() => {
+(function initializePortal() {
   'use strict';
   const navigation = window.__cafeReturn;
-  if (!navigation?.read() || location.pathname !== '/cybercafe-power/') return;
+  if (location.origin !== 'https://cloudgametest2.migufun.com:18443'
+    || !navigation?.read() || location.pathname !== '/cybercafe-power/') return;
+  if (!['#/freeLogin', '#/amsportal'].includes(location.hash.split('?')[0])) {
+    // A later in-app login redirect needs adaptation too, without polling normal pages.
+    const activate = () => {
+      if (!['#/freeLogin', '#/amsportal'].includes(location.hash.split('?')[0])) return;
+      window.removeEventListener('hashchange', activate);
+      window.removeEventListener('pagehide', dispose);
+      initializePortal();
+    };
+    const dispose = () => window.removeEventListener('hashchange', activate);
+    window.addEventListener('hashchange', activate);
+    window.addEventListener('pagehide', dispose, { once: true });
+    return;
+  }
   const PROFILE = '/cybercafe-ruiyun-api/cmsapi/v2/street/account/profile';
   const LOGIN = /\/(?:login|logon|signin|sign-in|sso|auth|passport|token)(?:[\/?]|$)/i;
   const labels = {
@@ -16,6 +30,11 @@
   let generation = 0;
   let profileTimer;
   let profilePolls = 0;
+  let profilePending = false;
+  let portal;
+  let discoveryObserver;
+  let profileController;
+  const dialogObservers = new Map();
   let timer;
   let disposed = false;
   let automaticClick = false;
@@ -34,11 +53,16 @@
     if (disposed) return;
     disposed = true;
     observer?.disconnect();
+    discoveryObserver?.disconnect();
+    for (const item of dialogObservers.values()) item.disconnect();
+    dialogObservers.clear();
+    profileController?.abort();
     clearTimeout(timer);
-    clearInterval(profileTimer);
+    clearTimeout(profileTimer);
     clearTimeout(expiryTimer);
     document.removeEventListener('click', onMenuClick, true);
-    window.removeEventListener('hashchange', schedule);
+    document.removeEventListener('DOMContentLoaded', initializeObserver);
+    window.removeEventListener('hashchange', routeChanged);
     window.removeEventListener('error', reloadAfterChunkFailure, true);
     if (XMLHttpRequest.prototype.open === openWrapper) XMLHttpRequest.prototype.open = originalOpen;
     if (window.fetch === fetchWrapper) window.fetch = originalFetch;
@@ -56,7 +80,14 @@
     if (!target) { cleanup(); return; }
     if (!loggedIn() || !onPortalEntry()) return;
     // Account review, forced password changes and other active dialogs retain their original flow.
-    if ([...document.querySelectorAll('[role="dialog"], .el-dialog__wrapper, .v-modal')].some(visible)) return;
+    const dialogs = [...document.querySelectorAll('[role="dialog"], .el-dialog__wrapper, .v-modal')].filter(visible);
+    for (const dialog of dialogs) {
+      if (dialogObservers.has(dialog)) continue;
+      const watcher = new MutationObserver(schedule);
+      watcher.observe(dialog, { attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
+      dialogObservers.set(dialog, watcher);
+    }
+    if (dialogs.length) return;
     const label = labels[target.project];
     if (!label) return;
     const buttons = [...document.querySelectorAll('.business-portal button.service-entry')];
@@ -75,21 +106,50 @@
     if (disposed || id !== generation) return;
     profileReady = status >= 200 && status < 300 && body?.returnCode === '000000'
       && body.resultData != null && Number(body.resultData.forceChangePassword) !== 1;
-    if (profileReady) schedule();
+    if (profileReady) { clearTimeout(profileTimer); schedule(); }
   }
   function acceptLogin(status, body) {
     if (disposed || status < 200 || status >= 300) return;
     if (body && typeof body.returnCode === 'string' && body.returnCode !== '000000') return;
     loginReady = true;
+    clearTimeout(profileTimer);
     schedule();
   }
-  function pollProfile() {
-    if (disposed || loggedIn() || !onPortalEntry()) return;
-    if (++profilePolls > 40) { clearInterval(profileTimer); return; }
-    if (typeof originalFetch !== 'function') return;
-    originalFetch.call(window, PROFILE, { credentials: 'include', cache: 'no-store' })
-      .then(response => response.clone().json().then(body => acceptProfile(++generation, response.status, body)))
-      .catch(() => {});
+  function routeChanged() {
+    if (!onPortalEntry()) { cleanup(); return; }
+    schedule();
+  }
+  async function pollProfile() {
+    if (disposed || !onPortalEntry() || !navigation.read()) { cleanup(); return; }
+    if (loggedIn() || profilePolls >= 40 || typeof originalFetch !== 'function' || profilePending) return;
+    profilePolls++;
+    profilePending = true;
+    const id = ++generation;
+    profileController = new AbortController();
+    const requestTimeout = setTimeout(() => profileController?.abort(), 5000);
+    try {
+      const response = await originalFetch.call(window, PROFILE, { credentials: 'include', cache: 'no-store', signal: profileController.signal });
+      acceptProfile(id, response.status, await response.clone().json());
+    } catch { /* Keep original manual login available when the profile check fails. */ }
+    finally {
+      clearTimeout(requestTimeout);
+      profileController = null;
+      profilePending = false;
+      if (!disposed && onPortalEntry() && !loggedIn() && profilePolls < 40) profileTimer = setTimeout(pollProfile, 1200);
+    }
+  }
+  function observePortal() {
+    const next = document.querySelector('.business-portal');
+    if (!next || next === portal) return;
+    portal = next;
+    observer?.disconnect();
+    observer = new MutationObserver(schedule);
+    observer.observe(portal, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden', 'disabled'] });
+    discoveryObserver?.disconnect();
+    // Only direct child changes on the portal's parent detect a replaced portal.
+    discoveryObserver = new MutationObserver(observePortal);
+    if (portal.parentNode) discoveryObserver.observe(portal.parentNode, { childList: true });
+    schedule();
   }
   function openWrapper(method, url, ...rest) {
     const result = originalOpen.call(this, method, url, ...rest);
@@ -147,10 +207,22 @@
   XMLHttpRequest.prototype.open = openWrapper;
   if (typeof originalFetch === 'function') window.fetch = fetchWrapper;
   document.addEventListener('click', onMenuClick, true);
-  window.addEventListener('hashchange', schedule);
+  window.addEventListener('hashchange', routeChanged);
   window.addEventListener('error', reloadAfterChunkFailure, true);
   window.addEventListener('pagehide', cleanup, { once: true });
-  observer = new MutationObserver(schedule);
-  observer.observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden', 'disabled'] });
-  profileTimer = setInterval(pollProfile, 1200);
+  function initializeObserver() {
+    if (disposed) return;
+    observePortal();
+    if (!portal && !discoveryObserver) {
+      // Before Vue mounts, observe structural changes on its root only.
+      const root = document.querySelector('#app') || document.body;
+      if (root) {
+        discoveryObserver = new MutationObserver(observePortal);
+        discoveryObserver.observe(root, { childList: true, subtree: true });
+      }
+    }
+  }
+  initializeObserver();
+  if (!portal) document.addEventListener('DOMContentLoaded', initializeObserver, { once: true });
+  profileTimer = setTimeout(pollProfile, 1200);
 })();

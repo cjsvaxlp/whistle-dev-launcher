@@ -1,2 +1,8 @@
-<script src="/__cafe/login-targets.js"></script>
-<script src="/__cafe/return.js"></script>
+<script>
+(() => {
+  if (window.top !== window.self || location.origin !== 'https://cloudgametest2.migufun.com:18443') return;
+  let active = /[?&]__cafe_(?:return|project)=/.test(location.search) || window.name.startsWith('__cafe_return__:');
+  try { active ||= Boolean(sessionStorage.getItem('__cafe_return_state')); } catch {}
+  if (active) document.write("<script src=\"/__cafe/login-targets.js\"><\/script><script src=\"/__cafe/return.js\"><\/script>");
+})();
+</script>

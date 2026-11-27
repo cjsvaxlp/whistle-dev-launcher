@@ -58,15 +58,22 @@ test('panel lifecycle, install guard, and project log cleanup', {
   const terminalLaunches = [];
   const originalSpawn = childProcess.spawn;
   childProcess.spawn = (command, args, options) => {
-    if (args[0]?.endsWith('/run-log.cjs')) {
+    if (args[0]?.endsWith('/session.cjs')) {
       assert.equal(command, process.execPath);
       assert.equal(options.detached, true);
-      assert.equal(options.stdio, 'ignore');
-      assert.ok(options.env.CAFE_LAUNCH_ID);
-      terminalLaunches.push(options.env);
-      const child = originalSpawn(process.execPath, ['-e', ''], options);
-      children.push(child);
-      return child;
+      assert.equal(options.stdio[3], 'ipc');
+      const session = originalSpawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], options);
+      children.push(session);
+      session.send = (message, callback) => {
+        assert.ok(message.options.env.CAFE_LAUNCH_ID);
+        terminalLaunches.push(message.options.env);
+        const child = originalSpawn(process.execPath, ['-e', ''], { ...message.options, detached: true, stdio: 'ignore' });
+        children.push(child);
+        child.once('spawn', () => session.emit('message', { type: 'started', id: message.id, pid: child.pid }));
+        child.once('close', () => session.emit('message', { type: 'closed', id: message.id }));
+        callback?.();
+      };
+      return session;
     }
     if (options.cwd === alternateProject) {
       assert.equal(command, join(alternateBin, 'npm'));

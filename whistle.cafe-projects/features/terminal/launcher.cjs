@@ -136,23 +136,62 @@ async function openTerminal(project, file, launchId, runtime) {
   });
 }
 
-async function launchLogged(file, command, args, options) {
-  const child = spawn(process.execPath, [
-    join(pluginDir, 'features/logs/run-log.cjs'), file, command, ...args,
-  ], {
-    ...options,
-    detached: !isWindows,
-    windowsHide: true,
-    stdio: 'ignore',
+let logSession;
+let sequence = 0;
+const pendingLaunches = new Map();
+const sessionRecords = new Map();
+async function loggingSession() {
+  if (logSession?.connected) return logSession;
+  const child = spawn(process.execPath, [join(pluginDir, 'features/logs/session.cjs')], {
+    detached: !isWindows, windowsHide: true, stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
   });
+  logSession = child;
+  child.on('message', message => {
+    const pending = pendingLaunches.get(message.id);
+    if (message.type === 'started' && pending) {
+      const record = { ...pending.record, exited: false, stopping: false };
+      launched.set(message.pid, record);
+      sessionRecords.set(message.id, { pid: message.pid, record });
+      pendingLaunches.delete(message.id);
+      pending.resolve();
+    } else if (message.type === 'error' && pending) {
+      pendingLaunches.delete(message.id);
+      pending.reject(new Error(message.message));
+    } else if (message.type === 'closed') {
+      const entry = sessionRecords.get(message.id);
+      if (entry) {
+        entry.record.exited = true;
+        if (!entry.record.stopping && launched.get(entry.pid) === entry.record) launched.delete(entry.pid);
+        sessionRecords.delete(message.id);
+      }
+    }
+  });
+  const disconnected = () => {
+    if (logSession !== child) return;
+    logSession = null;
+    for (const pending of pendingLaunches.values()) pending.reject(new Error('日志会话已断开，服务启动结果无法确认。'));
+    pendingLaunches.clear();
+  };
+  child.once('disconnect', disconnected);
+  child.once('error', disconnected);
   await once(child, 'spawn');
-  const record = { child, workspace: options.env.CAFE_WORKSPACE, project: basename(options.cwd).replace(/^cybercafe-/, ''), exited: false, stopping: false };
-  launched.set(child.pid, record);
-  child.once('close', () => {
-    record.exited = true;
-    if (!record.stopping && launched.get(child.pid) === record) launched.delete(child.pid);
-  });
   child.unref();
+  child.channel?.unref();
+  return child;
+}
+async function launchLogged(file, command, args, options) {
+  const session = await loggingSession();
+  const id = ++sequence;
+  await new Promise((resolve, reject) => {
+    pendingLaunches.set(id, { resolve, reject, record: {
+      workspace: options.env.CAFE_WORKSPACE, project: basename(options.cwd).replace(/^cybercafe-/, ''),
+    } });
+    session.send({ type: 'start', id, file, command, args, options }, error => {
+      if (!error || !pendingLaunches.has(id)) return;
+      pendingLaunches.delete(id);
+      reject(error);
+    });
+  });
 }
 
 async function stopLaunchedServices(workspace) {

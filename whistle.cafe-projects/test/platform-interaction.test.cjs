@@ -51,8 +51,11 @@ for (const platform of ['darwin', 'win32']) {
 }
 
 // Exercise the injected adapter without touching a business checkout or issuing login requests.
-function portalAdapterFixture({ forceChangePassword = 0, returnCode = '000000', enabled = true, dialog = false, hash = '#/freeLogin', project = 'store', targetUrl = '', buttonLabel = '门店运营模块' } = {}) {
+function portalAdapterFixture({ forceChangePassword = 0, returnCode = '000000', enabled = true, dialog = false, hash = '#/freeLogin', project = 'store', targetUrl = '', buttonLabel = '门店运营模块', profile = true, polling = false, portalRoot = null, origin = 'https://cloudgametest2.migufun.com:18443' } = {}) {
   const timers = new Map();
+  const listeners = new Map();
+  const observed = [];
+  let requests = 0;
   let nextTimer = 0;
   let clicked = 0;
   let attempted = false;
@@ -74,18 +77,22 @@ function portalAdapterFixture({ forceChangePassword = 0, returnCode = '000000', 
       cancel() { cancelled = true; },
       beginExchange() { if (attempted) return false; attempted = true; return true; },
     },
-    addEventListener() {}, removeEventListener() {},
+    addEventListener(type, callback) { listeners.set(type, callback); },
+    removeEventListener(type) { listeners.delete(type); },
+    ...(polling ? { fetch: async () => { requests++; return { status: 401, clone: () => ({ json: async () => ({ returnCode: '070008' }) }) }; } } : {}),
   };
   const document = {
     addEventListener() {}, removeEventListener() {},
+    querySelector(selector) { return selector === '.business-portal' ? portalRoot : null; },
     querySelectorAll(selector) {
       return selector.includes('service-entry') ? [button] : dialog ? [{ hidden: false, getClientRects: () => [1] }] : [];
     },
   };
   const context = {
     window, document, XMLHttpRequest: XHR, URL,
-    location: { origin: 'https://cloudgametest2.migufun.com:18443', pathname: '/cybercafe-power/', href: 'https://cloudgametest2.migufun.com:18443/cybercafe-power/' + hash, hash, replace: value => redirects.push(value) },
-    MutationObserver: class { observe() {} disconnect() {} },
+    AbortController,
+    location: { origin, pathname: '/cybercafe-power/', href: 'https://cloudgametest2.migufun.com:18443/cybercafe-power/' + hash, hash, replace: value => redirects.push(value) },
+    MutationObserver: class { observe(target, options) { observed.push({ target, options }); } disconnect() {} },
     setTimeout(callback, delay) { timers.set(++nextTimer, { callback, delay }); return nextTimer; },
     clearTimeout(id) { timers.delete(id); },
     setInterval(callback, delay) { timers.set(++nextTimer, { callback, delay }); return nextTimer; },
@@ -97,9 +104,9 @@ function portalAdapterFixture({ forceChangePassword = 0, returnCode = '000000', 
   xhr.status = 200;
   xhr.responseType = 'json';
   xhr.response = { returnCode, resultData: { forceChangePassword } };
-  xhr.loadend();
+  if (profile) xhr.loadend?.();
   for (const [id, timer] of [...timers]) if (timer.delay === 0) { timers.delete(id); timer.callback(); }
-  return { clicked, attempted, restored: XHR.prototype.open === originalOpen, redirects };
+  return { clicked, attempted, restored: XHR.prototype.open === originalOpen, redirects, timers, context, listeners, observed, requests: () => requests };
 }
 
 test('门户运行时适配仅在已有校验成功后触发原模块入口，并恢复观察包装', () => {
@@ -269,29 +276,29 @@ test('CMS 登录后被统一门户重定向到 power/amsportal 时进入 newcms 
 });
 
 
-test('store 登录页丢失链接参数时按项目配置恢复', () => {
+test('普通 store referrer 不激活工具回跳', () => {
   const origin = 'https://cloudgametest2.migufun.com:18443';
   const target = '/cybercafe-store/#/merchant/store/list';
   const page = returnPage(origin + '/cybercafe-power/#/amsportal', new Map(), '',
     origin + '/cybercafe-store/', { store: target });
-  assert.equal(page.window.__cafeReturn.read().url, origin + target);
+  assert.equal(page.window.__cafeReturn, undefined);
 });
 
-test('hub 登录页丢失链接参数时按项目配置恢复', () => {
+test('普通 hub referrer 不激活工具回跳', () => {
   const origin = 'https://cloudgametest2.migufun.com:18443';
   const target = '/cybercafe-hub/#/enterprise/manage';
   const page = returnPage(origin + '/cybercafe-power/#/amsportal', new Map(), '',
     origin + '/cybercafe-hub/#/enterprise/manage', { hub: target });
-  assert.equal(page.window.__cafeReturn.read().url, origin + target);
+  assert.equal(page.window.__cafeReturn, undefined);
 });
 
 
-test('项目页把项目写进 cookie，登录页从 cookie 读取映射', () => {
+test('仅有项目 cookie 不激活工具回跳', () => {
   const origin = 'https://cloudgametest2.migufun.com:18443';
   const target = '/cybercafe-store/#/merchant/store/list';
   const page = returnPage(origin + '/cybercafe-power/#/amsportal', new Map(), '', '',
     { store: target }, 'cafe_project=cybercafe-store');
-  assert.equal(page.window.__cafeReturn.read().url, origin + target);
+  assert.equal(page.window.__cafeReturn, undefined);
 });
 
 
@@ -339,4 +346,72 @@ test('power 登录页优先按 __cafe_project 标记恢复项目配置', () => {
     service: target,
   });
   assert.equal(page.window.__cafeReturn.read().url, origin + target);
+});
+
+
+test('profile 补查只在 power 登录入口执行，最多 40 次且不残留定时器', async () => {
+  const page = portalAdapterFixture({ profile: false, polling: true });
+  for (let i = 0; i < 45; i++) {
+    const entry = [...page.timers].find(([, timer]) => timer.delay === 1200);
+    if (!entry) break;
+    page.timers.delete(entry[0]);
+    await entry[1].callback();
+  }
+  assert.equal(page.requests(), 40);
+  assert.equal([...page.timers.values()].some(timer => timer.delay === 1200 || timer.delay === 5000), false);
+  page.context.location.hash = '#/resource/system/server';
+  page.listeners.get('hashchange')();
+  assert.equal(page.timers.size, 0);
+  for (const options of [{ hash: '#/resource/system/server' }, { origin: 'https://example.com' }]) {
+    const ordinary = portalAdapterFixture({ profile: false, polling: true, ...options });
+    assert.equal(ordinary.requests(), 0);
+    assert.equal(ordinary.timers.size, 0);
+    assert.equal(ordinary.restored, true);
+  }
+});
+
+test('profile 成功后立即清除补查定时器', () => {
+  const page = portalAdapterFixture({ polling: true });
+  assert.equal([...page.timers.values()].some(timer => timer.delay === 1200), false);
+});
+
+
+test('门户属性监听只覆盖门户节点，父节点仅监听直接增删', () => {
+  const parent = {};
+  const portal = { parentNode: parent };
+  const page = portalAdapterFixture({ profile: false, portalRoot: portal });
+  assert.equal(page.observed.length, 2);
+  assert.equal(page.observed[0].target, portal);
+  assert.equal(page.observed[0].options.attributes, true);
+  assert.equal(page.observed[1].target, parent);
+  assert.equal(page.observed[1].options.subtree, undefined);
+  assert.equal(page.observed[1].options.attributes, undefined);
+});
+
+test('登录脚本入口仅在测试域名、顶层工具标签页载入资源', () => {
+  for (const file of ['return.html', 'portal.html']) {
+    const source = fs.readFileSync(join(__dirname, '../features/navigation/', file), 'utf8').replace(/^<script>\s*/, '').replace(/<\/script>\s*$/, '');
+    for (const active of [false, true]) {
+      const writes = [];
+      const window = { name: '' }; window.top = window.self = window;
+      const location = { origin: 'https://cloudgametest2.migufun.com:18443', search: active ? '?__cafe_return=x' : '' };
+      const context = { window, location, document: { write: value => writes.push(value) }, sessionStorage: { getItem: () => null } };
+      vm.runInNewContext(source, context);
+      assert.equal(writes.length, active ? 1 : 0);
+      writes.length = 0;
+      location.origin = 'https://example.com';
+      vm.runInNewContext(source, context);
+      assert.equal(writes.length, 0);
+    }
+  }
+});
+
+
+test('power 普通页面不轮询，之后同页跳到登录入口才启动有限补查', () => {
+  const page = portalAdapterFixture({ profile: false, polling: true, hash: '#/resource/system/server' });
+  assert.equal(page.timers.size, 0);
+  page.context.location.hash = '#/amsportal';
+  page.listeners.get('hashchange')();
+  assert.equal([...page.timers.values()].filter(timer => timer.delay === 1200).length, 1);
+  assert.equal(page.requests(), 0);
 });
