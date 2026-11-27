@@ -3,6 +3,8 @@ import { showError, showInfo } from '../../shared/toast/toast.mjs';
 
 export async function bindProxyMode() {
   const control = document.querySelector('#proxy-mode-picker');
+  const browserOption = document.querySelector('#enable-browser-proxy');
+  const browserTip = document.querySelector('#browser-option-tip');
   let busy = false;
   let lastError = '';
   let lastNotice = '';
@@ -24,7 +26,12 @@ export async function bindProxyMode() {
     const data = await response.json();
     savedMode = data.mode;
     selectMode(savedMode);
-    supported = Boolean(window.cafeDesktop && data.supported);
+    browserOption.checked = data.browserEnabled;
+    browserOption.disabled = !window.cafeDesktop;
+    control.hidden = !data.browserEnabled;
+    document.querySelector('#system-proxy-mode').disabled = !data.supported;
+    if (!data.supported) browserTip.textContent = 'Windows 暂仅支持浏览器代理，请按下方说明配置扩展。';
+    supported = Boolean(window.cafeDesktop);
     control.disabled = !supported;
     if (!data.status?.pending && data.status?.error && data.status.error !== lastError) showError(data.status.error);
     lastError = data.status?.error || '';
@@ -41,6 +48,28 @@ export async function bindProxyMode() {
       requestedMode = null;
     }
   }
+  browserOption.addEventListener('change', async () => {
+    if (busy) { browserOption.checked = !browserOption.checked; return; }
+    busy = true;
+    browserOption.disabled = true;
+    control.disabled = true;
+    const enabled = browserOption.checked;
+    try {
+      const response = await post('./api/browser-proxy-option/' + (enabled ? 'on' : 'off'));
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || '保存高级设置失败。');
+      if (!enabled && data.supported) requestedMode = 'system';
+      await readMode();
+      if (enabled) showInfo('已显示代理模式切换，请先配置浏览器扩展');
+    } catch (error) {
+      browserOption.checked = !enabled;
+      showError(error.message);
+    } finally {
+      busy = false;
+      browserOption.disabled = !supported;
+      control.disabled = !supported;
+    }
+  });
   control.addEventListener('change', async event => {
     if (busy) { selectMode(savedMode); return; }
     busy = true;

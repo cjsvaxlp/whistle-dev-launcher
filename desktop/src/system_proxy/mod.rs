@@ -138,7 +138,7 @@ pub fn monitor(app: tauri::AppHandle) {
             let result = (|| {
                 let dir = crate::services::state_directory()?;
                 let mode_file = dir.join("proxy-mode");
-                let mode = fs::read_to_string(&mode_file).unwrap_or_default();
+                let mode = fs::read_to_string(&mode_file).unwrap_or_else(|_| "system".into());
                 let requested = mode.trim() == "system" && !crate::services::proxy_paused();
                 let intent = (requested, fs::metadata(&mode_file).and_then(|m| m.modified()).ok(), RETRY.load(Ordering::Acquire));
                 // An authorization cancellation belongs to the user selection,

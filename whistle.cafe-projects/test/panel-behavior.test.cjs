@@ -351,3 +351,32 @@ test('桌面平台标记不依赖尚未触发的 DOMContentLoaded，已加载页
     assert.deepEqual(events, ['cafe-desktop-ready']);
   }
 });
+
+test('高级浏览器选项控制工具栏显示，勾选不切模式，取消后回到系统代理', async () => {
+  const state = { mode: 'system', browserEnabled: false, supported: true, status: null };
+  const requests = [];
+  const { context, nodes } = harness('../features/system-proxy/client.mjs', {
+    window: { cafeDesktop: true, addEventListener() {} },
+    fetch: async () => ({ ok: true, json: async () => ({ ...state }) }),
+    post: async path => {
+      requests.push(path);
+      state.browserEnabled = path.endsWith('/on');
+      if (!state.browserEnabled) state.mode = 'system';
+      return { ok: true, json: async () => ({ ...state }) };
+    },
+  });
+  await context.bindProxyMode();
+  const picker = nodes.get('#proxy-mode-picker');
+  const option = nodes.get('#enable-browser-proxy');
+  assert.equal(picker.hidden, true);
+  option.checked = true;
+  await option.listeners.change();
+  assert.equal(picker.hidden, false);
+  assert.equal(state.mode, 'system');
+  state.mode = 'browser';
+  option.checked = false;
+  await option.listeners.change();
+  assert.equal(picker.hidden, true);
+  assert.equal(state.mode, 'system');
+  assert.deepEqual(requests, ['./api/browser-proxy-option/on', './api/browser-proxy-option/off']);
+});

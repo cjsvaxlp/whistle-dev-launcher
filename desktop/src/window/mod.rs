@@ -54,6 +54,12 @@ fn is_test_page(url: &Url) -> bool {
         && url.path().starts_with("/cybercafe-")
 }
 
+fn is_proxy_help(url: &Url) -> bool {
+    url.scheme() == "https" && url.host_str() == Some("github.com")
+        && url.username().is_empty() && url.password().is_none() && url.port().is_none()
+        && url.path() == "/zero-peak/ZeroOmega"
+}
+
 fn open_test_page(url: &Url) {
     let url = url.as_str().to_owned();
     std::thread::spawn(move || {
@@ -90,7 +96,7 @@ fn open_panel(app: &AppHandle) -> tauri::Result<()> {
             if cfg!(target_os = "macos") { "macos" } else { "windows" },
         ))
         .on_navigation(|url| {
-            if is_test_page(url) {
+            if is_test_page(url) || is_proxy_help(url) {
                 open_test_page(url);
                 return false;
             }
@@ -101,7 +107,10 @@ fn open_panel(app: &AppHandle) -> tauri::Result<()> {
                 || is_rules_page(url)
                 || is_log_download(url)
         })
-        .on_new_window(|_, _| NewWindowResponse::Deny)
+        .on_new_window(|url, _| {
+            if is_proxy_help(&url) { open_test_page(&url); }
+            NewWindowResponse::Deny
+        })
         .on_download(|_, event| match event {
             DownloadEvent::Requested { url, .. } => is_log_download(&url),
             _ => true,

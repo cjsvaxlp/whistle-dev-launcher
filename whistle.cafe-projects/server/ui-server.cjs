@@ -1,4 +1,4 @@
-const { modeSnapshot, setMode } = require('../features/system-proxy/mode.cjs');
+const { modeSnapshot, setMode, setBrowserOption } = require('../features/system-proxy/mode.cjs');
 const { cleanGeneratedFiles } = require('../features/cleanup/server.cjs');
 const { pacRoute, servePac } = require('../features/system-proxy/pac.cjs');
 const { selectWorkspace } = require('../features/workspace/server.cjs');
@@ -144,6 +144,11 @@ async function handle(request, response) {
     if (fixMatch) return fix(request, response, fixMatch[1]);
   }
 
+  const browserOption = /^\/api\/browser-proxy-option\/(on|off)$/.exec(path);
+  if (browserOption && request.method === 'POST') {
+    if (isChangingWorkspace()) return json(response, 409, { message: '正在切换工作区，请稍后操作。' });
+    return setBrowserOption(request, response, browserOption[1] === 'on');
+  }
   const modeMatch = /^\/api\/proxy-mode\/(system|browser)$/.exec(path);
   if (modeMatch && request.method === 'POST') {
     if (isChangingWorkspace()) return json(response, 409, { message: '正在切换工作区，请稍后切换代理模式。' });

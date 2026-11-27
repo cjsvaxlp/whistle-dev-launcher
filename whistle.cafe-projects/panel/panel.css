@@ -739,6 +739,7 @@ input, select, textarea { color: inherit; }
 .proxy-mode-picker input:checked + span { font-weight: 600; color: var(--browser-mode); }
 .proxy-mode-picker input[value=system]:checked + span { color: var(--accent); }
 .proxy-mode-picker label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 999px; }
+.proxy-mode-picker[hidden] { display: none; }
 .proxy-mode-picker:disabled { opacity: .55; }
 .proxy-mode-picker:disabled label { cursor: default; }
 @media (prefers-reduced-motion: reduce) { .proxy-mode-picker::before { transition: none; } }
@@ -982,3 +983,19 @@ input, select, textarea { color: inherit; }
 .window-controls button[data-window-action=close]:hover { background: #c42b1c; color: #fff; }
 .window-controls button:focus-visible { outline: 2px solid #007aff; outline-offset: -3px; }
 .window-controls svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1; }
+
+.doctor-advanced {
+  margin: 0 16px 12px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.doctor-advanced summary { cursor: pointer; color: var(--secondary); }
+.browser-option-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 12px; margin-top: 12px; }
+.browser-option-row label { display: inline-flex; align-items: center; gap: 8px; }
+.browser-option-row input { margin: 0; accent-color: var(--accent); }
+.browser-option-tip { color: var(--secondary); font-size: 12px; }
+.browser-proxy-guide { margin: 12px 0 0; padding-left: 16px; color: var(--secondary); }
+.browser-proxy-guide li + li { margin-top: 8px; }
+.browser-proxy-guide code { overflow-wrap: anywhere; user-select: text; }
+.browser-proxy-guide a { color: var(--link); }

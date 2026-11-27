@@ -5,14 +5,15 @@ const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const { planRestore } = require('../../desktop/src/system_proxy/restore.js');
 
-test('proxy mode defaults to browser, authenticates changes and persists independently of project preferences', t => {
+test('proxy mode uses platform defaults, authenticates changes and persists independently of project preferences', t => {
   const directory = mkdtempSync(join(tmpdir(), 'cafe-proxy-mode-'));
   process.env.CAFE_STATE_DIR = directory;
   t.after(() => { delete process.env.CAFE_STATE_DIR; rmSync(directory, { recursive: true, force: true }); });
   const { token } = require('../shared/http/http.cjs');
-  const { modeSnapshot, setMode } = require('../features/system-proxy/mode.cjs');
+  const { modeSnapshot, setMode, setBrowserOption } = require('../features/system-proxy/mode.cjs');
   const response = { writeHead(code) { this.code = code; }, end(body) { this.body = JSON.parse(body); } };
-  assert.equal(modeSnapshot().mode, 'browser');
+  assert.equal(modeSnapshot().mode, process.platform === 'darwin' ? 'system' : 'browser');
+  assert.equal(modeSnapshot().browserEnabled, false);
   setMode({ headers: {} }, response, 'system');
   assert.equal(response.code, 403);
   const request = { headers: { 'x-cafe-token': token } };
@@ -26,6 +27,19 @@ test('proxy mode defaults to browser, authenticates changes and persists indepen
   assert.equal(modeSnapshot().mode, 'browser');
   assert.equal(modeSnapshot().status.error, null);
   assert.equal(modeSnapshot().status.pending, true);
+  assert.equal(modeSnapshot().browserEnabled, false);
+  setBrowserOption({ headers: {} }, response, false);
+  assert.equal(response.code, 403);
+  setBrowserOption(request, response, false);
+  assert.equal(response.code, 200);
+  assert.equal(modeSnapshot().browserEnabled, false);
+  if (process.platform === 'darwin') {
+    assert.equal(modeSnapshot().mode, 'system');
+    assert.equal(modeSnapshot().browserEnabled, false);
+    setBrowserOption(request, response, true);
+    assert.equal(modeSnapshot().browserEnabled, true);
+    assert.equal(modeSnapshot().mode, 'system');
+  }
 });
 
 const pac = 'http://127.0.0.1:8899/plugin.cafe-projects/cybercafe.pac';
@@ -65,4 +79,39 @@ test('interface display names are supported, ambiguous or corrupt snapshots are 
   assert.equal(planRestore([{ ...saved, service: 'iPhone USB' }], services, pac).length, 1);
   assert.equal(planRestore([saved], { a: { UserDefinedName: 'Wi-Fi' }, b: { UserDefinedName: 'Wi-Fi' } }, pac).length, 0);
   assert.throws(() => planRestore([{ service: 'Wi-Fi' }], services, pac), /备份字段无效/);
+});
+
+test('macOS 和 Windows 默认隐藏，advanced 的勾选与取消在重启后保留，模式切换不覆盖它', t => {
+  const { readFileSync } = require('node:fs');
+  const vm = require('node:vm');
+  const source = readFileSync(require.resolve('../features/system-proxy/mode.cjs'), 'utf8');
+  for (const platform of ['darwin', 'win32']) {
+    const directory = mkdtempSync(join(tmpdir(), 'cafe-option-restart-'));
+    t.after(() => rmSync(directory, { recursive: true, force: true }));
+    function restart() {
+      const context = { process: { platform }, module: { exports: {} }, require(name) {
+        if (name === '../workspace/store.cjs') return { stateDir: directory };
+        if (name === '../../shared/http/http.cjs') return {
+          authorized: () => true, json: (response, code, data) => Object.assign(response, { code, data }),
+        };
+        return require(name);
+      } };
+      vm.runInNewContext(source, context);
+      return context.module.exports;
+    }
+    const response = {};
+    let api = restart();
+    assert.equal(api.modeSnapshot().browserEnabled, false, platform);
+    api.setMode({}, response, 'browser');
+    api = restart();
+    assert.equal(api.modeSnapshot().browserEnabled, false, platform);
+    api.setBrowserOption({}, response, true);
+    api = restart();
+    assert.equal(api.modeSnapshot().browserEnabled, true, platform);
+    assert.equal(api.modeSnapshot().mode, 'browser');
+    api.setBrowserOption({}, response, false);
+    api = restart();
+    assert.equal(api.modeSnapshot().browserEnabled, false, platform);
+    assert.equal(api.modeSnapshot().mode, platform === 'darwin' ? 'system' : 'browser');
+  }
 });
