@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Cybercafe 开发助手，在一个窗口启动本地服务、同步代理规则、查看终端，让测试环境接入本地代码。">
+  <meta name="theme-color" content="#f5f5f7">
+  <title>Cybercafe 开发助手</title>
+  <link rel="icon" href="./assets/icon.png">
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="navigation">
+    <nav class="nav-inner" aria-label="主导航">
+      <a class="brand" href="#"><img src="./assets/icon.png" width="30" height="30" alt="">Cybercafe</a>
+      <div class="nav-links"><a href="#guide">使用说明</a><a href="https://github.com/Zephyr-Aether/whistle-dev-launcher">GitHub <span aria-hidden="true">↗</span></a><a class="nav-download" href="#download">下载</a></div>
+    </nav>
+  </header>
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <p class="eyebrow">CYBERCAFE 开发助手</p>
+      <h1 id="hero-title">本地开发，<br>轻松接入测试环境。</h1>
+      <p class="hero-description">启动服务、同步代理、查看终端。<br>常用的调试操作，一个窗口就够了。</p>
+      <div class="hero-actions"><a class="button primary" href="#download">下载桌面端 <span aria-hidden="true">↓</span></a><a class="text-link" href="#guide">了解如何使用 <span aria-hidden="true">›</span></a></div>
+      <p class="hero-caption">支持 macOS 与 Windows · 基于 Tauri 与 Whistle</p>
+      <figure class="preview"><img src="./assets/main-panel.png" width="1100" height="740" alt="Cybercafe 开发助手主面板，左侧是项目列表，右侧展示项目启停、代理状态和内嵌终端" fetchpriority="high"><figcaption>项目、代理与终端，清楚地放在一起。</figcaption></figure>
+    </section>
+    <section class="features section-width" aria-label="主要功能">
+      <article><span class="feature-symbol" aria-hidden="true">↗</span><h2>打开，就能开始。</h2><p>自动启动或复用 Whistle，按需补装。选择工作区，即可启动项目。</p></article>
+      <article><span class="feature-symbol" aria-hidden="true">⇄</span><h2>熟悉的测试地址。</h2><p>用测试环境入口访问本地代码，通过页面徽标确认是否已接管。</p></article>
+      <article><span class="feature-symbol terminal-symbol" aria-hidden="true">&gt;_</span><h2>终端，就在面板里。</h2><p>实时查看输出、停止与重启服务，保持桌面清爽。</p></article>
+    </section>
+    <section class="download-section" id="download" aria-labelledby="download-title">
+      <div class="section-width">
+        <p class="eyebrow">开始使用</p><h2 class="section-title" id="download-title">为你的桌面准备好了。</h2>
+        <p class="section-description" id="release-status">下载最新发布的安装包。</p>
+        <div class="download-grid">
+          <article class="download-card"><span class="platform-icon" aria-hidden="true">⌘</span><h3>macOS</h3><p>Apple Silicon · DMG</p><a class="button primary" data-download="macos" href="https://github.com/Zephyr-Aether/whistle-dev-launcher/releases/latest">查看 macOS 安装包 <span aria-hidden="true">↓</span></a><small>打开 DMG，拖入「应用程序」。</small></article>
+          <article class="download-card"><span class="platform-icon windows-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Windows</h3><p>x64 · EXE</p><a class="button primary" data-download="windows" href="https://github.com/Zephyr-Aether/whistle-dev-launcher/releases/latest">查看 Windows 安装包 <span aria-hidden="true">↓</span></a><small>运行安装程序，按提示完成安装。</small></article>
+        </div>
+        <p class="download-note">请先安装 <a href="https://nodejs.org/zh-cn/download">Node.js 20+（含 npm）</a>。已有 Whistle 直接复用，缺少时后台安装。</p>
+        <a class="subtle-link" href="https://github.com/Zephyr-Aether/whistle-dev-launcher/releases">查看全部版本与更新记录 <span aria-hidden="true">↗</span></a>
+      </div>
+    </section>
+    <section class="guide section-width" id="guide" aria-labelledby="guide-title">
+      <div class="guide-heading"><p class="eyebrow">使用说明</p><h2 class="section-title" id="guide-title">三步，进入开发状态。</h2><a class="text-link" href="https://github.com/Zephyr-Aether/whistle-dev-launcher/blob/main/使用说明.md">阅读完整说明 <span aria-hidden="true">↗</span></a></div>
+      <ol class="steps"><li><span class="step-number" aria-hidden="true">01</span><div><h3>安装并打开</h3><p>安装 Node.js 和桌面端，应用会自动准备 Whistle，无需手动打开终端。</p></div></li><li><span class="step-number" aria-hidden="true">02</span><div><h3>选择项目目录</h3><p>选择包含 cybercafe-* 子项目的工作区。目录与最近记录会自动保存。</p></div></li><li><span class="step-number" aria-hidden="true">03</span><div><h3>启动，打开项目页面</h3><p>在体检中完成依赖、证书和代理配置。启动项目后，打开测试页面检查「本地接管」徽标。</p></div></li></ol>
+    </section>
+    <details class="setup-preview section-width">
+      <summary>查看环境体检与代理配置截图 <span aria-hidden="true">＋</span></summary>
+      <div class="setup-preview-grid">
+        <figure><img src="./assets/environment-check.png" width="2200" height="1480" alt="环境体检弹窗，展示 Node、工作区、证书、代理和项目依赖检查结果" loading="lazy"><figcaption>环境体检：检查依赖、证书与代理状态。</figcaption></figure>
+        <figure><img src="./assets/browser-proxy-help.png" width="2200" height="1480" alt="Advanced 中展开的浏览器代理帮助，说明 ZeroOmega 安装和测试域名端口分流配置" loading="lazy"><figcaption>Advanced：点击 ⓘ 查看浏览器代理配置。</figcaption></figure>
+      </div>
+    </details>
+    <section class="faq section-width" aria-labelledby="faq-title"><h2 id="faq-title">你可能想知道</h2>
+      <details><summary>需要配置浏览器代理吗？<span aria-hidden="true">＋</span></summary><p>根据体检提示选择接入方式。浏览器代理设置位于「体检 → Advanced」，旁边的 ⓘ 提供 ZeroOmega 安装及分流说明。只将测试域名的 18443 端口指向 127.0.0.1:8899，其他流量沿用你的配置。退出应用后，将扩展切回系统代理。</p></details>
+      <details><summary>macOS 提示 Apple 无法验证应用，怎么办？<span aria-hidden="true">＋</span></summary><p>当前安装包尚未经过 Apple 公证。确认来自本项目后，打开「系统设置 → 隐私与安全性」，在应用拦截提示旁选择「仍要打开」。请参阅 <a href="https://support.apple.com/zh-cn/102445">Apple 官方说明</a>。</p></details>
+      <details><summary>关闭应用，服务会一起停止吗？<span aria-hidden="true">＋</span></summary><p>会清理工具启动的项目服务与终端任务，恢复工具修改的代理，并停止工具启动且仍由它管理的 Whistle。外部启动的 Whistle 不会被停止。</p></details>
+      <details><summary>为什么安装包或完整说明需要登录？<span aria-hidden="true">＋</span></summary><p>如果仓库设为私有，需要使用有权限的 GitHub 账号查看说明和下载 Release。官网公开展示不改变仓库与安装包的访问权限。</p></details>
+    </section>
+  </main>
+  <footer class="footer section-width"><span>Cybercafe 开发助手</span><span>让调试回归简单。</span><a href="https://github.com/Zephyr-Aether/whistle-dev-launcher">在 GitHub 查看项目 ↗</a></footer>
+</body>
+</html>
