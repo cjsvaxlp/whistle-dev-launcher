@@ -36,11 +36,18 @@
   border-color: #e9aaa7;
 }
 .inline-terminal:is([data-state="starting"], [data-state="running"]) {
+  border-width: 2px;
   border-color: transparent;
   background:
     linear-gradient(var(--surface), var(--surface)) padding-box,
-    conic-gradient(from var(--terminal-border-angle), #5b9cf5, #ac8ee6, #5bc8d4, #5b9cf5) border-box;
-  animation: terminal-border-flow 6s linear infinite;
+    conic-gradient(from var(--terminal-border-angle),
+      var(--border) 0deg 255deg,
+      #9875ed 285deg,
+      #1684ff 315deg,
+      #35d9ec 340deg,
+      #c7fbff 350deg,
+      var(--border) 360deg) border-box;
+  animation: terminal-border-flow 4s linear infinite;
 }
 @keyframes terminal-border-flow {
   to { --terminal-border-angle: 360deg; }
