@@ -7,6 +7,8 @@ Cybercafe 本地调试工具：通过 Whistle 将测试环境的 `cybercafe-*` �
 - 页面徽标：`本地接管 / 测试部署`
 - 安装、证书、代理和故障处理见 [使用说明](使用说明.md)。
 
+![Cybercafe 开发助手主面板](docs/images/main-panel.png)
+
 ## 快速开始
 
 1. 安装 Node.js 20+（含 npm），下载对应平台的安装包。
@@ -137,6 +139,7 @@ Windows 使用 NSIS 当前用户安装；两端共用应用名称 `Cybercafe 本
 | `desktop/packaging/` | 共用资源收集、应用组装和签名。 |
 | `desktop/package-macos.sh` | 生成 DMG。 |
 | `desktop/windows/` | NSIS 安装钩子和旧版内置运行时清理。 |
+| `docs/images/` | README 等文档使用的界面截图。 |
 | `.github/workflows/` | 云端测试、打包和 Release 发布。 |
 | `scripts/commands/` | 用户可执行的 `.command` 入口。 |
 | `scripts/browser/` | macOS 默认浏览器标签页复用。 |
