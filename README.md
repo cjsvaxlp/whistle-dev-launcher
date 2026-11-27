@@ -1,5 +1,7 @@
 # whistle-dev-launcher
 
+[官网](https://zephyr-aether.github.io/whistle-dev-launcher/) · [下载安装包](https://github.com/Zephyr-Aether/whistle-dev-launcher/releases/latest) · [使用说明](使用说明.md)
+
 Cybercafe 本地调试工具：通过 Whistle 将测试环境的 `cybercafe-*` 子应用接到本机服务，保留入口、路径和登录流程，不修改业务仓库。
 
 - 面板：<http://127.0.0.1:8899/plugin.cafe-projects/>
