@@ -244,7 +244,10 @@ function render() {
   stop.hidden = !info?.canStop;
   restartService.hidden = !info?.canStop || !active;
   for (const button of [install, takeover, stop, restartService]) button.disabled = busy || installing || launching;
-  showTerminal(info?.name, Boolean(info && (info.active || info.log || installing || launching)));
+  const terminalState = active ? 'running'
+    : installing || launching || ['starting', 'installing', 'waiting'].includes(startup?.stage) ? 'starting'
+    : startup?.stage === 'failed' || info?.installStatus === 'failed' ? 'failed' : 'stopped';
+  showTerminal(info?.name, Boolean(info && (info.active || info.log || installing || launching)), terminalState);
   startupResult.hidden = !startupPending;
   startupResult.dataset.stage = startup?.stage || '';
   const message = startupResult.hidden ? '' : startup.message || '';

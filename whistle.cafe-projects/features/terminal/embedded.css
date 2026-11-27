@@ -25,3 +25,39 @@
   min-height: 280px;
   border: 0;
 }
+
+/* Animate only the thin border; the iframe and its contents stay stationary. */
+@property --terminal-border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+.inline-terminal[data-state="running"] {
+  border-color: #a6c9f5;
+}
+.inline-terminal[data-state="failed"] {
+  border-color: #e9aaa7;
+}
+.inline-terminal[data-state="starting"] {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    conic-gradient(from var(--terminal-border-angle), #5b9cf5, #ac8ee6, #5bc8d4, #5b9cf5) border-box;
+  animation: terminal-border-flow 6s linear infinite;
+}
+@keyframes terminal-border-flow {
+  to { --terminal-border-angle: 360deg; }
+}
+.inline-terminal[data-motion="paused"] {
+  animation-play-state: paused;
+}
+.inline-terminal[hidden] {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .inline-terminal[data-state="starting"] { animation: none; }
+}
+@media (prefers-color-scheme: dark) {
+  .inline-terminal[data-state="running"] { border-color: #375b89; }
+  .inline-terminal[data-state="failed"] { border-color: #85504f; }
+}

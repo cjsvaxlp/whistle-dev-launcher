@@ -10,7 +10,8 @@ document.addEventListener('cafe-projects-updated', event => {
   }
 });
 
-export function showTerminal(project, visible) {
+export function showTerminal(project, visible, state) {
+  if (state) container.dataset.state = state;
   if (!project || !visible) {
     container.hidden = true;
     if (current) frame.removeAttribute('src');
@@ -28,3 +29,9 @@ export function focusTerminal(project) {
   container.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   frame.focus();
 }
+
+function updateMotion() {
+  container.dataset.motion = document.hidden ? 'paused' : 'running';
+}
+document.addEventListener('visibilitychange', updateMotion);
+updateMotion();
