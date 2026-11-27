@@ -61,30 +61,11 @@ export function bindWorkspaceActions({ load, showDoctor }) {
       picker.disabled = false;
     }
   }
-  async function nativeDirectory() {
-    if (window.cafeDesktopPlatform !== 'windows') return undefined;
-    const invoke = window.__TAURI__?.core?.invoke;
-    if (typeof invoke !== 'function') return undefined;
-    picker.disabled = true;
-    picker.dataset.pending = 'true';
-    try {
-      return await invoke('select_project_folder');
-    } catch (error) {
-      // Older installed shells may not expose this command. Use the server's
-      // Windows STA picker; null is reserved for a deliberate cancellation.
-      return undefined;
-    } finally {
-      delete picker.dataset.pending;
-      picker.disabled = false;
-    }
-  }
   picker.addEventListener('click', async () => {
     if (selecting || pending) return;
     selecting = true;
     try {
-      const selected = await nativeDirectory();
-      if (selected === undefined) await updateWorkspace();
-      else if (selected) await updateWorkspace(selected);
+      await updateWorkspace();
     } finally { selecting = false; }
   });
   return { updateWorkspace };

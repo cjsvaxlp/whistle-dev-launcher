@@ -397,6 +397,12 @@ async function stopAllServices(request, response) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     if (operations.size) throw new Error('项目操作尚未结束，请稍后再次关闭面板。');
+    if (isWindows) {
+      // The in-memory registry owns these children even if the checkout was
+      // moved/deleted. Do not scan a missing directory or infer external ownership.
+      await stopLaunchedServices();
+      return json(response, 200, { message: '工具启动的项目服务已停止。' });
+    }
     await runSync();
     const projects = listProjects();
     const results = await Promise.allSettled(projects.map(async project => {

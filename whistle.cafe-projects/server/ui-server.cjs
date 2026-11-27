@@ -83,8 +83,9 @@ async function handle(request, response) {
       try {
         return json(response, 200, snapshot());
       } catch (error) {
-        return json(response, 503, { workspace: readWorkspace(), message: error.code === 'ENOENT'
-          ? '找不到项目工作区，请重新选择目录。' : error.message });
+        const workspace = readWorkspace();
+        return json(response, 503, { workspace, code: error.code, message: error.code === 'ENOENT' || error.code === 'ENOTDIR'
+          ? `无法读取项目工作区「${workspace}」（${error.code}）。请重新选择本机项目目录。` : error.message });
       }
     }
     if (path === '/api/doctor') {

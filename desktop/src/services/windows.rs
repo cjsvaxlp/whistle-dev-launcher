@@ -36,8 +36,9 @@ fn tools() -> Result<PathBuf, String> {
         .join("tools"))
 }
 pub(super) fn request(route: &str, post: bool) -> Result<serde_json::Value, String> {
+    let timeout = if route == "api/stop-all" { 5 } else { 45 };
     let script = if post {
-        format!("$ErrorActionPreference='Stop'; $b='{PANEL_URL}'; $t=(Invoke-RestMethod ($b+'api/token') -TimeoutSec 4).token; Invoke-RestMethod ($b+{}) -Method Post -Headers @{{'X-Cafe-Token'=$t}} -TimeoutSec 45 | ConvertTo-Json -Depth 12 -Compress", literal(route))
+        format!("$ErrorActionPreference='Stop'; $b='{PANEL_URL}'; $t=(Invoke-RestMethod ($b+'api/token') -TimeoutSec 4).token; Invoke-RestMethod ($b+{}) -Method Post -Headers @{{'X-Cafe-Token'=$t}} -TimeoutSec {timeout} | ConvertTo-Json -Depth 12 -Compress", literal(route))
     } else {
         format!("$ErrorActionPreference='Stop'; Invoke-RestMethod {} -TimeoutSec 4 | ConvertTo-Json -Depth 12 -Compress", literal(&format!("{PANEL_URL}{route}")))
     };

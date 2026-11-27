@@ -20,9 +20,14 @@ async function chooseWorkspace() {
     const code = [
       '$ErrorActionPreference = "Stop"',
       '[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)',
-      '$shell = New-Object -ComObject Shell.Application',
-      "$folder = $shell.BrowseForFolder(0, '请选择包含 cybercafe-* 子项目的目录', 1)",
-      'if ($folder) { $folder.Self.Path }',
+      'Add-Type -AssemblyName System.Windows.Forms',
+      '$owner = New-Object System.Windows.Forms.Form',
+      '$owner.TopMost = $true',
+      '$dialog = New-Object System.Windows.Forms.FolderBrowserDialog',
+      "$dialog.Description = '请选择包含 cybercafe-* 子项目的目录'",
+      '$dialog.ShowNewFolderButton = $false',
+      'try { if ($dialog.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { $dialog.SelectedPath } }',
+      'finally { $dialog.Dispose(); $owner.Dispose() }',
     ].join('\n');
     const { stdout } = await run(POWERSHELL, [
       '-NoProfile', '-STA', '-EncodedCommand', Buffer.from(code, 'utf16le').toString('base64'),

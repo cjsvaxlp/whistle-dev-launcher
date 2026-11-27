@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { existsSync, mkdtempSync, mkdirSync, realpathSync, writeFileSync, readFileSync, rmSync } = require('node:fs');
+const { existsSync, mkdtempSync, mkdirSync, realpathSync, renameSync, writeFileSync, readFileSync, rmSync } = require('node:fs');
 const { join } = require('node:path');
 const { tmpdir } = require('node:os');
 const { spawn, spawnSync, execFileSync } = require('node:child_process');
@@ -167,6 +167,17 @@ test('同名 clone 切换需确认，停止原目录全部托管进程并保留�
   assert.equal(projects.jobs.get('demo').status, 'done');
   failSync = false;
   assert.equal(await projects.runSync(), true);
+  // A stale saved checkout must remain recoverable through directory selection.
+  renameSync(b, b + '-moved');
+  const missingResponse = await fetch(base + '/api/projects');
+  assert.equal(missingResponse.status, 503);
+  const missingData = await missingResponse.json();
+  assert.equal(missingData.code, 'ENOENT');
+  assert.ok(missingData.message.includes(b));
+  const recovered = await post('/api/workspace', { directory: a, confirmed: '1', previousWorkspace: b });
+  assert.equal(recovered.status, 200);
+  assert.equal(projects.snapshot().workspace, a);
+  assert.ok(projects.snapshot().projects.some(project => project.name === 'demo'));
 });
 
 test('原目录服务停止失败时不保存新目录、不改代理，并释放切换锁', async () => {

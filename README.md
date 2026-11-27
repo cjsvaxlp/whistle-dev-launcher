@@ -118,7 +118,7 @@ Windows 使用 NSIS 当前用户安装；两端共用应用名称 `Cybercafe 本
 | --- | --- |
 | `panel/` | 主面板、全局布局、深浅主题和功能初始化。 |
 | `features/projects/` | 项目列表、收藏、启停、状态和操作编排；日志不可读不阻断项目列表，列表失败保留具体原因；准备中每 3 秒刷新，空闲每 15 秒刷新，失败时逐步退避至 120 秒，恢复后重置，隐藏时暂停。 |
-| `features/workspace/` | 目录选择、最近记录、分支、切换与持久化；Windows 异步原生选择失败时回退到 PowerShell STA 系统选择器，取消不回退。 |
+| `features/workspace/` | 目录选择、最近记录、分支、切换与持久化；Windows 统一使用 PowerShell STA + Windows Forms 系统目录选择器，不依赖 WebView IPC；取消不保存。 |
 | `features/terminal/` | 后台启动服务、内嵌终端和输出展示。 |
 | `features/doctor/` | 环境、证书、代理检查与修复。 |
 | `features/system-proxy/` | 代理模式、Advanced 选项和 PAC。 |
@@ -149,7 +149,7 @@ Windows 使用 NSIS 当前用户安装；两端共用应用名称 `Cybercafe 本
 | `desktop/src/main.rs` | 应用初始化与系统事件。 |
 | `desktop/src/menu/` | 菜单、后台操作和状态反馈。 |
 | `desktop/src/window/` | 窗口、原生按钮、导航与下载范围。 |
-| `desktop/src/lifecycle/` | 串行启停、退出清理和失败保护。 |
+| `desktop/src/lifecycle/` | 串行启停和退出清理；`windows.rs` 为 Windows 清理设置 15 秒上限，失败仍退出；macOS 保留原有代理恢复与失败保护。 |
 | `desktop/src/services/` | 共用服务流程；仅环境查找和进程操作保留平台差异，嵌入脚本按需安装 Whistle。 |
 | `desktop/src/system_proxy/` | macOS PAC 接管、原设置备份、恢复与授权。 |
 | `desktop/capabilities/` | 仅向本机面板授予必要的窗口操作权限。 |

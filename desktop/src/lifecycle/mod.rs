@@ -1,6 +1,8 @@
 //! A single, serialized shutdown path for the panel, tray menu and OS quit.
 use std::sync::{atomic::{AtomicBool, Ordering}, Mutex, MutexGuard};
 use tauri::{AppHandle, Manager};
+#[cfg(any(target_os = "windows", test))]
+mod windows;
 
 static EXITING: AtomicBool = AtomicBool::new(false);
 static EXIT_READY: AtomicBool = AtomicBool::new(false);
@@ -26,6 +28,25 @@ fn clean_up(
     stop_whistle().map_err(|error| format!("停止 Whistle 失败：{error}"))
 }
 
+#[cfg(target_os = "windows")]
+pub fn request_exit(app: &AppHandle) {
+    if EXITING.swap(true, Ordering::AcqRel) { return; }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let result = windows::bounded_cleanup(std::time::Duration::from_secs(15), || {
+            let _operation = operation_lock();
+            let projects = crate::services::stop_project_services();
+            // A failed API must never prevent attempting owned Whistle cleanup.
+            let whistle = crate::services::stop_owned();
+            projects.and(whistle)
+        });
+        if let Err(error) = result { eprintln!("退出清理未完成：{error}"); }
+        EXIT_READY.store(true, Ordering::Release);
+        app.exit(0);
+    });
+}
+
+#[cfg(not(target_os = "windows"))]
 pub fn request_exit(app: &AppHandle) {
     if EXITING.swap(true, Ordering::AcqRel) { return; }
     #[cfg(target_os = "macos")]

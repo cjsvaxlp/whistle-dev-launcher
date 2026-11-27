@@ -424,32 +424,37 @@ test('macOS 目录选择仍走服务端，不调用 Windows 原生命令', async
   assert.equal(requests, 1);
 });
 
-for (const outcome of ['cancel', 'reject', 'select']) {
-  test(`Windows 目录选择：${outcome}，取消不回退，调用失败回退且防止重复打开`, async () => {
-    const requests = [];
+for (const outcome of ['cancel', 'error', 'select']) {
+  test(`Windows 系统目录选择：${outcome}，不依赖 IPC 且防止重复打开`, async () => {
+    let requests = 0;
     let finish;
-    let invokes = 0;
+    let loads = 0;
+    const errors = [];
     const { context, nodes } = harness('../features/workspace/actions.mjs', {
       window: { cafeDesktopPlatform: 'windows', __TAURI__: { core: {
-        invoke: () => { invokes++; return new Promise((resolve, reject) => {
-          finish = () => outcome === 'reject' ? reject('native IPC unavailable')
-            : resolve(outcome === 'cancel' ? null : 'D:\\项目\\cybercafe-front');
-        }); },
+        invoke: () => { throw new Error('must not use native IPC'); },
       } } },
-      post: async (url, body) => { requests.push(body); return {
-        ok: true, json: async () => ({ cancelled: true }),
-      }; },
+      post: async (url, body) => {
+        requests++;
+        assert.equal(body, undefined);
+        return new Promise(resolve => { finish = () => resolve({
+          ok: outcome !== 'error', json: async () => outcome === 'cancel' ? { cancelled: true }
+            : outcome === 'error' ? { message: '无法打开系统选择器' }
+              : { workspace: 'D:/项目/cybercafe-front' },
+        }); });
+      },
+      showError: message => errors.push(message),
+      load: async () => { loads++; },
     });
-    vm.runInContext('bindWorkspaceActions({ load: async () => {}, showDoctor: async () => {} });', context);
+    vm.runInContext('bindWorkspaceActions({ load, showDoctor: async () => {} });', context);
     const picker = nodes.get('#save-workspace');
     const first = picker.listeners.click();
     await picker.listeners.click();
-    assert.equal(invokes, 1);
+    assert.equal(requests, 1);
     finish();
     await first;
-    assert.equal(requests.length, outcome === 'cancel' ? 0 : 1);
-    if (outcome === 'reject') assert.equal(requests[0], undefined);
-    if (outcome === 'select') assert.equal(requests[0].get('directory'), 'D:\\项目\\cybercafe-front');
+    assert.equal(loads, outcome === 'select' ? 1 : 0);
+    assert.equal(errors.length, outcome === 'error' ? 1 : 0);
     assert.equal(picker.disabled, false);
   });
 }
