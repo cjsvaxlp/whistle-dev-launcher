@@ -16,7 +16,7 @@ export function bindWorkspaceSelector({ updateWorkspace }) {
     const working = busy || add.dataset.pending === 'true' || Boolean(snapshot?.projects?.some(project => project.launching || project.installing));
     select.disabled = working || (!snapshot?.workspace && !overview?.workspaces?.length);
     add.disabled = working;
-    add.textContent = snapshot?.workspace ? '切换项目目录' : '选择项目目录';
+    add.textContent = snapshot?.workspaceUnavailable ? '重新选择项目目录' : snapshot?.workspace ? '切换项目目录' : '选择项目目录';
     const directory = snapshot?.workspace || '';
     const separator = directory.includes('\\') ? '\\' : '/';
     const segments = directory.split(/[\\/]+/).filter(Boolean);
@@ -26,11 +26,11 @@ export function bindWorkspaceSelector({ updateWorkspace }) {
       : directory || '选择包含 cybercafe-* 子项目的目录';
     path.title = snapshot?.workspace || '';
     select.title = snapshot?.workspace || '选择最近使用的工作目录';
-    branch.textContent = overviewError ? '暂时无法读取分支与最近记录' : overview?.current === snapshot?.workspace
+    branch.textContent = snapshot?.workspaceUnavailable ? '目录已失效' : overviewError ? '暂时无法读取分支与最近记录' : overview?.current === snapshot?.workspace
       ? overview.branch ? `分支：${overview.branch}` : snapshot?.workspace ? '未检测到 Git 分支' : ''
       : snapshot?.workspace ? '正在读取分支…' : '';
     const entries = overview?.workspaces || [];
-    const key = JSON.stringify([snapshot?.workspace, entries]);
+    const key = JSON.stringify([snapshot?.workspace, snapshot?.workspaceUnavailable, entries]);
     if (select.dataset.entries !== key) {
       const items = [...entries];
       if (snapshot?.workspace && !items.some(item => item.directory === snapshot.workspace)) items.unshift({ directory: snapshot.workspace, label: '当前工作区', available: true });
@@ -40,7 +40,7 @@ export function bindWorkspaceSelector({ updateWorkspace }) {
         option.value = item.directory;
         const label = item.directory.split(/[\\/]+/).filter(Boolean).at(-1) || '项目目录';
         option.textContent = item.directory === snapshot?.workspace
-          ? label : `${label}${item.available ? '' : '（目录不存在）'} · ${item.directory}`;
+          ? `${label}${snapshot.workspaceUnavailable ? '（目录已失效）' : ''}` : `${label}${item.available ? '' : '（目录不存在）'} · ${item.directory}`;
         option.disabled = !item.available && item.directory !== snapshot?.workspace;
         select.append(option);
       }

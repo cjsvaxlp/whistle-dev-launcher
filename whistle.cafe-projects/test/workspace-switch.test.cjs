@@ -173,6 +173,7 @@ test('同名 clone 切换需确认，停止原目录全部托管进程并保留�
   assert.equal(missingResponse.status, 503);
   const missingData = await missingResponse.json();
   assert.equal(missingData.code, 'ENOENT');
+  assert.equal(missingData.workspaceUnavailable, true);
   assert.ok(missingData.message.includes(b));
   const recovered = await post('/api/workspace', { directory: a, confirmed: '1', previousWorkspace: b });
   assert.equal(recovered.status, 200);

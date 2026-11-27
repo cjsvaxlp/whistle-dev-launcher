@@ -467,3 +467,46 @@ test('项目列表失败展示接口具体原因', async () => {
   assert.equal(nodes.get('#issue-title').textContent, '项目列表读取失败');
   assert.equal(nodes.get('#issue-detail').textContent, '找不到项目工作区，请重新选择目录。');
 });
+
+for (const platform of ['macos', 'windows']) {
+  test(`${platform}: 已删除的工作区显示恢复入口，恢复后回到正常状态`, async () => {
+    let mode = 'missing';
+    let picks = 0;
+    const notifications = [];
+    const { context, nodes } = harness('../features/projects/client.mjs', {
+      window: { cafeDesktopPlatform: platform },
+      reportError: (key, message) => { if (message) notifications.push(message); },
+      fetch: async () => {
+        if (mode === 'network') throw new Error('连接中断');
+        return mode === 'missing' ? { ok: false, json: async () => ({ workspace: '/old/project', workspaceUnavailable: true,
+          message: '之前选择的项目目录已不存在或已移动。原路径：/old/project。请重新选择项目目录。' }) }
+          : { ok: true, json: async () => ({ workspace: '/new/project', projects: [], proxyEnabled: false }) };
+      },
+    });
+    context.document.querySelector('#save-workspace').addEventListener('click', () => { picks++; });
+    await context.load();
+    assert.equal(nodes.get('#issue-title').textContent, '项目目录已失效');
+    assert.match(nodes.get('#issue-detail').textContent, /old\/project/);
+    assert.equal(nodes.get('#issue-retry').textContent, '重新选择项目目录');
+    assert.equal(nodes.get('#issue-retry').disabled, false);
+    assert.equal(nodes.get('#issue-doctor').hidden, true);
+    assert.equal(nodes.get('#local-proxy').disabled, true);
+    vm.runInContext('render();', context);
+    assert.equal(nodes.get('#sync').textContent, '等待重新选择工作区');
+    assert.equal(nodes.get('#sync-now').hidden, true);
+    await nodes.get('#issue-retry').click();
+    assert.equal(picks, 1);
+    await context.load();
+    assert.deepEqual(notifications, []);
+    mode = 'network';
+    await context.load();
+    assert.equal(nodes.get('#issue-title').textContent, '项目列表读取失败');
+    assert.equal(nodes.get('#issue-detail').textContent, '连接中断');
+    assert.equal(nodes.get('#issue-retry').textContent, '重试');
+    mode = 'ready';
+    await context.load();
+    assert.equal(nodes.get('#project-issue').hidden, true);
+    assert.equal(nodes.get('#issue-doctor').hidden, false);
+    assert.equal(nodes.get('#local-proxy').disabled, false);
+  });
+}

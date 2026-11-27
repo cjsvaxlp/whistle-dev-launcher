@@ -131,7 +131,9 @@ function renderList() {
   if (!projects.length) {
     const empty = document.createElement('p');
     empty.className = 'empty';
-    if (loadError) {
+    if (snapshot.workspaceUnavailable) {
+      empty.textContent = '原项目目录已不存在，请重新选择。';
+    } else if (loadError) {
       empty.textContent = loadError;
     } else if (!snapshot.workspace) {
       empty.textContent = '尚未配置项目工作区。';
@@ -166,7 +168,11 @@ function render() {
     return render();
   }
 
-  if (!snapshot.workspace) {
+  if (snapshot.workspaceUnavailable) {
+    sync.textContent = '等待重新选择工作区';
+    sync.dataset.state = 'warn';
+    syncNow.hidden = true;
+  } else if (!snapshot.workspace) {
     sync.textContent = '等待选择工作区';
     sync.dataset.state = '';
     syncNow.hidden = true;
@@ -191,7 +197,7 @@ function render() {
   renderList();
   document.dispatchEvent(new CustomEvent('cafe-projects-updated', { detail: snapshot }));
   renderReadiness(info);
-  title.textContent = info ? `cybercafe-${info.name}` : '选择项目';
+  title.textContent = snapshot.workspaceUnavailable ? '重新选择项目目录' : info ? `cybercafe-${info.name}` : '选择项目';
 
   if (info && info.active) {
     meta.textContent = '';
@@ -201,6 +207,8 @@ function render() {
     meta.textContent = '缺少开发依赖，可以在启动时安装。';
   } else if (info) {
     meta.textContent = '';
+  } else if (snapshot.workspaceUnavailable) {
+    meta.textContent = '之前选择的目录已失效，选择新的项目目录后即可继续。';
   } else {
     meta.textContent = '在左侧选择项目后，可以启动本地开发服务。';
   }
@@ -305,8 +313,8 @@ export function load({ fresh = false } = {}) {
     .then(response => response.json().then(data => ({ response, data })))
     .then(({ response, data }) => {
       if (!response.ok) {
-        snapshot = { workspace: data.workspace, projects: [] };
-        throw new Error(data.message || '读取状态失败。');
+        snapshot = { workspace: data.workspace, workspaceUnavailable: data.workspaceUnavailable === true, projects: [] };
+        throw Object.assign(new Error(data.message || '读取状态失败。'), { workspaceUnavailable: data.workspaceUnavailable === true });
       }
       loadError = '';
       refreshFailures = 0;
@@ -323,10 +331,11 @@ export function load({ fresh = false } = {}) {
     .catch(error => {
       refreshFailures++;
       snapshot ??= { projects: [] };
-      reportError('projects-load', error.message);
+      snapshot.workspaceUnavailable = error.workspaceUnavailable === true;
+      reportError('projects-load', snapshot.workspaceUnavailable ? '' : error.message);
       loadError = error.message || '暂时无法读取项目列表';
       render();
-      sync.textContent = '暂时无法读取状态';
+      sync.textContent = snapshot.workspaceUnavailable ? '等待重新选择工作区' : '暂时无法读取状态';
       sync.dataset.state = 'warn';
     })
     .finally(() => {
@@ -460,15 +469,19 @@ function renderReadiness(info) {
   const detail = loadError || error?.message || (failed && info.startup.message) || (info?.installStatus === 'failed' && '依赖安装失败，请查看终端中的具体原因，处理后重新安装。') || syncFailure;
   const issue = document.querySelector('#project-issue');
   issue.hidden = !detail;
-  document.querySelector('#issue-title').textContent = loadError ? '项目列表读取失败' : error || failed ? '项目操作未完成' : info?.installStatus === 'failed' ? '依赖安装失败' : '代理规则未就绪';
+  document.querySelector('#issue-title').textContent = snapshot.workspaceUnavailable ? '项目目录已失效' : loadError ? '项目列表读取失败' : error || failed ? '项目操作未完成' : info?.installStatus === 'failed' ? '依赖安装失败' : '代理规则未就绪';
   document.querySelector('#issue-detail').textContent = typeof detail === 'string' ? detail : '同步状态已过期，请在环境体检中检查并同步规则。';
   retryAction = loadError || (!error && !failed && info?.installStatus !== 'failed') ? 'load' : error?.action || (info?.installStatus === 'failed' ? 'install' : 'start');
+  if (snapshot.workspaceUnavailable) retryAction = 'workspace';
   const retry = document.querySelector('#issue-retry');
+  retry.textContent = snapshot.workspaceUnavailable ? '重新选择项目目录' : '重试';
   retry.hidden = retryAction === 'load' && !loadError;
-  retry.disabled = busy || Boolean(info?.installing || info?.launching) || (retryAction !== 'load' && !info);
+  retry.disabled = busy || Boolean(info?.installing || info?.launching) || (!['load', 'workspace'].includes(retryAction) && !info);
+  document.querySelector('#issue-doctor').hidden = Boolean(snapshot.workspaceUnavailable);
   document.querySelector('#issue-log').hidden = !info?.log && !info?.startup?.hasLog;
 }
 document.querySelector('#issue-retry').addEventListener('click', () => {
+  if (retryAction === 'workspace') return document.querySelector('#save-workspace').click();
   if (retryAction === 'load') return load();
   // 复用原操作入口，保留确认弹窗、安装提示和按钮的可用性判断。
   const control = { start, install, 'install-and-start': start, stop, 'restart-service': restartService, takeover }[retryAction];

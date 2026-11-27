@@ -84,8 +84,9 @@ async function handle(request, response) {
         return json(response, 200, snapshot());
       } catch (error) {
         const workspace = readWorkspace();
-        return json(response, 503, { workspace, code: error.code, message: error.code === 'ENOENT' || error.code === 'ENOTDIR'
-          ? `无法读取项目工作区「${workspace}」（${error.code}）。请重新选择本机项目目录。` : error.message });
+        return json(response, 503, { workspace, code: error.code, workspaceUnavailable: error.workspaceUnavailable === true,
+          message: error.workspaceUnavailable
+            ? `之前选择的项目目录已不存在或已移动。原路径：${workspace}。请重新选择项目目录。` : error.message });
       }
     }
     if (path === '/api/doctor') {

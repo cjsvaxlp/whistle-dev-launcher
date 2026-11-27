@@ -118,7 +118,7 @@ Windows 使用 NSIS 当前用户安装；两端共用应用名称 `Cybercafe 本
 | --- | --- |
 | `panel/` | 主面板、全局布局、深浅主题和功能初始化。 |
 | `features/projects/` | 项目列表、收藏、启停、状态和操作编排；日志不可读不阻断项目列表，列表失败保留具体原因；准备中每 3 秒刷新，空闲每 15 秒刷新，失败时逐步退避至 120 秒，恢复后重置，隐藏时暂停。 |
-| `features/workspace/` | 目录选择、最近记录、分支、切换与持久化；Windows 统一使用 PowerShell STA + Windows Forms 系统目录选择器，不依赖 WebView IPC；取消不保存。 |
+| `features/workspace/` | 目录选择、最近记录、分支、切换与持久化；macOS 和 Windows 均将已删除或移动的目录显示为失效状态，保留原路径并提供重新选择入口，持续失效不重复弹出错误；Windows 统一使用 PowerShell STA + Windows Forms 系统目录选择器，不依赖 WebView IPC；取消不保存。 |
 | `features/terminal/` | 后台启动服务、内嵌终端和输出展示。 |
 | `features/doctor/` | 环境、证书、代理检查与修复。 |
 | `features/system-proxy/` | 代理模式、Advanced 选项和 PAC。 |

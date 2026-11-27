@@ -5,7 +5,15 @@ const { readWorkspace, stateDir, stateFile, prefsFile } = require('../../shared/
 
 function listProjects(directory = readWorkspace()) {
   if (!directory) return [];
-  return readdirSync(directory, { withFileTypes: true })
+  let entries;
+  try { entries = readdirSync(directory, { withFileTypes: true }); }
+  catch (error) {
+    // Only a failure to read the workspace itself means the saved path is gone.
+    // Missing dependencies/logs and permission errors must keep their own cause.
+    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') error.workspaceUnavailable = true;
+    throw error;
+  }
+  return entries
     .filter(entry => entry.isDirectory() && /^cybercafe-[a-z0-9-]+$/.test(entry.name)
       && existsSync(join(directory, entry.name, 'package.json')))
     .map(entry => entry.name.slice('cybercafe-'.length))
