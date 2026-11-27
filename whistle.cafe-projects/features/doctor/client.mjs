@@ -23,15 +23,26 @@ export function bindDoctor({ load }) {
   function positionHelp() {
     if (!help.matches(':popover-open')) return;
     const anchor = helpButton.getBoundingClientRect();
-    const gap = 8;
+    const box = doctorModal.querySelector('.modal-box').getBoundingClientRect();
     const inset = 12;
+    const gap = 8;
+    const left = Math.max(inset, box.left + inset);
+    const right = Math.min(window.innerWidth - inset, box.right - inset);
+    const top = Math.max(inset, box.top + inset);
+    const bottom = Math.min(window.innerHeight - inset, box.bottom - inset);
+    help.style.width = `${Math.max(0, Math.min(560, right - left))}px`;
+    help.style.maxHeight = `${Math.max(0, bottom - top)}px`;
     const width = help.offsetWidth;
     const height = help.offsetHeight;
-    help.style.left = `${Math.max(inset, Math.min(anchor.left, window.innerWidth - width - inset))}px`;
-    help.style.top = `${Math.max(inset, Math.min(anchor.bottom + gap, window.innerHeight - height - inset))}px`;
+    const preferredTop = anchor.top - gap - height;
+    help.style.left = `${Math.max(left, Math.min(anchor.left, right - width))}px`;
+    help.style.top = `${Math.max(top, Math.min(preferredTop, bottom - height))}px`;
   }
   help.addEventListener('toggle', positionHelp);
   window.addEventListener('resize', positionHelp);
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(positionHelp).observe(doctorModal.querySelector('.modal-box'));
+  }
   doctorModal.addEventListener('scroll', positionHelp, true);
   document.querySelector('.doctor-advanced').addEventListener('toggle', event => {
     if (!event.target.open) help.hidePopover?.();

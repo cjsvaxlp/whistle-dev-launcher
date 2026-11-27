@@ -1018,7 +1018,7 @@ input, select, textarea { color: inherit; }
   position: fixed;
   inset: auto;
   box-sizing: border-box;
-  width: min(480px, calc(100vw - 24px));
+  width: min(560px, calc(100vw - 24px));
   max-height: calc(100dvh - 24px);
   overflow: auto;
   margin: 0;
