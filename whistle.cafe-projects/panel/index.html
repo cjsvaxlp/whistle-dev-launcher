@@ -17,7 +17,7 @@
       <span>代理总开关</span>
     </label>
   </div>
-  <fieldset class="proxy-mode-picker" id="proxy-mode-picker" role="radiogroup" aria-label="代理接入模式" disabled>
+  <fieldset class="proxy-mode-picker" id="proxy-mode-picker" role="radiogroup" aria-label="代理接入模式" disabled hidden>
     <label>
       <input id="browser-proxy-mode" name="proxy-mode" type="radio" value="browser" checked>
       <span>浏览器代理</span>
@@ -30,6 +30,11 @@
   <button class="ghost" id="doctor" type="button">体检</button>
   <button class="ghost" id="restart" type="button" title="重启 Whistle 以加载插件的最新代码">重启 Whistle</button>
   <a class="entry" id="entry" href="https://cloudgametest2.migufun.com:18443/cybercafe-power/#/amsportal" target="_blank" rel="noreferrer">打开测试入口</a>
+  <div class="window-controls" aria-label="窗口操作" hidden>
+    <button type="button" data-window-action="minimize" aria-label="最小化" title="最小化"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10"/></svg></button>
+    <button type="button" data-window-action="maximize" aria-label="最大化" title="最大化"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="maximize-icon" d="M3.5 3.5h9v9h-9z"/></svg></button>
+    <button type="button" data-window-action="close" aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 3 10 10M13 3 3 13"/></svg></button>
+  </div>
 </header>
 <div class="workspace-bar" aria-label="当前工作目录">
   <div class="workspace-picker">
@@ -118,6 +123,23 @@
     <div class="doctor-workspace">
       <span class="sync" id="sync" role="status">正在检查同步状态…</span>
     </div>
+    <details class="doctor-advanced">
+      <summary>advanced</summary>
+      <div class="browser-option-row">
+        <label><input id="enable-browser-proxy" type="checkbox" disabled> 启用浏览器代理模式</label>
+        <button class="browser-help-button" id="browser-help-button" type="button" popovertarget="browser-proxy-help" aria-label="浏览器代理配置说明" title="浏览器代理配置说明">ⓘ</button>
+        <span class="browser-option-tip" id="browser-option-tip">仅让开发浏览器走 Whistle，适合与 VPN 共用；需先配置扩展。</span>
+      </div>
+      <div id="browser-proxy-help" class="browser-proxy-help" popover="auto" role="dialog" aria-label="浏览器代理配置说明">
+      <strong>配置浏览器代理</strong>
+      <ol class="browser-proxy-guide">
+        <li>在 Chrome / Edge 安装 <a href="https://github.com/zero-peak/ZeroOmega#installation" target="_blank" rel="noreferrer">ZeroOmega（安装入口）</a>。</li>
+        <li>新建“Whistle”代理：HTTP，<code>127.0.0.1:8899</code>，无需账号密码。</li>
+        <li>新建“自动切换”，添加“网址正则”规则，选择 Whistle：<code>^https?://cloudgametest2\.migufun\.com:18443/</code>。其他地址保持直连；如依赖公司代理，请配置为原代理，勿选全局 Whistle。</li>
+        <li>在扩展里启用“自动切换”，再到主面板选择“浏览器代理”并刷新测试页。停止 Whistle 或退出应用后，扩展切回“系统代理”。</li>
+      </ol>
+      </div>
+    </details>
     <footer class="modal-foot">
       <button class="secondary" id="sync-now" type="button" hidden>立即同步</button>
       <button class="secondary danger" id="cleanup" type="button">清理生成文件</button>

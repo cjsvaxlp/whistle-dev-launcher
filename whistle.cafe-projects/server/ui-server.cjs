@@ -1,4 +1,4 @@
-const { modeSnapshot, setMode } = require('../features/system-proxy/mode.cjs');
+const { modeSnapshot, setMode, setBrowserOption } = require('../features/system-proxy/mode.cjs');
 const { cleanGeneratedFiles } = require('../features/cleanup/server.cjs');
 const { pacRoute, servePac } = require('../features/system-proxy/pac.cjs');
 const { selectWorkspace } = require('../features/workspace/server.cjs');
@@ -16,6 +16,7 @@ const { listLogRuns } = require('../features/logs/store.cjs');
 const { getRule, restartWhistle } = require('../features/whistle/server.cjs');
 
 const panelAssets = new Map([
+  ["/features/window-controls/client.mjs", ["features/window-controls/client.mjs", "text/javascript; charset=utf-8"]],
   ["/features/system-proxy/client.mjs", ["features/system-proxy/client.mjs", "text/javascript; charset=utf-8"]],
   ["/features/cleanup/client.mjs", ["features/cleanup/client.mjs", "text/javascript; charset=utf-8"]],
   ["/features/rules/dialog.css", ["features/rules/dialog.css", "text/css; charset=utf-8"]],
@@ -59,7 +60,7 @@ function servePanel(response, path) {
     const data = readPanel(file);
     response.setHeader('Content-Type', type);
     if (path === '/' || path === '/terminal.html') {
-      response.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'");
+      response.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' ipc: http://ipc.localhost; frame-src 'self'; frame-ancestors 'self'");
     }
     response.end((path === '/' || path === '/terminal.html') ? data.replace('CAFE_CSRF', token) : data);
   } catch {
@@ -143,6 +144,11 @@ async function handle(request, response) {
     if (fixMatch) return fix(request, response, fixMatch[1]);
   }
 
+  const browserOption = /^\/api\/browser-proxy-option\/(on|off)$/.exec(path);
+  if (browserOption && request.method === 'POST') {
+    if (isChangingWorkspace()) return json(response, 409, { message: '正在切换工作区，请稍后操作。' });
+    return setBrowserOption(request, response, browserOption[1] === 'on');
+  }
   const modeMatch = /^\/api\/proxy-mode\/(system|browser)$/.exec(path);
   if (modeMatch && request.method === 'POST') {
     if (isChangingWorkspace()) return json(response, 409, { message: '正在切换工作区，请稍后切换代理模式。' });

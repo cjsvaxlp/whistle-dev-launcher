@@ -32,6 +32,11 @@ fn update_connection_status(app: &AppHandle, text: &str, busy: bool) {
     }
 }
 
+#[cfg(target_os = "macos")]
+pub fn is_busy(app: &AppHandle) -> bool {
+    app.state::<MenuState>().busy.load(Ordering::Acquire)
+}
+
 pub fn run_action(app: &AppHandle, action: &str) {
     if crate::lifecycle::is_exiting() { return; }
     let state = app.state::<MenuState>();

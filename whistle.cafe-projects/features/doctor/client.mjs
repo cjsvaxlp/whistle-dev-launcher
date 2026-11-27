@@ -18,6 +18,36 @@ export function readDoctor() {
 }
 
 export function bindDoctor({ load }) {
+  const help = document.querySelector('#browser-proxy-help');
+  const helpButton = document.querySelector('#browser-help-button');
+  function positionHelp() {
+    if (!help.matches(':popover-open')) return;
+    const anchor = helpButton.getBoundingClientRect();
+    const box = doctorModal.querySelector('.modal-box').getBoundingClientRect();
+    const inset = 12;
+    const gap = 8;
+    const left = Math.max(inset, box.left + inset);
+    const right = Math.min(window.innerWidth - inset, box.right - inset);
+    const top = Math.max(inset, box.top + inset);
+    const bottom = Math.min(window.innerHeight - inset, box.bottom - inset);
+    help.style.width = `${Math.max(0, Math.min(560, right - left))}px`;
+    help.style.maxHeight = `${Math.max(0, bottom - top)}px`;
+    const width = help.offsetWidth;
+    const height = help.offsetHeight;
+    const preferredTop = anchor.top - gap - height;
+    help.style.left = `${Math.max(left, Math.min(anchor.left, right - width))}px`;
+    help.style.top = `${Math.max(top, Math.min(preferredTop, bottom - height))}px`;
+  }
+  help.addEventListener('toggle', positionHelp);
+  window.addEventListener('resize', positionHelp);
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(positionHelp).observe(doctorModal.querySelector('.modal-box'));
+  }
+  doctorModal.addEventListener('scroll', positionHelp, true);
+  document.querySelector('.doctor-advanced').addEventListener('toggle', event => {
+    if (!event.target.open) help.hidePopover?.();
+  });
+
 
   const FIX_LABELS = {
     'install-ca': '安装 CA',
@@ -124,11 +154,13 @@ export function bindDoctor({ load }) {
   document.querySelector('#rerun-doctor').addEventListener('click', () => showDoctor());
   document.querySelector('#close-doctor').addEventListener('click', () => {
     doctorModal.hidden = true;
+    help.hidePopover?.();
     localStorage.setItem('cafe-doctor-seen', '1');
   });
   doctorModal.addEventListener('click', event => {
     if (event.target === doctorModal) {
       doctorModal.hidden = true;
+      help.hidePopover?.();
       localStorage.setItem('cafe-doctor-seen', '1');
     }
   });

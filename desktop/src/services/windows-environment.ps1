@@ -5,6 +5,30 @@ param(
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 
+function Install-CafeWhistle([string]$NpmPath) {
+    # npm.cmd needs cmd.exe; explicitly suppress its console as well as npm's.
+    $info = [Diagnostics.ProcessStartInfo]::new()
+    $info.FileName = Join-Path $env:SystemRoot 'System32\cmd.exe'
+    $info.Arguments = '/d /s /c ""' + $NpmPath + '" install -g whistle --no-audit --no-fund --fetch-retries=1 --fetch-timeout=30000"'
+    $info.UseShellExecute = $false
+    $info.CreateNoWindow = $true
+    $info.RedirectStandardOutput = $true
+    $info.RedirectStandardError = $true
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $info
+    try {
+        [void]$process.Start()
+        $stdout = $process.StandardOutput.ReadToEndAsync()
+        $stderr = $process.StandardError.ReadToEndAsync()
+        $process.WaitForExit()
+        $detail = ($stderr.Result + "`n" + $stdout.Result).Trim()
+        if ($process.ExitCode -ne 0) {
+            if ($detail.Length -gt 1500) { $detail = $detail.Substring($detail.Length - 1500) }
+            throw "自动安装 Whistle 失败，请检查网络或 npm 全局目录权限后重试，也可手动执行 npm install -g whistle。`n$detail"
+        }
+    } finally { $process.Dispose() }
+}
+
 function Find-CafeEnvironment {
     # Explorer can retain an old PATH after Node/npm was installed. Read the
     # current user/machine paths as well as common Node/version-manager locations.
@@ -36,23 +60,27 @@ function Find-CafeEnvironment {
     $root = (& $npmPath root -g | Out-String).Trim()
     if ($LASTEXITCODE -ne 0 -or !$root) { throw '无法读取 npm 全局目录。请先在终端确认 npm root -g 可以正常运行。' }
     $cli = Join-Path $root 'whistle\bin\whistle.js'
-    if (!(Test-Path -LiteralPath $cli -PathType Leaf)) {
-        throw '缺少 Whistle。请在终端执行 npm install -g whistle，完成后点击“开启代理 / 启动 Whistle”重试。'
-    }
     $env:PATH = (Split-Path $node.Source) + ';' + (Split-Path $npmPath) + ';' + $env:PATH
+    if (!(Test-Path -LiteralPath $cli -PathType Leaf)) {
+        if ($CheckOnly) { throw '缺少 Whistle。启动应用时会自动执行 npm install -g whistle。' }
+        Install-CafeWhistle $npmPath
+        if (!(Test-Path -LiteralPath $cli -PathType Leaf)) {
+            throw 'npm 安装完成但未找到 Whistle，请检查 npm root -g，或手动执行 npm install -g whistle 后重试。'
+        }
+    }
     return @{ node = $node.Source; npm = $npmPath; whistle = $cli; version = $version }
 }
 
 try {
+    if (!$CheckOnly -and !(Test-Path -LiteralPath (Join-Path $ToolsRoot 'whistle.cafe-projects\package.json') -PathType Leaf)) {
+        throw '找不到工具内置插件，请重新安装 Cybercafe。'
+    }
     $environment = Find-CafeEnvironment
     if ($CheckOnly) {
         $environment | ConvertTo-Json -Compress
     } else {
-        if (!(Test-Path -LiteralPath (Join-Path $ToolsRoot 'whistle.cafe-projects\package.json') -PathType Leaf)) {
-            throw '找不到工具内置插件，请重新安装 Cybercafe。'
-        }
         # Use the user's Node/Whistle with the app's plugin; no global plugin link
-        # and no changes to the user's npm packages are required.
+        # and no global plugin link is required. Missing Whistle is installed once.
         & $environment.node $environment.whistle start -H 127.0.0.1 -p 8899 --addon $ToolsRoot
         if ($LASTEXITCODE -ne 0) { throw '启动 Whistle 失败。请确认本机 Whistle 可正常运行及 8899 端口未被其他程序占用。' }
     }

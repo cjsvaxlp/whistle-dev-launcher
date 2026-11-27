@@ -102,7 +102,18 @@ fn find_w2(contents: &Path) -> Result<PathBuf, String> {
             return Ok(path);
         }
     }
-    Err("找不到 w2。请先安装 Node.js 和 Whistle（npm i -g whistle），再启动桌面端。".into())
+    let output = Command::new("/bin/zsh")
+        .args(["-lc", include_str!("macos-environment.sh")])
+        .output()
+        .map_err(|error| format!("自动安装 Whistle 失败：{error}"))?;
+    if !output.status.success() {
+        let detail = String::from_utf8_lossy(&output.stderr);
+        let tail: String = detail.chars().rev().take(1500).collect::<Vec<_>>().into_iter().rev().collect();
+        return Err(tail.trim().to_owned());
+    }
+    let found = PathBuf::from(String::from_utf8_lossy(&output.stdout).trim());
+    if found.is_absolute() && found.is_file() { return Ok(found); }
+    Err("Whistle 安装后未找到 w2，请检查 npm 全局安装目录。".into())
 }
 
 fn ensure_plugin(contents: &Path, w2: &Path, path: &std::ffi::OsStr) -> Result<(), String> {

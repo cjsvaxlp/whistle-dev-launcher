@@ -1,6 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
+const { join } = require('node:path');
 const vm = require('node:vm');
 
 function harness(file, extra = {}) {
@@ -25,7 +26,7 @@ function harness(file, extra = {}) {
   };
   const values = new Map();
   const context = vm.createContext({
-    document, URLSearchParams, location: { search: '' },
+    document, window: { addEventListener() {} }, URLSearchParams, location: { search: '' },
     localStorage: { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) },
     CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } },
     showTerminal() {}, focusTerminal() {}, showError() {}, showInfo() {}, reportError() {},
@@ -225,4 +226,157 @@ test('确认切换后响应不完整时提示先确认状态，不误报成功�
   assert.equal(requests, 2);
   assert.equal(loads, 0);
   assert.match(errors[0], /刷新面板确认当前工作目录后再重试/);
+});
+
+const source = readFileSync(join(__dirname, '../shared/http/client.mjs'), 'utf8').replace(/^export /gm, '');
+function setup(dialog) {
+  const context = vm.createContext({
+    document: { querySelector: selector => selector.startsWith('meta') ? { content: 'test' } : dialog },
+    window: { confirm: () => { throw new Error('WebView native confirmation must not be called'); } },
+  });
+  vm.runInContext(source, context);
+  return context;
+}
+function createDialog() {
+  return {
+    open: false, returnValue: '', fields: {}, listeners: {},
+    querySelector(selector) { return this.fields[selector] ||= {}; },
+    addEventListener(event, listener) { this.listeners[event] = listener; },
+    showModal() { this.open = true; },
+    close(value) { this.returnValue = value; this.open = false; this.listeners.close(); },
+  };
+}
+test('embedded terminal confirms through its dialog without a desktop flag', async () => {
+  const dialog = createDialog(), context = setup(dialog);
+  const choice = context.confirmAction('停止服务？', { title: '停止服务', label: '停止' });
+  assert.equal(dialog.open, true);
+  assert.equal(dialog.fields['#confirm-message'].textContent, '停止服务？');
+  assert.equal(context.confirmAction('重复操作'), false);
+  dialog.close('confirm');
+  assert.equal(await choice, true);
+});
+test('cancelling the page dialog does not confirm the service action', async () => {
+  const dialog = createDialog(), context = setup(dialog);
+  const choice = context.confirmAction('停止服务？');
+  dialog.close('cancel');
+  assert.equal(await choice, false);
+});
+
+function render(overrides = {}, projectOverrides = {}, error) {
+  const nodes = new Map();
+  function element() { return { dataset: {}, children: [], replaceChildren() { this.children = []; }, append(child) { this.children.push(child); } }; }
+  const document = { querySelector(id) { if (!nodes.has(id)) nodes.set(id, element()); return nodes.get(id); }, createElement: element };
+  const info = { active: true, browser: { confirmed: true }, ...projectOverrides };
+  const context = { document, snapshot: { proxyEnabled: true, updatedAt: 'now', workspace: '/work', ...overrides }, selected: 'hub', actionErrors: new Map(error ? [['hub', error]] : []), loadError: '', busy: false, info };
+  vm.createContext(context);
+  const source = readFileSync(require.resolve('../features/projects/client.mjs'), 'utf8');
+  vm.runInContext(source.slice(source.indexOf('function renderReadiness(info)'), source.indexOf("document.querySelector('#issue-retry').addEventListener")) + '\nrenderReadiness(info);', context);
+  return nodes;
+}
+
+test('只有服务、规则和浏览器均确认时才标记测试链接已代理', () => {
+  assert.equal(render().get('#readiness-steps').children[2].dataset.complete, 'true');
+  for (const override of [{ stale: true }, { syncError: '同步失败' }, { proxyEnabled: false }]) {
+    const nodes = render(override);
+    assert.equal(nodes.get('#readiness-steps').children[2].dataset.complete, 'false');
+  }
+  assert.equal(render({}, { active: false }).get('#readiness-steps').children[2].dataset.complete, 'false');
+});
+test('启动失败保留实际原因，操作重试保留原动作', () => {
+  const nodes = render({}, { active: false, startup: { stage: 'failed', message: '端口被占用，请停止占用进程' } });
+  assert.equal(nodes.get('#project-issue').hidden, false);
+  assert.match(nodes.get('#issue-detail').textContent, /端口被占用/);
+  assert.equal(nodes.get('#issue-retry').disabled, false);
+  const action = render({}, {}, { message: '停止失败', action: 'stop' });
+  assert.equal(action.get('#issue-detail').textContent, '停止失败');
+});
+test('等待浏览器确认时保持未完成，同步错误可进入体检', () => {
+  assert.equal(render({}, { browser: {} }).get('#readiness-steps').children[2].dataset.complete, 'false');
+  const nodes = render({ syncError: '规则写入失败' });
+  assert.equal(nodes.get('#issue-detail').textContent, '规则写入失败');
+  assert.equal(nodes.get('#issue-retry').hidden, true);
+});
+
+test('主动关闭代理时不把旧同步状态显示为同步故障', () => {
+  const nodes = render({ proxyEnabled: false, stale: true, syncError: '旧错误' });
+  assert.equal(nodes.get('#project-issue').hidden, true);
+  assert.equal(nodes.get('#readiness-steps').children[1].dataset.complete, 'false');
+});
+
+test('Windows 窗口按钮在平台标记提前或延迟到达时均显示，只绑定一次操作', async () => {
+  for (const delayed of [false, true]) {
+    const events = {};
+    const calls = [];
+    const maximize = { querySelector: () => ({ setAttribute() {} }) };
+    const controls = { hidden: true, dataset: {}, querySelector: () => maximize,
+      addEventListener: (name, callback) => { events[name] = callback; } };
+    const native = { isMaximized: async () => false, close: async () => calls.push('close') };
+    const windowEvents = {};
+    const window = { cafeDesktopPlatform: delayed ? undefined : 'windows',
+      __TAURI__: { window: { getCurrentWindow: () => native } },
+      addEventListener: (name, callback) => { windowEvents[name] = callback; } };
+    const document = { readyState: 'interactive', documentElement: { dataset: {} },
+      querySelector: selector => selector === '.window-controls' ? controls : { addEventListener() {} },
+      addEventListener() {} };
+    const context = vm.createContext({ window, document, showError: error => assert.fail(error) });
+    const source = readFileSync(require.resolve('../features/window-controls/client.mjs'), 'utf8')
+      .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
+    vm.runInContext(source + '\nbindWindowControls();', context);
+    if (delayed) {
+      assert.equal(controls.hidden, true);
+      window.cafeDesktopPlatform = 'windows';
+      windowEvents['cafe-desktop-ready']();
+    }
+    assert.equal(controls.hidden, false);
+    vm.runInContext('bindWindowControls();', context);
+    await events.click({ target: { closest: () => ({ dataset: { windowAction: 'close' } }) } });
+    assert.deepEqual(calls, ['close']);
+  }
+});
+
+test('桌面平台标记不依赖尚未触发的 DOMContentLoaded，已加载页面也会通知控件', () => {
+  const rust = readFileSync(join(__dirname, '../../desktop/src/window/mod.rs'), 'utf8');
+  const template = rust.match(/"(if \(location\.origin[^\n]+)"/)[1];
+  const source = template.replaceAll('{{', '{').replaceAll('}}', '}').replace("'{}'", "'windows'");
+  for (const readyState of ['loading', 'interactive', 'complete']) {
+    let onReady;
+    const events = [];
+    const window = { dispatchEvent: event => events.push(event.type) };
+    window.top = window.self = window;
+    const document = { readyState, documentElement: { dataset: {} }, addEventListener: (_, callback) => { onReady = callback; } };
+    vm.runInNewContext(source, { window, document, location: { origin: 'http://127.0.0.1:8899' }, Event });
+    assert.equal(window.cafeDesktopPlatform, 'windows');
+    if (readyState === 'loading') onReady();
+    assert.equal(document.documentElement.dataset.desktopPlatform, 'windows');
+    assert.deepEqual(events, ['cafe-desktop-ready']);
+  }
+});
+
+test('高级浏览器选项控制工具栏显示，勾选不切模式，取消后回到系统代理', async () => {
+  const state = { mode: 'system', browserEnabled: false, supported: true, status: null };
+  const requests = [];
+  const { context, nodes } = harness('../features/system-proxy/client.mjs', {
+    window: { cafeDesktop: true, addEventListener() {} },
+    fetch: async () => ({ ok: true, json: async () => ({ ...state }) }),
+    post: async path => {
+      requests.push(path);
+      state.browserEnabled = path.endsWith('/on');
+      if (!state.browserEnabled) state.mode = 'system';
+      return { ok: true, json: async () => ({ ...state }) };
+    },
+  });
+  await context.bindProxyMode();
+  const picker = nodes.get('#proxy-mode-picker');
+  const option = nodes.get('#enable-browser-proxy');
+  assert.equal(picker.hidden, true);
+  option.checked = true;
+  await option.listeners.change();
+  assert.equal(picker.hidden, false);
+  assert.equal(state.mode, 'system');
+  state.mode = 'browser';
+  option.checked = false;
+  await option.listeners.change();
+  assert.equal(picker.hidden, true);
+  assert.equal(state.mode, 'system');
+  assert.deepEqual(requests, ['./api/browser-proxy-option/on', './api/browser-proxy-option/off']);
 });

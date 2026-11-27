@@ -8,10 +8,13 @@
   },
   "app": {
     "windows": [],
-    "macOSPrivateApi": false
+    "macOSPrivateApi": false,
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": false,
-    "icon": ["icons/icon.png"]
+    "icon": [
+      "icons/icon.png"
+    ]
   }
 }

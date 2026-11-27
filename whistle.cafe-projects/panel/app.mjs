@@ -1,4 +1,7 @@
+import { bindWindowControls } from '../features/window-controls/client.mjs';
+
 async function startPanel() {
+  bindWindowControls();
   let loaded;
   try {
     loaded = await Promise.all([

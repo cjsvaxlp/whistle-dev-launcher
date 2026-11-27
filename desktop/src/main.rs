@@ -13,8 +13,6 @@ fn main() {
     let app = tauri::Builder::default()
         .setup(|app| {
             menu::setup(app)?;
-            #[cfg(target_os = "macos")]
-            system_proxy::monitor(app.handle().clone());
             menu::run_action(
                 app.handle(),
                 if services::proxy_paused() {
@@ -23,6 +21,8 @@ fn main() {
                     "start"
                 },
             );
+            #[cfg(target_os = "macos")]
+            system_proxy::monitor(app.handle().clone());
             Ok(())
         })
         .build(tauri::generate_context!())

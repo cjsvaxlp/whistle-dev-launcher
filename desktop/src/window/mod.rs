@@ -54,6 +54,12 @@ fn is_test_page(url: &Url) -> bool {
         && url.path().starts_with("/cybercafe-")
 }
 
+fn is_proxy_help(url: &Url) -> bool {
+    url.scheme() == "https" && url.host_str() == Some("github.com")
+        && url.username().is_empty() && url.password().is_none() && url.port().is_none()
+        && url.path() == "/zero-peak/ZeroOmega"
+}
+
 fn open_test_page(url: &Url) {
     let url = url.as_str().to_owned();
     std::thread::spawn(move || {
@@ -72,15 +78,25 @@ fn open_panel(app: &AppHandle) -> tauri::Result<()> {
 
     let url = PANEL_URL.parse().expect("panel URL");
     let handle = app.clone();
-    let window = WebviewWindowBuilder::new(app, "panel", WebviewUrl::External(url))
+    let builder = WebviewWindowBuilder::new(app, "panel", WebviewUrl::External(url));
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .title_bar_style(tauri::TitleBarStyle::Overlay)
+        .hidden_title(true)
+        // Wry uses a titlebar inset, rather than the button's top coordinate.
+        .traffic_light_position(tauri::LogicalPosition::new(14.0, 21.0));
+    #[cfg(target_os = "windows")]
+    let builder = builder.decorations(false);
+    let window = builder
         .title("Cybercafe 本地调试")
         .inner_size(1100.0, 740.0)
         .min_inner_size(560.0, 400.0)
-        .initialization_script(
-            "if (location.origin === 'http://127.0.0.1:8899') { window.cafeDesktop = true; window.cafeDesktopTerminal = true; }",
-        )
+        .initialization_script(format!(
+            "if (location.origin === 'http://127.0.0.1:8899') {{ window.cafeDesktop = true; window.cafeDesktopTerminal = true; window.cafeDesktopPlatform = '{}'; if (window.top === window.self) {{ const ready = () => {{ document.documentElement.dataset.desktopPlatform = window.cafeDesktopPlatform; window.dispatchEvent(new Event('cafe-desktop-ready')); }}; if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready, {{ once: true }}); else ready(); }} }}",
+            if cfg!(target_os = "macos") { "macos" } else { "windows" },
+        ))
         .on_navigation(|url| {
-            if is_test_page(url) {
+            if is_test_page(url) || is_proxy_help(url) {
                 open_test_page(url);
                 return false;
             }
@@ -91,7 +107,10 @@ fn open_panel(app: &AppHandle) -> tauri::Result<()> {
                 || is_rules_page(url)
                 || is_log_download(url)
         })
-        .on_new_window(|_, _| NewWindowResponse::Deny)
+        .on_new_window(|url, _| {
+            if is_proxy_help(&url) { open_test_page(&url); }
+            NewWindowResponse::Deny
+        })
         .on_download(|_, event| match event {
             DownloadEvent::Requested { url, .. } => is_log_download(&url),
             _ => true,

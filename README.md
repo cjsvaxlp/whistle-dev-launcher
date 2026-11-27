@@ -87,7 +87,7 @@ git push origin v0.1.1
 
 请先把工作流修改提交到要打 tag 的版本中。发布使用 GitHub 自带的 `GITHUB_TOKEN`，仅发布任务申请 `contents: write`，无需额外配置个人令牌。构建失败时不会执行发布任务，可从 Actions 日志排查后重跑。
 
-构建使用 GitHub 托管机器，本机无需安装 Rust。macOS 包使用现有 ad-hoc 签名。Windows EXE 与 macOS 一样仅包含桌面程序和工具资源，不内置 Node.js、npm 或 Whistle，运行时自动查找本机环境。每次构建先运行相关测试，失败时可在 Actions 日志中查看原因。
+构建使用 GitHub 托管机器，本机无需安装 Rust。macOS 包使用现有 ad-hoc 签名。Windows EXE 与 macOS 一样仅包含桌面程序和工具资源，不内置 Node.js、npm 或 Whistle，运行时自动查找本机环境；两端缺少 Whistle 时后台执行 `npm install -g whistle`，已有则复用，Node/npm 仍需预先安装。每次构建先运行相关测试，失败时可在 Actions 日志中查看原因。
 
 ## 代码目录与职责
 
@@ -105,6 +105,7 @@ git push origin v0.1.1
 | `features/doctor/client.mjs` | 环境体检结果和修复操作界面。 |
 | `features/rules/` | 规则预览、复制及内嵌 Whistle 编辑器弹框。 |
 | `features/whistle/client.mjs` | 面板中的 Whistle 重启、同步和浏览器打开操作。 |
+| `features/window-controls/` | Windows 桌面端工具栏的最小化、最大化/还原和关闭操作；浏览器和 macOS 使用各自原有控件。 |
 | `features/badge/` | 注入测试页面的环境徽标及其样式。 |
 | `shared/toast/` | 共用 Apple 风格错误提示，2 秒自动消失，并对轮询错误去重。 |
 | `shared/http/client.mjs` | 客户端请求、令牌刷新和操作确认。 |
@@ -120,7 +121,7 @@ git push origin v0.1.1
 | `features/proxy/` | 检测本地服务、生成 Whistle 规则并写入同步状态。 |
 | `features/startup/` | 跟踪启动阶段、服务退出、接管结果和超时。 |
 | `features/dependencies/` | 依赖安装进程、安装日志与安装后启动，维护安装任务状态。 |
-| `features/system-proxy/` | 代理接入模式开关、模式保存与状态展示，以及测试域名 PAC 内容和下载路由。 |
+| `features/system-proxy/` | 代理接入模式与高级浏览器选项的保存和交互，以及测试域名 PAC 内容和下载路由。体检 advanced 默认折叠，启用后才显示主面板模式切换；macOS 新用户默认系统代理，已有代理模式保留但需明确启用显示，Windows 同样默认隐藏模式切换，启用后显示并禁用不支持的系统代理选项。 |
 | `features/cleanup/` | 清理工具生成的日志、临时文件、同步状态、兼容代理文件和 PAC。 |
 | `features/runtime/` | 解析 Node 版本约束，选择运行时和依赖安装命令。 |
 | `features/terminal/launcher.cjs` | 后台启动开发服务并连接日志采集。 |
@@ -132,7 +133,7 @@ git push origin v0.1.1
 | `shared/config/` | 公共路径、测试入口和项目路由配置。 |
 | `shared/http/http.cjs` | HTTP 响应、令牌与本机请求鉴权。 |
 | `server/` | UI 服务入口、静态资源映射和 API 路由分发。 |
-| `test/` | 启动生命周期、运行时选择和日志功能的回归测试。 |
+| `test/` | 按功能保留关键回归测试：`panel-behavior` 面板操作与状态，`doctor` 体检与证书，`workspace-switch` 工作区切换与失败保护，`proxy` 代理模式与恢复；其余覆盖启动生命周期、运行时、浏览器回报、登录回跳及 Windows 环境。相同功能集中维护，避免单个修复新增零散文件；测试不进入安装包。 |
 
 `whistle.cafe-projects/index.cjs` 是插件入口。调整功能目录时，需要同步检查模块引用、页面资源映射与打包入口。
 
@@ -145,7 +146,7 @@ git push origin v0.1.1
 | `desktop/src/menu/` | 菜单栏、单色菜单图标、异步操作和状态反馈。 |
 | `desktop/src/window/` | 面板与终端窗口、导航范围和下载处理。 |
 | `desktop/src/system_proxy/` | macOS PAC 配置、原设置备份和恢复、授权状态及取消重试控制；空 PAC 通过系统配置接口清除，保留其他 VPN 设置。 |
-| `desktop/src/services/` | `mod.rs` 共用连接状态校验、暂停状态、代理恢复重试和测试入口；`macos.rs` / `windows.rs` 仅实现本机命令、环境查找及进程操作，Windows 环境脚本由程序嵌入执行。 |
+| `desktop/src/services/` | `mod.rs` 共用连接状态校验、暂停状态、代理恢复重试和测试入口；`macos.rs` / `windows.rs` 仅实现本机命令、环境查找及进程操作，`macos-environment.sh` / `windows-environment.ps1` 由程序嵌入执行，在缺少 Whistle 时后台安装，已有版本直接复用。 |
 | `desktop/ui/` | 连接异常时显示的本地页面。 |
 | `desktop/icons/` | 应用包使用 Cybercafe.icns，Tauri 默认图标使用其同款 PNG，保持 Dock 与应用图标一致。 |
 
@@ -157,7 +158,7 @@ git push origin v0.1.1
 | `scripts/commands/` | 可双击使用的通用项目启动、手动同步、桌面端启动、浏览器打开和打包入口。 |
 | `scripts/browser/` | macOS 默认浏览器标签页查找、复用和新建。 |
 | `scripts/preview-panel.cjs` | 独立的本地只读界面预览，提供醒目标识、禁用服务操作，只转发白名单中的状态读取请求。运行 `node scripts/preview-panel.cjs` 后访问 `http://127.0.0.1:18997/?doctor=0`。 |
-| `desktop/windows/` | NSIS 安装钩子及旧版内置运行时升级清理；不再包含另一套 CMD 安装和启动入口，不修改全局 Node/Whistle。 |
+| `desktop/windows/` | NSIS 安装钩子及旧版内置运行时升级清理；不再包含另一套 CMD 安装和启动入口，安装钩子不修改全局 Node/Whistle，启动时仅按需补装缺少的 Whistle。 |
 | `desktop/packaging/` | 共用资源收集、版本校验、应用组装和签名，供开发启动和分发打包使用。 |
 | `desktop/package-macos.sh` | 收集功能模块、脚本与桌面资源，生成可拖拽安装的 macOS DMG。 |
 
@@ -174,10 +175,10 @@ git push origin v0.1.1
 
 ### Windows EXE 构建
 
-Windows Tauri NSIS 工作流在 Windows runner 编译原生桌面应用并直接上传带构建日期的 NSIS EXE 安装包。
+Windows Tauri NSIS 工作流在 Windows runner 编译原生桌面应用并直接上传带构建日期的 NSIS EXE 安装包。Windows 应用名称沿用 macOS 的 `Cybercafe 本地调试`，共用 `desktop/tauri.conf.json` 的 `productName`，快捷方式及默认安装目录随该名称生成；安装包文件名继续保留日期。
 desktop/tauri.windows.conf.json 定义当前用户安装、WebView2 检测和运行资源。
 desktop/src/services/windows.rs 管理 Windows Whistle 和浏览器入口。
-桌面端从 PATH、当前用户/系统最新 PATH、常见 Node 安装位置及 NVM/Volta 等活动路径查找本机 Node 和 npm，通过 npm root -g 定位 Whistle；缺失时显示安装方法。项目仍按各自的版本约束选择 Node。
+桌面端从 PATH、当前用户/系统最新 PATH、常见 Node 安装位置及 NVM/Volta 等活动路径查找本机 Node 和 npm，通过 npm root -g 定位 Whistle；缺少 Whistle 时在后台自动安装，缺少 Node/npm 时提示先安装 Node.js LTS。项目仍按各自的版本约束选择 Node。
 Windows 实机安装、浏览器代理配合和浏览器标签页复用仍需验收。
 
 ### Windows 原生安装包
@@ -199,7 +200,7 @@ Windows 项目服务与 macOS 一样由插件后台启动，标准输出和错�
 
 两端桌面交互：打开测试入口或项目页均使用默认浏览器，不强制 Chrome、不创建独立浏览器配置、不在启动参数中设置全局代理。首次工作区由用户选择或输入，之后读取已保存目录；不扫描并自动选用其他项目。macOS 支持通过浏览器脚本复用标签页；Windows 通过默认浏览器打开地址，精确查找并切换已有标签页尚未支持。系统 PAC 自动接管与恢复目前仍仅支持 macOS，Windows 使用浏览器代理模式。
 
-Windows 首次使用先安装 Node.js LTS（包含 npm），然后执行 `npm install -g whistle`。可以在终端运行 `node --version`、`npm --version` 和 `w2 -h` 验证。无需安装 Rust 或手动启动 Whistle，应用负责启动/复用与加载内置插件。刚安装依赖后，在连接页点击“开启代理 / 启动 Whistle”重试；程序会重新读取当前环境。若使用 NVM，请先 `nvm use` 激活满足项目要求的 Node，并在该环境安装 Whistle。升级安装会移除旧应用目录 `tools/runtime`，不会移除用户自己安装的环境。
+Windows 首次使用先安装 Node.js LTS（包含 npm），应用启动时自动补装缺少的 Whistle（`npm install -g whistle`）。可以在终端运行 `node --version`、`npm --version` 和 `w2 -h` 验证。无需安装 Rust 或手动启动 Whistle，应用负责启动/复用与加载内置插件。刚安装依赖后，在连接页点击“开启代理 / 启动 Whistle”重试；程序会重新读取当前环境。若使用 NVM，请先 `nvm use` 激活满足项目要求的 Node，并在该环境安装 Whistle。升级安装会移除旧应用目录 `tools/runtime`，不会移除用户自己安装的环境。
 
 macOS 和 Windows 桌面服务统一从 `desktop/src/services/mod.rs` 进入，公共流程只有一份；系统差异保留在两个平台实现中。两端安装包均由 `desktop/packaging/resources.py` 收集插件资源，Windows 仅保留 Actions 原生 EXE 打包，不再维护独立的 Legacy CMD 分发包。
 
@@ -216,3 +217,5 @@ macOS 和 Windows 桌面服务统一从 `desktop/src/services/mod.rs` 进入，�
 面板首次读取项目与代理模式状态并行进行。终端和代理模式的页面轮询在页面隐藏时暂停，恢复可见时重新读取，并避免重叠请求；后台项目检测和规则同步仍持续运行。日志未变化时不重绘终端内容和诊断信息；普通日志轮询不启动 `ps/pgrep`，清理日志前仍执行原有进程归属校验。日志归属信息按文件标识缓存，文件变化或清理重建后自动失效。
 
 工作目录栏显示名称、分支和末两级目录，例如 `…/cloudgame-cybercafe/cybercafe-front`；悬停可查看完整路径，实际识别和切换仍使用完整真实路径。切换目录按钮始终可见；不显示首次使用向导，也不提供目录别名设置。
+
+macOS 主窗口的原生关闭、最小化和全屏按钮与第一栏工具栏合并，左侧保留安全间距；工具栏空白和品牌区域可拖动窗口。Windows 同样将最小化、最大化/还原和关闭按钮放在第一栏右侧，工具栏空白处可拖动，关闭沿用服务清理与退出流程。`desktop/capabilities/panel-drag.json` 将窗口操作限定在 `panel` 窗口和固定本机来源 `http://127.0.0.1:8899`。Tauri IPC 的 Origin 不含页面路径，因此权限不能限定到 `/plugin.cafe-projects/`；其他来源不授予权限，窗口导航继续由 Rust 校验。
